@@ -1,0 +1,97 @@
+@model List<Appointment.Models.User>
+@{
+    ViewData["Title"] = "Quản lý tài khoản người dùng";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0 text-primary">Quản Lý Tài Khoản Người Dùng</h3>
+    <a asp-action="CreateUser" class="btn btn-warning text-dark fw-bold">Tạo Tài Khoản Mới</a>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form asp-action="Users" method="get" class="row g-2">
+        <div class="col-md-5">
+            <input type="text" name="search" class="form-control" placeholder="Tìm theo tên, email, sđt..." value="@ViewBag.SearchTerm" />
+        </div>
+        <div class="col-md-4">
+            <select name="role" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Tất cả vai trò --</option>
+                <option value="Provider" selected="@(ViewBag.SelectedRole == "Provider" ? "selected" : null)">Provider (Nhà cung cấp)</option>
+                <option value="Staff" selected="@(ViewBag.SelectedRole == "Staff" ? "selected" : null)">Staff (Nhân viên)</option>
+                <option value="Customer" selected="@(ViewBag.SelectedRole == "Customer" ? "selected" : null)">Customer (Khách hàng)</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100 fw-bold">Tìm kiếm</button>
+        </div>
+    </form>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Họ và tên</th>
+                    <th>Email</th>
+                    <th>Số điện thoại</th>
+                    <th>Vai trò (Role)</th>
+                    <th>Ngày tạo</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Khóa / Kích hoạt</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@user.FullName</td>
+                        <td>@user.Email</td>
+                        <td>@(string.IsNullOrEmpty(user.PhoneNumber) ? "-" : user.PhoneNumber)</td>
+                        <td>
+                            @if (user.Role == "Provider")
+                            {
+                                <span class="badge bg-warning text-dark">Provider</span>
+                            }
+                            else if (user.Role == "Staff")
+                            {
+                                <span class="badge bg-info text-white">Staff</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-primary">Customer</span>
+                            }
+                        </td>
+                        <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (user.IsActive)
+                            {
+                                <span class="badge bg-success">Hoạt động</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Bị khóa</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" class="d-inline">
+                                @if (user.IsActive)
+                                {
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?');">
+                                        Khóa
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-outline-success btn-sm">
+                                        Kích hoạt
+                                    </button>
+                                }
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

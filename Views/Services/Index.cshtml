@@ -1,0 +1,103 @@
+@model List<Appointment.Models.Service>
+@{
+    ViewData["Title"] = "Danh sách dịch vụ";
+    var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
+}
+
+<div class="row">
+    <!-- Filter sidebar -->
+    <div class="col-lg-3 mb-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 sticky-lg-top" style="top: 20px;">
+            <h5 class="fw-bold mb-3">Bộ Lọc Tìm Kiếm</h5>
+            <form asp-action="Index" method="get">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Từ khóa</label>
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Tên dịch vụ, nhà cung cấp..." value="@ViewBag.SearchTerm" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Danh mục dịch vụ</label>
+                    <select name="categoryId" class="form-select form-select-sm">
+                        <option value="">-- Tất cả danh mục --</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id" selected="@(ViewBag.SelectedCategoryId == cat.Id ? "selected" : null)">@cat.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Khoảng giá (VNĐ)</label>
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <input type="number" name="minPrice" class="form-control form-control-sm" placeholder="Từ" value="@ViewBag.MinPrice" />
+                        </div>
+                        <div class="col-6">
+                            <input type="number" name="maxPrice" class="form-control form-control-sm" placeholder="Đến" value="@ViewBag.MaxPrice" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Địa điểm</label>
+                    <input type="text" name="location" class="form-control form-control-sm" placeholder="Hà Nội, TP.HCM..." value="@ViewBag.Location" />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 btn-sm fw-bold">
+                    Áp Dụng Lọc
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary w-100 btn-sm mt-2">Xóa bộ lọc</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service listing -->
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">Tất Cả Dịch Vụ (@Model.Count)</h4>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="alert alert-warning text-center py-5 rounded-4">
+                <h5 class="fw-bold">Không tìm thấy dịch vụ phù hợp</h5>
+                <p class="text-muted">Vui lòng thử thay đổi từ khóa hoặc bộ lọc tìm kiếm của bạn.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var item in Model)
+                {
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                            <div class="card-body p-4 d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1">@item.Category?.Name</span>
+                                    <span class="fw-bold text-success fs-5">@item.Price.ToString("N0") VNĐ</span>
+                                </div>
+                                <h5 class="card-title fw-bold text-dark mb-2">@item.Name</h5>
+                                <p class="card-text text-muted small flex-grow-1">@item.Description</p>
+
+                                <div class="border-top pt-3 mt-3">
+                                    <div class="small text-secondary mb-1">
+                                        Nhà cung cấp: <strong>@item.Provider?.FullName</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center small text-secondary">
+                                        <span>Thời lượng: @item.DurationMinutes phút</span>
+                                        <span>Địa điểm: @item.Location</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light border-0 p-3">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary w-100 fw-bold rounded-3">
+                                    Xem Lịch Trống & Đặt
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

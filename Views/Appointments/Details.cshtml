@@ -1,0 +1,95 @@
+@model Appointment.Models.AppointmentModel
+@{
+    ViewData["Title"] = "Chi tiết lịch hẹn";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold mb-0">Chi Tiết Lịch Hẹn</h4>
+                    <small>Tạo lúc: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                </div>
+                <div>
+                    @if (Model.Status == "Pending")
+                    {
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2">Chờ xác nhận</span>
+                    }
+                    else if (Model.Status == "Confirmed")
+                    {
+                        <span class="badge bg-info text-white fs-6 px-3 py-2">Đã xác nhận</span>
+                    }
+                    else if (Model.Status == "Completed")
+                    {
+                        <span class="badge bg-success fs-6 px-3 py-2">Đã hoàn thành</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary fs-6 px-3 py-2">Đã hủy</span>
+                    }
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <h6 class="fw-bold text-primary mb-3">Thông Tin Dịch Vụ</h6>
+                            <p class="mb-1"><strong>Dịch vụ:</strong> @Model.Service?.Name</p>
+                            <p class="mb-1"><strong>Danh mục:</strong> @Model.Service?.Category?.Name</p>
+                            <p class="mb-1"><strong>Thời lượng:</strong> @Model.Service?.DurationMinutes phút</p>
+                            <p class="mb-0"><strong>Giá dịch vụ:</strong> <span class="text-success fw-bold">@Model.Service?.Price.ToString("N0") VNĐ</span></p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <h6 class="fw-bold text-primary mb-3">Thời Gian & Địa Điểm</h6>
+                            <p class="mb-1"><strong>Ngày hẹn:</strong> @Model.AppointmentDate.ToString("dd/MM/yyyy")</p>
+                            <p class="mb-1"><strong>Khung giờ:</strong> @Model.StartTime.ToString(@"hh\:mm") - @Model.EndTime.ToString(@"hh\:mm")</p>
+                            <p class="mb-0"><strong>Địa điểm:</strong> @Model.Service?.Location</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <h6 class="fw-bold text-primary mb-3">Nhà Cung Cấp</h6>
+                            <p class="mb-1"><strong>Tên:</strong> @Model.Provider?.FullName</p>
+                            <p class="mb-1"><strong>Email:</strong> @Model.Provider?.Email</p>
+                            <p class="mb-0"><strong>Điện thoại:</strong> @Model.Provider?.PhoneNumber</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <h6 class="fw-bold text-primary mb-3">Khách Hàng</h6>
+                            <p class="mb-1"><strong>Họ tên:</strong> @Model.Customer?.FullName</p>
+                            <p class="mb-1"><strong>Email:</strong> @Model.Customer?.Email</p>
+                            <p class="mb-0"><strong>Điện thoại:</strong> @Model.Customer?.PhoneNumber</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <div class="mt-4 p-3 bg-warning-subtle rounded-3">
+                        <strong>Ghi chú của khách hàng:</strong>
+                        <p class="mb-0 text-dark">@Model.Notes</p>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-action="Index" class="btn btn-outline-secondary">Quay lại danh sách</a>
+
+                    @if (Model.Status == "Pending" || Model.Status == "Confirmed")
+                    {
+                        <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
+                            <button type="submit" class="btn btn-danger">Hủy cuộc hẹn</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

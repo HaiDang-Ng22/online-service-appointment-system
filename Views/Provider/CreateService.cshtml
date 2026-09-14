@@ -1,0 +1,72 @@
+@model Appointment.Models.Service
+@{
+    ViewData["Title"] = "Tạo dịch vụ mới";
+    var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white py-3">
+                <h4 class="fw-bold mb-0">Thêm Dịch Vụ Mới</h4>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="CreateService" method="post">
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label fw-semibold">Tên dịch vụ</label>
+                        <input asp-for="Name" class="form-control" placeholder="Ví dụ: Khám tổng quát, Cắt tóc nam..." required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CategoryId" class="form-label fw-semibold">Danh mục</label>
+                        <select asp-for="CategoryId" class="form-select" required>
+                            <option value="">-- Chọn danh mục --</option>
+                            @foreach (var c in categories)
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Price" class="form-label fw-semibold">Giá dịch vụ (VNĐ)</label>
+                            <input asp-for="Price" type="number" step="1000" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="DurationMinutes" class="form-label fw-semibold">Thời lượng (Phút)</label>
+                            <select asp-for="DurationMinutes" class="form-select">
+                                <option value="15">15 phút</option>
+                                <option value="30" selected>30 phút</option>
+                                <option value="45">45 phút</option>
+                                <option value="60">60 phút (1 giờ)</option>
+                                <option value="90">90 phút</option>
+                                <option value="120">120 phút (2 giờ)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Location" class="form-label fw-semibold">Địa điểm thực hiện</label>
+                        <input asp-for="Location" class="form-control" placeholder="Địa chỉ cung cấp dịch vụ" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label fw-semibold">Mô tả dịch vụ</label>
+                        <textarea asp-for="Description" class="form-control" rows="4" placeholder="Mô tả chi tiết những gì dịch vụ bao gồm..."></textarea>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input asp-for="IsActive" class="form-check-input" checked />
+                        <label asp-for="IsActive" class="form-check-label">Cho phép hiển thị và đặt lịch ngay</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Services" class="btn btn-outline-secondary">Hủy</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">Lưu Dịch Vụ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

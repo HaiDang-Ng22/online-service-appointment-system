@@ -1,0 +1,74 @@
+@model Appointment.Models.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Đăng ký tài khoản Khách hàng";
+}
+
+<div class="row justify-content-center my-4">
+    <div class="col-md-6">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-warning text-dark text-center py-4 rounded-top-4">
+                <h3 class="fw-bold mb-0">Đăng Ký Tài Khoản</h3>
+                <small class="text-dark-50">Tạo tài khoản Khách hàng (Customer) để đặt dịch vụ</small>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info py-2 px-3 small mb-3">
+                    <strong>Lưu ý:</strong> Form này dành riêng cho <strong>Khách hàng</strong> đăng ký tài khoản. Các tài khoản Nhà cung cấp (Provider), Nhân viên (Staff) hoặc Admin do <strong>Quản trị viên</strong> cấp.
+                </div>
+
+                <form asp-action="Register" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger p-2 small mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-semibold"></label>
+                        <input asp-for="FullName" class="form-control" placeholder="Nguyễn Văn A" autofocus />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold"></label>
+                        <input asp-for="Email" class="form-control" placeholder="nhapemail@example.com" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Password" class="form-label fw-semibold"></label>
+                            <input asp-for="Password" class="form-control" placeholder="Mật khẩu" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="ConfirmPassword" class="form-label fw-semibold"></label>
+                            <input asp-for="ConfirmPassword" class="form-control" placeholder="Nhập lại mật khẩu" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="PhoneNumber" class="form-label fw-semibold"></label>
+                        <input asp-for="PhoneNumber" class="form-control" placeholder="0987654321" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Address" class="form-label fw-semibold"></label>
+                        <input asp-for="Address" class="form-control" placeholder="Địa chỉ của bạn" />
+                        <span asp-validation-for="Address" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark rounded-3 shadow-sm">
+                        Hoàn Tất Đăng Ký
+                    </button>
+                </form>
+
+                <div class="text-center mt-4">
+                    <span class="text-muted">Đã có tài khoản? </span>
+                    <a asp-action="Login" class="fw-bold text-decoration-none">Đăng nhập ngay</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

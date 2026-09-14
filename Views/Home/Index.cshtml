@@ -1,0 +1,108 @@
+@{
+    ViewData["Title"] = "Trang chủ - AppointX";
+    var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
+    var featuredServices = ViewBag.FeaturedServices as List<Appointment.Models.Service> ?? new();
+}
+
+<div class="p-5 mb-4 bg-primary text-white rounded-4 shadow-sm">
+    <div class="row align-items-center py-3">
+        <div class="col-lg-12">
+            <h1 class="display-4 fw-bold mb-3">Đặt Lịch Dịch Vụ Nhanh Chóng & Dễ Dàng</h1>
+            <p class="fs-5 mb-4 opacity-75">
+                Tìm kiếm bác sĩ, salon/spa, chuyên gia tư vấn hoặc trung tâm thể thao và đặt lịch trực tuyến chỉ trong vài phút.
+            </p>
+
+            <form asp-controller="Services" asp-action="Index" method="get" class="bg-white p-2 rounded-4 shadow d-flex gap-2 flex-wrap flex-sm-nowrap">
+                <input type="text" name="search" class="form-control form-control-lg border-0 bg-transparent text-dark" placeholder="Tìm dịch vụ, nhà cung cấp..." />
+                <button type="submit" class="btn btn-warning btn-lg px-4 fw-bold text-dark rounded-3 text-nowrap">
+                    Tìm Kiếm
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row text-center my-4 g-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-3">
+            <h3 class="fw-bold text-primary mb-1">@ViewBag.TotalServices</h3>
+            <span class="text-muted">Dịch vụ đang hoạt động</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-3">
+            <h3 class="fw-bold text-success mb-1">@ViewBag.TotalProviders</h3>
+            <span class="text-muted">Nhà cung cấp uy tín</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-3">
+            <h3 class="fw-bold text-warning mb-1">@ViewBag.TotalAppointments</h3>
+            <span class="text-muted">Cuộc hẹn đã được tạo</span>
+        </div>
+    </div>
+</div>
+
+<div class="my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0 text-dark">Danh Mục Dịch Vụ</h3>
+        <a asp-controller="Services" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill fw-semibold">Xem tất cả</a>
+    </div>
+
+    <div class="row g-3">
+        @foreach (var cat in categories)
+        {
+            <div class="col-md-4 col-sm-6">
+                <a asp-controller="Services" asp-action="Index" asp-route-categoryId="@cat.Id" class="text-decoration-none">
+                    <div class="card h-100 border-0 shadow-sm rounded-3 hover-shadow p-3 text-dark">
+                        <div>
+                            <h5 class="fw-bold mb-1">@cat.Name</h5>
+                            <small class="text-muted">@cat.Description</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0 text-dark">Dịch Vụ Nổi Bật</h3>
+        <a asp-controller="Services" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill fw-semibold">Khám phá dịch vụ</a>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var service in featuredServices)
+        {
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1">@service.Category?.Name</span>
+                            <span class="fw-bold text-success fs-5">@service.Price.ToString("N0") VNĐ</span>
+                        </div>
+
+                        <h5 class="card-title fw-bold text-dark mb-2">@service.Name</h5>
+                        <p class="card-text text-muted small flex-grow-1">@service.Description</p>
+
+                        <div class="border-top pt-3 mt-3">
+                            <div class="d-flex align-items-center mb-2 small text-secondary">
+                                <span>Nhà cung cấp: <strong>@service.Provider?.FullName</strong></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small text-secondary">
+                                <span>Thời lượng: @service.DurationMinutes phút</span>
+                                <span>Địa điểm: @service.Location</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0 p-3">
+                        <a asp-controller="Services" asp-action="Details" asp-route-id="@service.Id" class="btn btn-primary w-100 fw-bold rounded-3">
+                            Xem Lịch & Đặt Ngay
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

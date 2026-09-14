@@ -1,0 +1,59 @@
+@model List<Appointment.Models.Category>
+@{
+    ViewData["Title"] = "Quản lý danh mục dịch vụ";
+}
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h5 class="fw-bold mb-3 text-primary">Thêm Danh Mục Mới</h5>
+            <form asp-action="CreateCategory" method="post">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tên danh mục</label>
+                    <input type="text" name="Name" class="form-control" placeholder="Ví dụ: Bác sĩ / Phòng khám" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mô tả danh mục</label>
+                    <textarea name="Description" class="form-control" rows="3" placeholder="Mô tả ngắn gọn về loại hình dịch vụ này..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-bold">Tạo Danh Mục</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0">Danh Sách Danh Mục Hiện Tại</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên danh mục</th>
+                            <th>Mô tả</th>
+                            <th>Số dịch vụ</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var cat in Model)
+                        {
+                            <tr>
+                                <td class="fw-bold">@cat.Name</td>
+                                <td><small class="text-muted">@cat.Description</small></td>
+                                <td><span class="badge bg-secondary">@(cat.Services?.Count ?? 0) dịch vụ</span></td>
+                                <td class="text-end">
+                                    <a asp-action="EditCategory" asp-route-id="@cat.Id" class="btn btn-outline-primary btn-sm me-1">Sửa</a>
+                                    <form asp-action="DeleteCategory" asp-route-id="@cat.Id" method="post" class="d-inline" onsubmit="return confirm('Xóa danh mục này sẽ xóa các dịch vụ liên quan. Tiếp tục?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">Xóa</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

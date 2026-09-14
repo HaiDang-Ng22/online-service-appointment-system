@@ -1,0 +1,14 @@
+@{
+    ViewData["Title"] = "Từ chối truy cập";
+}
+
+<div class="text-center my-5 py-5">
+    <div class="display-1 text-danger fw-bold"><i class="bi bi-shield-x"></i> 403</div>
+    <h2 class="fw-bold mt-3">Truy Cập Bị Từ Chối</h2>
+    <p class="lead text-muted">Bạn không có quyền truy cập vào trang này hoặc thao tác này.</p>
+    <div class="mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary btn-lg rounded-pill px-4">
+            <i class="bi bi-house-door me-2"></i>Quay về Trang Chủ
+        </a>
+    </div>
+</div>

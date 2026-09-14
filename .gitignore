@@ -1,0 +1,16 @@
+## Ignore Visual Studio & .NET build artifacts
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Database files
+*.db
+*.db-journal
+*.sqlite
+
+## App Settings Secrets if any
+appsettings.Development.json

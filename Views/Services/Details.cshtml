@@ -1,0 +1,124 @@
+@model Appointment.Models.ViewModels.BookingViewModel
+@{
+    ViewData["Title"] = Model.ServiceName + " - Đặt lịch";
+    var service = ViewBag.Service as Appointment.Models.Service;
+}
+
+<div class="row g-4">
+    <!-- Service Info Column -->
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <span class="badge bg-primary-subtle text-primary fw-bold px-3 py-2 w-auto me-auto mb-3">@Model.CategoryName</span>
+            <h3 class="fw-bold text-dark mb-2">@Model.ServiceName</h3>
+
+            <div class="fs-4 text-success fw-bold mb-3">@Model.Price.ToString("N0") VNĐ</div>
+
+            <div class="bg-light p-3 rounded-3 mb-4">
+                <div class="mb-2"><strong>Nhà cung cấp:</strong> @Model.ProviderName</div>
+                <div class="mb-2"><strong>Thời lượng:</strong> @Model.DurationMinutes phút</div>
+                <div class="mb-0"><strong>Địa điểm:</strong> @(service?.Location ?? "Tùy chỉnh")</div>
+            </div>
+
+            <h5 class="fw-bold text-dark">Mô tả dịch vụ</h5>
+            <p class="text-muted">@(service?.Description ?? "Không có mô tả.")</p>
+
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm mt-3">Quay lại danh sách</a>
+        </div>
+    </div>
+
+    <!-- Booking Form Column -->
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h4 class="fw-bold mb-3 text-primary">Chọn Lịch Trống & Đặt Lịch</h4>
+
+            <!-- Date Selector Form -->
+            <form asp-action="Details" method="get" class="row g-2 mb-4 align-items-center">
+                <input type="hidden" name="id" value="@Model.ServiceId" />
+                <div class="col-sm-8">
+                    <label class="form-label fw-semibold mb-1">Chọn ngày muốn đặt:</label>
+                    <input type="date" name="selectedDate" class="form-control form-control-lg" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" min="@DateTime.Today.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+                </div>
+                <div class="col-sm-4 pt-sm-4">
+                    <button type="submit" class="btn btn-secondary btn-lg w-100">Tải lịch</button>
+                </div>
+            </form>
+
+            <hr />
+
+            <!-- Off Day Alert -->
+            @if (Model.IsProviderOffDay)
+            {
+                <div class="alert alert-danger py-3 px-4 rounded-3 mb-4">
+                    <h5 class="fw-bold mb-1">Cửa hàng / Nhà cung cấp NGHỈ VÀO NGÀY NÀY</h5>
+                    <p class="mb-0">Ngày @Model.SelectedDate.ToString("dd/MM/yyyy") nhà cung cấp tạm ngưng nhận lịch hẹn. @(string.IsNullOrEmpty(Model.OffDayReason) ? "" : $"Lý do: {Model.OffDayReason}")</p>
+                    <small class="fw-bold mt-1 d-block text-danger-emphasis">Vui lòng chọn ngày khác để đặt dịch vụ.</small>
+                </div>
+            }
+
+            <!-- Auth Alert -->
+            @if (!User.Identity?.IsAuthenticated == true)
+            {
+                <div class="alert alert-warning">
+                    Bạn cần <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="fw-bold text-dark">Đăng nhập</a> tài khoản <strong>Khách hàng</strong> để tiến hành đặt lịch.
+                </div>
+            }
+            else if (!User.IsInRole("Customer") && !User.IsInRole("Admin"))
+            {
+                <div class="alert alert-info">
+                    Tài khoản của bạn là <strong>@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</strong>. Bạn chỉ có thể xem lịch trống.
+                </div>
+            }
+
+            <form asp-controller="Appointments" asp-action="Book" method="post" id="bookingForm">
+                <input type="hidden" asp-for="ServiceId" />
+                <input type="hidden" asp-for="SelectedDate" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" />
+
+                <h5 class="fw-bold mb-3">Khung giờ ngày @Model.SelectedDate.ToString("dd/MM/yyyy")</h5>
+
+                <div class="row g-2 mb-4">
+                    @if (Model.IsProviderOffDay)
+                    {
+                        <div class="col-12 text-danger fw-bold">Không có khung giờ trống do cửa hàng đang tạm nghỉ.</div>
+                    }
+                    else if (!Model.AvailableSlots.Any())
+                    {
+                        <div class="col-12 text-muted">Không có khung giờ hoạt động trong ngày này.</div>
+                    }
+                    else
+                    {
+                        @foreach (var slot in Model.AvailableSlots)
+                        {
+                            <div class="col-6 col-sm-4 col-md-3">
+                                @if (slot.IsAvailable)
+                                {
+                                    <input type="radio" class="btn-check" name="SelectedTimeSlot" id="slot_@slot.TimeFormatted.Replace(":", "_")" value="@slot.TimeFormatted" required />
+                                    <label class="btn btn-outline-success w-100 py-2 fw-bold" for="slot_@slot.TimeFormatted.Replace(":", "_")">
+                                        @slot.TimeFormatted
+                                    </label>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-outline-danger w-100 py-2 disabled opacity-50" disabled>
+                                        @slot.TimeFormatted
+                                    </button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Notes" class="form-label fw-semibold">Ghi chú thêm (nếu có)</label>
+                    <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Ví dụ: Cần hẹn trước..."></textarea>
+                </div>
+
+                @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Customer") || User.IsInRole("Admin")) && !Model.IsProviderOffDay)
+                {
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold py-3 rounded-3 shadow">
+                        Xác Nhận Đặt Lịch Hẹn
+                    </button>
+                }
+            </form>
+        </div>
+    </div>
+</div>

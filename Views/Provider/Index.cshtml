@@ -1,0 +1,131 @@
+@model List<Appointment.Models.AppointmentModel>
+@{
+    ViewData["Title"] = "Kênh Nhà cung cấp - Quản lý lịch hẹn";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0 text-primary">Kênh Quản Lý Cuộc Hẹn (Provider)</h3>
+    <a asp-action="CreateService" class="btn btn-success fw-bold">Thêm Dịch Vụ Mới</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <a asp-action="Index" asp-route-status="Pending" class="text-decoration-none">
+            <div class="card border-0 shadow-sm p-3 rounded-3 bg-warning-subtle text-dark">
+                <div class="fs-4 fw-bold">@ViewBag.PendingCount</div>
+                <small class="fw-semibold text-warning-emphasis">Chờ xác nhận</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a asp-action="Index" asp-route-status="Confirmed" class="text-decoration-none">
+            <div class="card border-0 shadow-sm p-3 rounded-3 bg-info-subtle text-dark">
+                <div class="fs-4 fw-bold">@ViewBag.ConfirmedCount</div>
+                <small class="fw-semibold text-info-emphasis">Đã xác nhận</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a asp-action="Index" asp-route-status="Completed" class="text-decoration-none">
+            <div class="card border-0 shadow-sm p-3 rounded-3 bg-success-subtle text-dark">
+                <div class="fs-4 fw-bold">@ViewBag.CompletedCount</div>
+                <small class="fw-semibold text-success-emphasis">Đã hoàn thành</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a asp-action="Index" asp-route-status="Cancelled" class="text-decoration-none">
+            <div class="card border-0 shadow-sm p-3 rounded-3 bg-secondary-subtle text-dark">
+                <div class="fs-4 fw-bold">@ViewBag.CancelledCount</div>
+                <small class="fw-semibold text-secondary-emphasis">Đã hủy</small>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0">Danh Sách Lịch Hẹn Khách Hàng</h5>
+        @if (!string.IsNullOrEmpty(ViewBag.CurrentStatusFilter as string))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Hiện tất cả</a>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="p-5 text-center text-muted">
+            Chưa có cuộc hẹn nào thuộc bộ lọc hiện tại.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Dịch vụ</th>
+                        <th>Ngày hẹn</th>
+                        <th>Khung giờ</th>
+                        <th>Ghi chú</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Cập nhật trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div><strong>@item.Customer?.FullName</strong></div>
+                                <small class="text-muted">@item.Customer?.PhoneNumber</small>
+                            </td>
+                            <td>@item.Service?.Name</td>
+                            <td>@item.AppointmentDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    @item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
+                                </span>
+                            </td>
+                            <td><small class="text-muted">@(string.IsNullOrEmpty(item.Notes) ? "-" : item.Notes)</small></td>
+                            <td>
+                                @if (item.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                }
+                                else if (item.Status == "Confirmed")
+                                {
+                                    <span class="badge bg-info">Confirmed</span>
+                                }
+                                else if (item.Status == "Completed")
+                                {
+                                    <span class="badge bg-success">Completed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Cancelled</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <form asp-action="UpdateStatus" method="post" class="d-inline-flex gap-1">
+                                    <input type="hidden" name="appointmentId" value="@item.Id" />
+                                    @if (item.Status == "Pending")
+                                    {
+                                        <button type="submit" name="newStatus" value="Confirmed" class="btn btn-sm btn-info text-white">Xác nhận</button>
+                                        <button type="submit" name="newStatus" value="Cancelled" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                    }
+                                    else if (item.Status == "Confirmed")
+                                    {
+                                        <button type="submit" name="newStatus" value="Completed" class="btn btn-sm btn-success">Hoàn thành</button>
+                                        <button type="submit" name="newStatus" value="Cancelled" class="btn btn-sm btn-outline-danger">Hủy</button>
+                                    }
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

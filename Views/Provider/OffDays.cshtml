@@ -1,0 +1,65 @@
+@model List<Appointment.Models.ProviderOffDay>
+@{
+    ViewData["Title"] = "Quản lý ngày nghỉ";
+}
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h5 class="fw-bold mb-3 text-primary">Đăng Ký Ngày Nghỉ / Đóng Cửa</h5>
+            <form asp-action="AddOffDay" method="post">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Chọn ngày nghỉ</label>
+                    <input type="date" name="offDate" class="form-control" min="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Lý do nghỉ (nếu có)</label>
+                    <input type="text" name="reason" class="form-control" placeholder="Ví dụ: Nghỉ lễ, Bảo trì cửa hàng..." />
+                </div>
+                <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">Lưu Ngày Nghỉ</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0">Danh Sách Ngày Nghỉ Đã Đăng Ký</h5>
+            </div>
+            @if (!Model.Any())
+            {
+                <div class="p-4 text-center text-muted">Chưa có ngày nghỉ nào được đăng ký.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ngày nghỉ</th>
+                                <th>Lý do</th>
+                                <th>Ngày đăng ký</th>
+                                <th class="text-end">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-danger">@item.OffDate.ToString("dd/MM/yyyy")</td>
+                                    <td>@(string.IsNullOrEmpty(item.Reason) ? "-" : item.Reason)</td>
+                                    <td><small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small></td>
+                                    <td class="text-end">
+                                        <form asp-action="DeleteOffDay" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đăng ký ngày nghỉ này?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">Xóa</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

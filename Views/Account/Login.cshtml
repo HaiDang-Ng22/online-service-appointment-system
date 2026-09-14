@@ -1,0 +1,60 @@
+@model Appointment.Models.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<div class="row justify-content-center my-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-primary text-white text-center py-4 rounded-top-4">
+                <h3 class="fw-bold mb-0">Đăng Nhập</h3>
+                <small class="text-white-50">Truy cập hệ thống AppointX</small>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger p-2 small mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold">Địa chỉ Email</label>
+                        <input asp-for="Email" class="form-control" placeholder="nhapemail@example.com" autofocus />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-semibold">Mật khẩu</label>
+                        <input asp-for="Password" class="form-control" placeholder="••••••••" />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label text-muted">Ghi nhớ đăng nhập</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3">
+                        Đăng Nhập
+                    </button>
+                </form>
+
+                <hr class="my-4" />
+
+                <div class="bg-light p-3 rounded-3 mb-3 small">
+                    <div class="fw-bold text-dark mb-1">Tài khoản dùng thử sẵn:</div>
+                    <div><strong>Admin:</strong> admin@appointx.com | Admin@123456</div>
+                    <div><strong>Provider:</strong> doctor@appointx.com | Provider@123456</div>
+                    <div><strong>Staff:</strong> staff@appointx.com | Staff@123456</div>
+                    <div><strong>Customer:</strong> customer@appointx.com | Customer@123456</div>
+                </div>
+
+                <div class="text-center">
+                    <span class="text-muted">Chưa có tài khoản khách hàng? </span>
+                    <a asp-action="Register" class="fw-bold text-decoration-none">Đăng ký ngay</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

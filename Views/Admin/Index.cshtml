@@ -1,0 +1,96 @@
+@model List<Appointment.Models.AppointmentModel>
+@{
+    ViewData["Title"] = "Trang Admin - Tổng quan hệ thống";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0 text-danger">Bảng Điều Khiển Quản Trị Viên (Admin)</h3>
+    <a asp-action="CreateUser" class="btn btn-warning text-dark fw-bold">Tạo Tài Khoản Mới</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-primary text-white">
+            <h2 class="fw-bold mb-0">@ViewBag.TotalUsers</h2>
+            <small>Tổng tài khoản hệ thống (không bao gồm Admin)</small>
+            <div class="mt-2 pt-2 border-top border-white-50 small">
+                Customer: @ViewBag.TotalCustomers | Provider: @ViewBag.TotalProviders | Staff: @ViewBag.TotalStaff
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-success text-white">
+            <h2 class="fw-bold mb-0">@ViewBag.TotalServices</h2>
+            <small>Dịch vụ hệ thống</small>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-info text-white">
+            <h2 class="fw-bold mb-0">@ViewBag.TotalAppointments</h2>
+            <small>Tổng cuộc hẹn</small>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-warning text-dark">
+            <h2 class="fw-bold mb-0">@ViewBag.PendingAppointments</h2>
+            <small>Lịch hẹn chờ duyệt</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 d-flex flex-row align-items-center justify-content-between">
+            <div>
+                <h5 class="fw-bold mb-1">Quản lý Tài Khoản Người Dùng</h5>
+                <p class="text-muted small mb-0">Tạo tài khoản Provider, Staff, Customer & Khóa/Mở tài khoản.</p>
+            </div>
+            <a asp-action="Users" class="btn btn-outline-primary fw-bold text-nowrap">Vào quản lý</a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 d-flex flex-row align-items-center justify-content-between">
+            <div>
+                <h5 class="fw-bold mb-1">Quản lý Danh Mục Dịch Vụ</h5>
+                <p class="text-muted small mb-0">Thêm, sửa, xóa các danh mục dịch vụ trong toàn bộ hệ thống.</p>
+            </div>
+            <a asp-action="Categories" class="btn btn-outline-primary fw-bold text-nowrap">Vào quản lý</a>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white py-3">
+        <h5 class="fw-bold mb-0">Lịch Hẹn Mới Nhất</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Khách hàng</th>
+                    <th>Dịch vụ</th>
+                    <th>Provider</th>
+                    <th>Ngày & Giờ</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Customer?.FullName</td>
+                        <td>@item.Service?.Name</td>
+                        <td>@item.Provider?.FullName</td>
+                        <td>@item.AppointmentDate.ToString("dd/MM/yyyy") (@item.StartTime.ToString(@"hh\:mm"))</td>
+                        <td>
+                            <span class="badge bg-secondary">@item.Status</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

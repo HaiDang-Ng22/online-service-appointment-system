@@ -1,0 +1,117 @@
+@model List<Appointment.Models.AppointmentModel>
+@{
+    ViewData["Title"] = "Kênh Nhân viên hỗ trợ";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0 text-info">Kênh Nhân Viên Hỗ Trợ (Staff Portal)</h3>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form asp-action="Index" method="get" class="row g-2 align-items-center">
+        <div class="col-md-4">
+            <label class="form-label small fw-bold mb-1">Lọc theo trạng thái</label>
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">-- Tất cả trạng thái --</option>
+                <option value="Pending" selected="@(ViewBag.StatusFilter == "Pending" ? "selected" : null)">Pending (Chờ xác nhận)</option>
+                <option value="Confirmed" selected="@(ViewBag.StatusFilter == "Confirmed" ? "selected" : null)">Confirmed (Đã xác nhận)</option>
+                <option value="Completed" selected="@(ViewBag.StatusFilter == "Completed" ? "selected" : null)">Completed (Hoàn thành)</option>
+                <option value="Cancelled" selected="@(ViewBag.StatusFilter == "Cancelled" ? "selected" : null)">Cancelled (Đã hủy)</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-bold mb-1">Lọc theo ngày</label>
+            <input type="date" name="date" class="form-control form-control-sm" value="@ViewBag.DateFilter" onchange="this.form.submit()" />
+        </div>
+        <div class="col-md-4 pt-md-4">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Đặt lại bộ lọc</a>
+        </div>
+    </form>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Khách hàng</th>
+                    <th>Dịch vụ & Provider</th>
+                    <th>Ngày & Khung giờ</th>
+                    <th>Nhân viên phụ trách</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <div><strong>@item.Customer?.FullName</strong></div>
+                            <small class="text-muted">@item.Customer?.PhoneNumber | @item.Customer?.Email</small>
+                        </td>
+                        <td>
+                            <div><strong>@item.Service?.Name</strong></div>
+                            <small class="text-muted">Nội dung: @item.Provider?.FullName</small>
+                        </td>
+                        <td>
+                            <div>@item.AppointmentDate.ToString("dd/MM/yyyy")</div>
+                            <small class="badge bg-light text-dark border">@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")</small>
+                        </td>
+                        <td>
+                            @if (item.Staff != null)
+                            {
+                                <span class="badge bg-info-subtle text-info fw-bold">@item.Staff.FullName</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Chưa phân công</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.Status == "Pending")
+                            {
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            }
+                            else if (item.Status == "Confirmed")
+                            {
+                                <span class="badge bg-info">Confirmed</span>
+                            }
+                            else if (item.Status == "Completed")
+                            {
+                                <span class="badge bg-success">Completed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Cancelled</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                @if (string.IsNullOrEmpty(item.StaffId))
+                                {
+                                    <form asp-action="AssignStaff" method="post" class="d-inline">
+                                        <input type="hidden" name="appointmentId" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Tiếp nhận</button>
+                                    </form>
+                                }
+
+                                <form asp-action="UpdateStatus" method="post" class="d-inline-flex gap-1">
+                                    <input type="hidden" name="appointmentId" value="@item.Id" />
+                                    @if (item.Status == "Pending")
+                                    {
+                                        <button type="submit" name="status" value="Confirmed" class="btn btn-sm btn-success">Duyệt</button>
+                                    }
+                                    else if (item.Status == "Confirmed")
+                                    {
+                                        <button type="submit" name="status" value="Completed" class="btn btn-sm btn-success">Xong</button>
+                                    }
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
