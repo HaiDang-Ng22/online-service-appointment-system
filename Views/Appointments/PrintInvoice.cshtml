@@ -1,0 +1,265 @@
+@model Appointment.Models.AppointmentModel
+@{
+    ViewData["Title"] = "Phiếu hẹn & Hóa đơn #" + Model.Id.Substring(0, 8).ToUpper();
+    Layout = null; // Standalone clean printable document
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AppointX</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            padding: 2rem 0;
+        }
+
+        .invoice-paper {
+            background: #ffffff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .invoice-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 1.1rem;
+        }
+
+        .invoice-table th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        .invoice-table td {
+            vertical-align: middle;
+            font-size: 0.95rem;
+        }
+
+        .medical-box {
+            background-color: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+
+        @@media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .invoice-paper {
+                box-shadow: none;
+                border: none;
+                padding: 1rem;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Action Bar (Hidden when printing) -->
+    <div class="container mb-4 no-print" style="max-width: 800px;">
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded-4 shadow-sm border">
+            <button onclick="window.history.back()" class="btn btn-outline-secondary btn-sm px-3 rounded-pill">
+                <i class="bi bi-arrow-left me-1"></i> Quay lại
+            </button>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-primary btn-sm px-4 rounded-pill fw-bold d-flex align-items-center gap-2 shadow-sm">
+                    <i class="bi bi-printer-fill"></i>
+                    <span>In Phiếu Hẹn / Hóa Đơn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Invoice Container -->
+    <div class="invoice-paper">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="invoice-badge">
+                        <i class="bi bi-calendar2-check-fill"></i>
+                    </span>
+                    <span class="fs-4 fw-bold text-dark">Appoint<span class="text-primary">X</span></span>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">@Model.Provider?.FullName</h5>
+                <div class="text-secondary small">
+                    <div><i class="bi bi-geo-alt me-1"></i>@(Model.Provider?.Address ?? "Địa chỉ cơ sở")</div>
+                    <div><i class="bi bi-telephone me-1"></i>@(Model.Provider?.PhoneNumber ?? "Hotline hỗ trợ") | <i class="bi bi-envelope me-1"></i>@(Model.Provider?.Email)</div>
+                </div>
+            </div>
+
+            <div class="text-end">
+                <h4 class="fw-bold text-primary mb-1">PHIẾU HẸN & HÓA ĐƠN</h4>
+                <div class="fw-semibold text-dark">Mã số: <span class="font-monospace text-primary">#APX-@Model.Id.Substring(0, 8).ToUpper()</span></div>
+                <div class="text-secondary small mt-1">Ngày lập: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="mt-2">
+                    @if (Model.Status == "Completed")
+                    {
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">ĐÃ HOÀN THÀNH</span>
+                    }
+                    else if (Model.Status == "Confirmed")
+                    {
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">ĐÃ XÁC NHẬN</span>
+                    }
+                    else if (Model.Status == "Pending")
+                    {
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">CHỜ XÁC NHẬN</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">ĐÃ HỦY</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer & Service Information -->
+        <div class="row g-4 mb-4">
+            <div class="col-6">
+                <h6 class="fw-bold text-dark text-uppercase small mb-2"><i class="bi bi-person-fill text-primary me-1"></i>Thông Tin Khách Hàng:</h6>
+                <div class="p-3 bg-light rounded-3 small">
+                    <div class="fw-bold fs-6 text-dark mb-1">@Model.Customer?.FullName</div>
+                    <div class="text-secondary mb-1"><strong>SĐT:</strong> @(Model.Customer?.PhoneNumber ?? "Chưa cập nhật")</div>
+                    <div class="text-secondary mb-1"><strong>Email:</strong> @Model.Customer?.Email</div>
+                    <div class="text-secondary"><strong>Địa chỉ:</strong> @(Model.Customer?.Address ?? "Không cung cấp")</div>
+                </div>
+            </div>
+
+            <div class="col-6">
+                <h6 class="fw-bold text-dark text-uppercase small mb-2"><i class="bi bi-clock-fill text-primary me-1"></i>Thời Gian & Địa Điểm Tiếp Nhận:</h6>
+                <div class="p-3 bg-light rounded-3 small">
+                    <div class="fw-bold text-dark mb-1">Ngày hẹn: <span class="text-primary fs-6">@Model.AppointmentDate.ToString("dd/MM/yyyy")</span></div>
+                    <div class="text-dark mb-1">Khung giờ: <strong>@Model.StartTime.ToString(@"hh\:mm") - @Model.EndTime.ToString(@"hh\:mm")</strong> (@Model.Service?.DurationMinutes phút)</div>
+                    <div class="text-secondary mb-1">Địa điểm: @(Model.Service?.Location ?? Model.Provider?.Address)</div>
+                    @if (Model.Staff != null)
+                    {
+                        <div class="text-secondary">Nhân viên tiếp nhận: <strong>@Model.Staff.FullName</strong></div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Service & Fee Table -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered invoice-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;" class="text-center">STT</th>
+                        <th>Dịch Vụ Đặt Hẹn</th>
+                        <th>Chuyên Mục</th>
+                        <th class="text-center">Thời Lượng</th>
+                        <th class="text-end">Đơn Giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-center">1</td>
+                        <td>
+                            <strong class="text-dark">@Model.Service?.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                            {
+                                <div class="text-secondary small mt-1"><em>Ghi chú: @Model.Notes</em></div>
+                            }
+                        </td>
+                        <td>@(Model.Service?.Category?.Name ?? "Chung")</td>
+                        <td class="text-center">@Model.Service?.DurationMinutes phút</td>
+                        <td class="text-end fw-bold">@Model.Service?.Price.ToString("N0") VNĐ</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Total Calculation -->
+        <div class="row justify-content-end mb-4">
+            <div class="col-6">
+                <div class="d-flex justify-content-between py-1 border-bottom small text-secondary">
+                    <span>Tạm tính phí dịch vụ:</span>
+                    <span>@Model.Service?.Price.ToString("N0") VNĐ</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-bottom small text-secondary">
+                    <span>Phí đặt lịch trực tuyến:</span>
+                    <span class="text-success fw-semibold">Miễn phí (0 VNĐ)</span>
+                </div>
+                <div class="d-flex justify-content-between py-2 fs-5 fw-extrabold text-dark">
+                    <span>TỔNG THANH TOÁN:</span>
+                    <span class="text-primary">@Model.Service?.Price.ToString("N0") VNĐ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medical Diagnosis & Treatment Section (If filled by Doctor/Provider) -->
+        @if (!string.IsNullOrWhiteSpace(Model.Diagnosis) || !string.IsNullOrWhiteSpace(Model.Prescription))
+        {
+            <div class="medical-box mb-4">
+                <h6 class="fw-bold text-dark mb-2 text-uppercase small">
+                    <i class="bi bi-clipboard2-pulse-fill text-danger me-1"></i>Hồ Sơ Y Khoa / Kết Quả Dịch Vụ:
+                </h6>
+                @if (!string.IsNullOrWhiteSpace(Model.Diagnosis))
+                {
+                    <div class="mb-2">
+                        <strong class="text-dark small">Chẩn đoán / Kết luận của bác sĩ:</strong>
+                        <p class="mb-0 text-dark small mt-1 ps-2 border-start border-3 border-primary">@Model.Diagnosis</p>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Prescription))
+                {
+                    <div>
+                        <strong class="text-dark small">Đơn thuốc / Lời dặn điều trị:</strong>
+                        <p class="mb-0 text-dark small mt-1 ps-2 border-start border-3 border-success">@Model.Prescription</p>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Terms & Signature -->
+        <div class="row text-center mt-5 pt-3">
+            <div class="col-6">
+                <div class="fw-bold small text-dark mb-5">KHÁCH HÀNG / BỆNH NHÂN</div>
+                <div class="text-secondary small"><em>(Ký & ghi rõ họ tên)</em></div>
+                <div class="fw-semibold mt-3 text-dark">@Model.Customer?.FullName</div>
+            </div>
+            <div class="col-6">
+                <div class="fw-bold small text-dark mb-5">ĐẠI DIỆN CƠ SỞ / BÁC SĨ KHÁM</div>
+                <div class="text-secondary small"><em>(Ký & đóng dấu)</em></div>
+                <div class="fw-semibold mt-3 text-dark">@Model.Provider?.FullName</div>
+            </div>
+        </div>
+
+        <!-- Footer Notice -->
+        <div class="text-center text-muted small mt-5 pt-4 border-top">
+            <em>Cảm ơn Quý khách đã tin tưởng và sử dụng dịch vụ thông qua nền tảng AppointX. Mọi thắc mắc vui lòng liên hệ hotline cơ sở hoặc tổng đài 1900 6868.</em>
+        </div>
+    </div>
+</body>
+</html>

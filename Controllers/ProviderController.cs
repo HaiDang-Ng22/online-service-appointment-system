@@ -73,25 +73,46 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateService(Service model)
         {
-            string providerId = GetCurrentUserId();
-            model.Id = Guid.NewGuid().ToString("N");
-            model.ProviderId = providerId;
-            model.CreatedAt = DateTime.UtcNow;
+            try
+            {
+                string providerId = GetCurrentUserId();
+                if (string.IsNullOrEmpty(providerId))
+                {
+                    TempData["ErrorMessage"] = "Phiên làm việc hết hạn hoặc không tìm thấy thông tin đối tác.";
+                    return RedirectToAction("Login", "Account");
+                }
 
-            ModelState.Remove("Provider");
-            ModelState.Remove("Category");
+                model.Id = Guid.NewGuid().ToString("N");
+                model.ProviderId = providerId;
+                model.CreatedAt = DateTime.UtcNow;
 
-            if (!ModelState.IsValid)
+                // Remove navigation and auto-populated properties from validation
+                ModelState.Remove(nameof(model.Provider));
+                ModelState.Remove(nameof(model.Category));
+                ModelState.Remove(nameof(model.ProviderId));
+                ModelState.Remove(nameof(model.Id));
+                ModelState.Remove(nameof(model.Appointments));
+
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    ViewBag.Categories = await _context.Categories.ToListAsync();
+                    TempData["ErrorMessage"] = "Vui lòng kiểm tra lại: " + string.Join("; ", errors);
+                    return View(model);
+                }
+
+                _context.Services.Add(model);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Tạo dịch vụ '{model.Name}' thành công!";
+                return RedirectToAction(nameof(Services));
+            }
+            catch (Exception ex)
             {
                 ViewBag.Categories = await _context.Categories.ToListAsync();
+                TempData["ErrorMessage"] = $"Lỗi khi thêm dịch vụ: {ex.Message}";
                 return View(model);
             }
-
-            _context.Services.Add(model);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Tạo dịch vụ mới thành công!";
-            return RedirectToAction(nameof(Services));
         }
 
         // GET: /Provider/EditService/abc
@@ -113,24 +134,33 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditService(string id, Service model)
         {
-            string providerId = GetCurrentUserId();
-            var service = await _context.Services.FirstOrDefaultAsync(s => s.Id == id && s.ProviderId == providerId);
+            try
+            {
+                string providerId = GetCurrentUserId();
+                var service = await _context.Services.FirstOrDefaultAsync(s => s.Id == id && s.ProviderId == providerId);
 
-            if (service == null) return NotFound();
+                if (service == null) return NotFound();
 
-            service.Name = model.Name;
-            service.CategoryId = model.CategoryId;
-            service.Description = model.Description;
-            service.Price = model.Price;
-            service.DurationMinutes = model.DurationMinutes;
-            service.Location = model.Location;
-            service.IsActive = model.IsActive;
+                service.Name = model.Name;
+                service.CategoryId = model.CategoryId;
+                service.Description = model.Description;
+                service.Price = model.Price;
+                service.DurationMinutes = model.DurationMinutes;
+                service.Location = model.Location;
+                service.IsActive = model.IsActive;
 
-            _context.Services.Update(service);
-            await _context.SaveChangesAsync();
+                _context.Services.Update(service);
+                await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Cập nhật dịch vụ thành công!";
-            return RedirectToAction(nameof(Services));
+                TempData["SuccessMessage"] = "Cập nhật dịch vụ thành công!";
+                return RedirectToAction(nameof(Services));
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Categories = await _context.Categories.ToListAsync();
+                TempData["ErrorMessage"] = $"Lỗi khi cập nhật dịch vụ: {ex.Message}";
+                return View(model);
+            }
         }
 
         // POST: /Provider/UpdateStatus
@@ -151,6 +181,40 @@ namespace Appointment.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: /Provider/UpdateMedicalRecord
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status)
+        {
+            try
+            {
+                string providerId = GetCurrentUserId();
+                var appointment = await _context.Appointments
+                    .Include(a => a.Customer)
+                    .FirstOrDefaultAsync(a => a.Id == appointmentId && a.ProviderId == providerId);
+
+                if (appointment == null) return NotFound();
+
+                appointment.Diagnosis = diagnosis?.Trim();
+                appointment.Prescription = prescription?.Trim();
+                if (!string.IsNullOrEmpty(status))
+                {
+                    appointment.Status = status;
+                }
+
+                _context.Appointments.Update(appointment);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Đã cập nhật hồ sơ chẩn đoán/kết luận cho khách hàng {appointment.Customer?.FullName}!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Lỗi khi lưu chẩn đoán: {ex.Message}";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         // GET: /Provider/OffDays
         public async Task<IActionResult> OffDays()
         {
@@ -168,35 +232,48 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddOffDay(DateTime offDate, string? reason)
         {
-            string providerId = GetCurrentUserId();
-
-            if (offDate < DateTime.Today)
+            try
             {
-                TempData["ErrorMessage"] = "Ngày nghỉ không thể là một ngày trong quá khứ.";
+                string providerId = GetCurrentUserId();
+                if (string.IsNullOrEmpty(providerId))
+                {
+                    TempData["ErrorMessage"] = "Phiên làm việc hết hạn. Vui lòng đăng nhập lại.";
+                    return RedirectToAction("Login", "Account");
+                }
+
+                if (offDate < DateTime.Today)
+                {
+                    TempData["ErrorMessage"] = "Ngày nghỉ không thể là một ngày trong quá khứ.";
+                    return RedirectToAction(nameof(OffDays));
+                }
+
+                bool exists = await _context.ProviderOffDays.AnyAsync(p => p.ProviderId == providerId && p.OffDate.Date == offDate.Date);
+                if (exists)
+                {
+                    TempData["ErrorMessage"] = "Ngày này đã được đăng ký làm ngày nghỉ trước đó.";
+                    return RedirectToAction(nameof(OffDays));
+                }
+
+                var item = new ProviderOffDay
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    ProviderId = providerId,
+                    OffDate = offDate.Date,
+                    Reason = reason,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ProviderOffDays.Add(item);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Đã đăng ký ngày nghỉ {offDate:dd/MM/yyyy} thành công!";
                 return RedirectToAction(nameof(OffDays));
             }
-
-            bool exists = await _context.ProviderOffDays.AnyAsync(p => p.ProviderId == providerId && p.OffDate.Date == offDate.Date);
-            if (exists)
+            catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Ngày này đã được đăng ký làm ngày nghỉ trước đó.";
+                TempData["ErrorMessage"] = $"Lỗi khi đăng ký ngày nghỉ: {ex.Message}";
                 return RedirectToAction(nameof(OffDays));
             }
-
-            var item = new ProviderOffDay
-            {
-                Id = Guid.NewGuid().ToString("N"),
-                ProviderId = providerId,
-                OffDate = offDate.Date,
-                Reason = reason,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.ProviderOffDays.Add(item);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = $"Đã đăng ký ngày nghỉ {offDate:dd/MM/yyyy} thành công!";
-            return RedirectToAction(nameof(OffDays));
         }
 
         // POST: /Provider/DeleteOffDay/abc
@@ -204,16 +281,24 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteOffDay(string id)
         {
-            string providerId = GetCurrentUserId();
-            var item = await _context.ProviderOffDays.FirstOrDefaultAsync(p => p.Id == id && p.ProviderId == providerId);
+            try
+            {
+                string providerId = GetCurrentUserId();
+                var item = await _context.ProviderOffDays.FirstOrDefaultAsync(p => p.Id == id && p.ProviderId == providerId);
 
-            if (item == null) return NotFound();
+                if (item == null) return NotFound();
 
-            _context.ProviderOffDays.Remove(item);
-            await _context.SaveChangesAsync();
+                _context.ProviderOffDays.Remove(item);
+                await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Đã xóa lịch nghỉ thành công.";
-            return RedirectToAction(nameof(OffDays));
+                TempData["SuccessMessage"] = "Đã xóa lịch nghỉ thành công.";
+                return RedirectToAction(nameof(OffDays));
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Lỗi khi xóa ngày nghỉ: {ex.Message}";
+                return RedirectToAction(nameof(OffDays));
+            }
         }
 
         private string GetCurrentUserId()

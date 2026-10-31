@@ -1,68 +1,155 @@
 @model Appointment.Models.ViewModels.RegisterViewModel
 @{
-    ViewData["Title"] = "Đăng ký tài khoản Khách hàng";
+    ViewData["Title"] = "Đăng ký tài khoản";
 }
 
 <div class="row justify-content-center my-4">
-    <div class="col-md-6">
-        <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-header bg-warning text-dark text-center py-4 rounded-top-4">
-                <h3 class="fw-bold mb-0">Đăng Ký Tài Khoản</h3>
-                <small class="text-dark-50">Tạo tài khoản Khách hàng (Customer) để đặt dịch vụ</small>
-            </div>
-            <div class="card-body p-4">
-                <div class="alert alert-info py-2 px-3 small mb-3">
-                    <strong>Lưu ý:</strong> Form này dành riêng cho <strong>Khách hàng</strong> đăng ký tài khoản. Các tài khoản Nhà cung cấp (Provider), Nhân viên (Staff) hoặc Admin do <strong>Quản trị viên</strong> cấp.
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
+            <div class="p-4 pt-5 pb-3 text-center border-bottom bg-slate-50">
+                <div class="d-inline-flex align-items-center justify-content-center brand-badge mb-2 shadow-sm" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                    <i class="bi bi-person-plus-fill"></i>
                 </div>
+                <h3 class="fw-extrabold text-dark mb-1">Tạo Tài Khoản Mới</h3>
+                <p class="text-secondary small mb-0">Tham gia mạng lưới đặt lịch & cung cấp dịch vụ thông minh AppointX</p>
+            </div>
 
-                <form asp-action="Register" method="post">
-                    <div asp-validation-summary="ModelOnly" class="alert alert-danger p-2 small mb-3"></div>
+            <div class="card-body p-4 p-md-5 pt-4">
+                <form asp-action="Register" method="post" id="registerForm">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small rounded-3 mb-3 border-0 shadow-sm"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="FullName" class="form-label fw-semibold"></label>
-                        <input asp-for="FullName" class="form-control" placeholder="Nguyễn Văn A" autofocus />
-                        <span asp-validation-for="FullName" class="text-danger small"></span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label fw-semibold"></label>
-                        <input asp-for="Email" class="form-control" placeholder="nhapemail@example.com" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label asp-for="Password" class="form-label fw-semibold"></label>
-                            <input asp-for="Password" class="form-control" placeholder="Mật khẩu" />
-                            <span asp-validation-for="Password" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="ConfirmPassword" class="form-label fw-semibold"></label>
-                            <input asp-for="ConfirmPassword" class="form-control" placeholder="Nhập lại mật khẩu" />
-                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="PhoneNumber" class="form-label fw-semibold"></label>
-                        <input asp-for="PhoneNumber" class="form-control" placeholder="0987654321" />
-                        <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
-                    </div>
-
+                    <!-- Role Selector -->
                     <div class="mb-4">
-                        <label asp-for="Address" class="form-label fw-semibold"></label>
-                        <input asp-for="Address" class="form-control" placeholder="Địa chỉ của bạn" />
-                        <span asp-validation-for="Address" class="text-danger small"></span>
+                        <label class="form-label fw-bold text-secondary small d-block mb-2">
+                            <i class="bi bi-person-badge me-1"></i>Bạn muốn đăng ký với tư cách gì?
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="Role" id="roleCustomer" value="Customer" checked />
+                                <label class="btn btn-outline-primary w-100 py-3 text-start rounded-3 d-flex flex-column h-100" for="roleCustomer">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="bi bi-person-circle fs-5"></i>
+                                        <span class="fw-bold">Khách Hàng</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">Đặt lịch hẹn khám & dịch vụ</small>
+                                </label>
+                            </div>
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="Role" id="roleProvider" value="Provider" />
+                                <label class="btn btn-outline-primary w-100 py-3 text-start rounded-3 d-flex flex-column h-100" for="roleProvider">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="bi bi-hospital fs-5"></i>
+                                        <span class="fw-bold">Bác Sĩ / Đối Tác</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">Mở cơ sở, đăng tải dịch vụ</small>
+                                </label>
+                            </div>
+                            <div class="col-4">
+                                <input type="radio" class="btn-check" name="Role" id="roleStaff" value="Staff" />
+                                <label class="btn btn-outline-primary w-100 py-3 text-start rounded-3 d-flex flex-column h-100" for="roleStaff">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="bi bi-person-badge fs-5"></i>
+                                        <span class="fw-bold">Nhân Viên</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">Tiếp nhận & hỗ trợ tại quầy</small>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
-                    <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark rounded-3 shadow-sm">
-                        Hoàn Tất Đăng Ký
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-person me-1"></i>Họ và tên / Tên cơ sở
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                <i class="bi bi-card-text"></i>
+                            </span>
+                            <input asp-for="FullName" class="form-control border-start-0 rounded-end-3 py-2" placeholder="Ví dụ: Nguyễn Văn A hoặc Phòng Khám An Khang" autofocus />
+                        </div>
+                        <span asp-validation-for="FullName" class="text-danger small mt-1 d-block"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-envelope-at me-1"></i>Địa chỉ Email
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                <i class="bi bi-at"></i>
+                            </span>
+                            <input asp-for="Email" class="form-control border-start-0 rounded-end-3 py-2" placeholder="name@example.com" />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Password" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-lock me-1"></i>Mật khẩu
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                    <i class="bi bi-key"></i>
+                                </span>
+                                <input asp-for="Password" type="password" class="form-control border-start-0 rounded-end-3 py-2" placeholder="Ít nhất 6 ký tự" />
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="ConfirmPassword" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-shield-lock me-1"></i>Xác nhận mật khẩu
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                    <i class="bi bi-check2-circle"></i>
+                                </span>
+                                <input asp-for="ConfirmPassword" type="password" class="form-control border-start-0 rounded-end-3 py-2" placeholder="Nhập lại mật khẩu" />
+                            </div>
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small mt-1 d-block"></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="PhoneNumber" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-telephone me-1"></i>Số điện thoại
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                    <i class="bi bi-phone"></i>
+                                </span>
+                                <input asp-for="PhoneNumber" class="form-control border-start-0 rounded-end-3 py-2" placeholder="0912345678" />
+                            </div>
+                            <span asp-validation-for="PhoneNumber" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Address" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-geo-alt me-1"></i>Địa chỉ liên hệ
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                                    <i class="bi bi-pin-map"></i>
+                                </span>
+                                <input asp-for="Address" class="form-control border-start-0 rounded-end-3 py-2" placeholder="Quận/Huyện, Tỉnh/TP" />
+                            </div>
+                            <span asp-validation-for="Address" class="text-danger small mt-1 d-block"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>Hoàn Tất Đăng Ký Tài Khoản</span>
                     </button>
                 </form>
 
-                <div class="text-center mt-4">
-                    <span class="text-muted">Đã có tài khoản? </span>
-                    <a asp-action="Login" class="fw-bold text-decoration-none">Đăng nhập ngay</a>
+                <div class="text-center mt-4 pt-2">
+                    <span class="text-muted small">Đã có tài khoản trên hệ thống? </span>
+                    <a asp-action="Login" class="fw-bold text-primary text-decoration-none small">
+                        Đăng nhập ngay <i class="bi bi-arrow-right"></i>
+                    </a>
                 </div>
             </div>
         </div>

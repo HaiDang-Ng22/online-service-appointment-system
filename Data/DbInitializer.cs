@@ -37,6 +37,34 @@ namespace Appointment.Data
                 {
                     context.Database.EnsureCreated();
                 }
+
+                // Explicitly ensure ProviderOffDays table exists in case of legacy database files
+                try
+                {
+                    context.Database.ExecuteSqlRaw(@"
+                        CREATE TABLE IF NOT EXISTS ""ProviderOffDays"" (
+                            ""Id"" TEXT NOT NULL CONSTRAINT ""PK_ProviderOffDays"" PRIMARY KEY,
+                            ""ProviderId"" TEXT NOT NULL,
+                            ""OffDate"" TEXT NOT NULL,
+                            ""Reason"" TEXT NULL,
+                            ""CreatedAt"" TEXT NOT NULL,
+                            CONSTRAINT ""FK_ProviderOffDays_Users_ProviderId"" FOREIGN KEY (""ProviderId"") REFERENCES ""Users"" (""Id"") ON DELETE CASCADE
+                        );
+                    ");
+
+                    context.Database.ExecuteSqlRaw(@"
+                        ALTER TABLE ""Appointments"" ADD COLUMN ""Diagnosis"" TEXT NULL;
+                    ");
+                }
+                catch { }
+
+                try
+                {
+                    context.Database.ExecuteSqlRaw(@"
+                        ALTER TABLE ""Appointments"" ADD COLUMN ""Prescription"" TEXT NULL;
+                    ");
+                }
+                catch { }
             }
             catch (Exception ex)
             {

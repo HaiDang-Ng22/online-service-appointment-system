@@ -86,5 +86,29 @@ namespace Appointment.Controllers
             TempData["SuccessMessage"] = $"Đã chuyển trạng thái cuộc hẹn thành '{status}'.";
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status)
+        {
+            var appointment = await _context.Appointments
+                .Include(a => a.Customer)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId);
+
+            if (appointment == null) return NotFound();
+
+            appointment.Diagnosis = diagnosis?.Trim();
+            appointment.Prescription = prescription?.Trim();
+            if (!string.IsNullOrEmpty(status))
+            {
+                appointment.Status = status;
+            }
+
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Đã cập nhật chẩn đoán/kết luận dịch vụ cho khách hàng {appointment.Customer?.FullName}!";
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

@@ -3,32 +3,57 @@
     ViewData["Title"] = "Quản lý ngày nghỉ";
 }
 
-<div class="row g-4">
-    <div class="col-md-5">
-        <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h5 class="fw-bold mb-3 text-primary">Đăng Ký Ngày Nghỉ / Đóng Cửa</h5>
-            <form asp-action="AddOffDay" method="post">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Chọn ngày nghỉ</label>
-                    <input type="date" name="offDate" class="form-control" min="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+<div class="row g-4 my-2">
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="brand-badge" style="width: 38px; height: 38px; font-size: 1.1rem; background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="bi bi-calendar-x-fill text-white"></i>
+                </span>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Đăng Ký Ngày Nghỉ</h5>
+                    <small class="text-secondary">Khách hàng sẽ không thể đặt lịch vào các ngày này</small>
                 </div>
+            </div>
+
+            <form asp-action="AddOffDay" method="post" id="addOffDayForm">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Lý do nghỉ (nếu có)</label>
-                    <input type="text" name="reason" class="form-control" placeholder="Ví dụ: Nghỉ lễ, Bảo trì cửa hàng..." />
+                    <label class="form-label fw-bold small text-secondary">
+                        <i class="bi bi-calendar-event me-1 text-primary"></i>Chọn ngày nghỉ <span class="text-danger">*</span>
+                    </label>
+                    <input type="date" name="offDate" class="form-control rounded-3 py-2" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" required />
                 </div>
-                <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">Lưu Ngày Nghỉ</button>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small text-secondary">
+                        <i class="bi bi-chat-left-dots me-1 text-primary"></i>Lý do nghỉ (nếu có)
+                    </label>
+                    <input type="text" name="reason" class="form-control rounded-3 py-2" placeholder="Ví dụ: Nghỉ lễ Quốc Khánh, Bận công tác, Bảo trì thiết bị..." />
+                </div>
+
+                <button type="submit" class="btn btn-warning w-100 fw-bold py-2 rounded-3 text-dark shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-check2-circle"></i>
+                    <span>Xác Nhận Đăng Ký Nghỉ</span>
+                </button>
             </form>
         </div>
     </div>
 
-    <div class="col-md-7">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="card-header bg-white py-3">
-                <h5 class="fw-bold mb-0">Danh Sách Ngày Nghỉ Đã Đăng Ký</h5>
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-slate-50 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-list-check me-1 text-primary"></i>Danh Sách Ngày Nghỉ Đã Đăng Ký (@Model.Count)
+                </h5>
             </div>
+
             @if (!Model.Any())
             {
-                <div class="p-4 text-center text-muted">Chưa có ngày nghỉ nào được đăng ký.</div>
+                <div class="p-5 text-center text-muted">
+                    <i class="bi bi-calendar2-check display-4 text-secondary mb-2 d-block"></i>
+                    <h6 class="fw-bold text-dark">Chưa có ngày nghỉ nào</h6>
+                    <small>Lịch làm việc của bạn đang hoạt động bình thường các ngày trong tuần.</small>
+                </div>
             }
             else
             {
@@ -36,22 +61,30 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Ngày nghỉ</th>
+                                <th class="ps-4">Ngày nghỉ</th>
                                 <th>Lý do</th>
                                 <th>Ngày đăng ký</th>
-                                <th class="text-end">Xóa</th>
+                                <th class="text-end pe-4">Hành động</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td class="fw-bold text-danger">@item.OffDate.ToString("dd/MM/yyyy")</td>
-                                    <td>@(string.IsNullOrEmpty(item.Reason) ? "-" : item.Reason)</td>
-                                    <td><small class="text-muted">@item.CreatedAt.ToString("dd/MM/yyyy")</small></td>
-                                    <td class="text-end">
-                                        <form asp-action="DeleteOffDay" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy đăng ký ngày nghỉ này?');">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Xóa</button>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-2">
+                                                <i class="bi bi-calendar-x me-1"></i>@item.OffDate.ToString("dd/MM/yyyy")
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(item.Reason) ? "<span class='text-muted small'>Không có lý do</span>" : item.Reason)</td>
+                                    <td><small class="text-secondary">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small></td>
+                                    <td class="text-end pe-4">
+                                        <form asp-action="DeleteOffDay" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy ngày nghỉ này và mở lại lịch hẹn?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                <i class="bi bi-trash3 me-1"></i>Xóa
+                                            </button>
                                         </form>
                                     </td>
                                 </tr>
