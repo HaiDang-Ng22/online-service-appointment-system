@@ -3,77 +3,117 @@
     ViewData["Title"] = "Lịch hẹn của tôi";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0 text-primary">Lịch Hẹn Của Tôi</h3>
-    <a asp-controller="Services" asp-action="Index" class="btn btn-primary fw-bold">Đặt Lịch Dịch Vụ Mới</a>
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-calendar-check text-primary me-2"></i>Lịch Hẹn Của Tôi
+        </h3>
+        <p class="text-secondary small mb-0">Theo dõi tiến trình lịch khám, xem chẩn đoán bác sĩ và in phiếu hẹn</p>
+    </div>
+    <a asp-controller="Services" asp-action="Index" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
+        <i class="bi bi-plus-lg"></i>
+        <span>Đặt Dịch Vụ Mới</span>
+    </a>
 </div>
 
 @if (!Model.Any())
 {
-    <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
-        <h4 class="fw-bold">Bạn chưa có lịch hẹn nào</h4>
-        <p class="text-muted">Hãy tìm kiếm dịch vụ yêu thích và chọn khung giờ phù hợp để đặt lịch.</p>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+        <div class="mb-3 text-secondary" style="font-size: 3rem;">
+            <i class="bi bi-calendar-x"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">Bạn chưa có lịch hẹn nào</h4>
+        <p class="text-secondary small mb-3">Hãy khám phá các dịch vụ y tế, thẩm mỹ, tư vấn và đặt khung giờ phù hợp.</p>
         <div>
-            <a asp-controller="Services" asp-action="Index" class="btn btn-primary px-4 py-2 fw-bold rounded-pill">Khám phá ngay</a>
+            <a asp-controller="Services" asp-action="Index" class="btn btn-primary px-4 py-2 fw-bold rounded-pill">
+                Khám phá dịch vụ ngay
+            </a>
         </div>
     </div>
 }
 else
 {
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Dịch vụ</th>
-                        <th>Nhà cung cấp</th>
+                        <th class="ps-4">Dịch vụ & Nhà cung cấp</th>
                         <th>Ngày hẹn</th>
                         <th>Khung giờ</th>
+                        <th>Hồ sơ / Kết quả khám</th>
                         <th>Trạng thái</th>
-                        <th class="text-end">Thao tác</th>
+                        <th class="text-end pe-4">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td>
+                            <td class="ps-4">
                                 <strong class="text-dark">@item.Service?.Name</strong>
+                                <div class="text-secondary small d-flex align-items-center gap-1">
+                                    <i class="bi bi-building text-muted"></i>
+                                    <span>@item.Provider?.FullName</span>
+                                </div>
                             </td>
-                            <td>@item.Provider?.FullName</td>
-                            <td>@item.AppointmentDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <span class="fw-bold text-dark">@item.AppointmentDate.ToString("dd/MM/yyyy")</span>
+                            </td>
                             <td>
                                 <span class="badge bg-light text-dark border">
-                                    @item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
+                                    <i class="bi bi-clock me-1 text-muted"></i>@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
                                 </span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(item.Diagnosis))
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-clipboard2-check-fill me-1"></i>Đã có chẩn đoán
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small"><em>Đang chờ khám</em></span>
+                                }
                             </td>
                             <td>
                                 @if (item.Status == "Pending")
                                 {
-                                    <span class="badge bg-warning text-dark">Chờ xác nhận</span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">Chờ xác nhận</span>
                                 }
                                 else if (item.Status == "Confirmed")
                                 {
-                                    <span class="badge bg-info text-white">Đã xác nhận</span>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Đã xác nhận</span>
                                 }
                                 else if (item.Status == "Completed")
                                 {
-                                    <span class="badge bg-success">Đã hoàn thành</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Đã hoàn thành</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">Đã hủy</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Đã hủy</span>
                                 }
                             </td>
-                            <td class="text-end">
-                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm me-1">Chi tiết</a>
+                            <td class="text-end pe-4">
+                                <div class="d-inline-flex gap-1 align-items-center">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                                        <i class="bi bi-eye me-1"></i>Chi tiết
+                                    </a>
 
-                                @if (item.Status == "Pending" || item.Status == "Confirmed")
-                                {
-                                    <form asp-action="Cancel" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">Hủy lịch</button>
-                                    </form>
-                                }
+                                    <a asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-outline-secondary btn-sm rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
+                                        <i class="bi bi-printer-fill"></i>
+                                    </a>
+
+                                    @if (item.Status == "Pending" || item.Status == "Confirmed")
+                                    {
+                                        <form asp-action="Cancel" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" title="Hủy lịch hẹn">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }

@@ -136,6 +136,32 @@ namespace Appointment.Controllers
             return View(appointment);
         }
 
+        // GET: /Appointments/PrintInvoice/abc
+        public async Task<IActionResult> PrintInvoice(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var appointment = await _context.Appointments
+                .Include(a => a.Service)
+                    .ThenInclude(s => s!.Category)
+                .Include(a => a.Provider)
+                .Include(a => a.Customer)
+                .Include(a => a.Staff)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (appointment == null) return NotFound();
+
+            string role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+            // Customer can only view their own invoice; Provider can only view their own; Staff and Admin can view any
+            if (role == "Customer" && appointment.CustomerId != userId) return Forbid();
+            if (role == "Provider" && appointment.ProviderId != userId) return Forbid();
+
+            return View(appointment);
+        }
+
         // POST: /Appointments/Cancel/abc
         [HttpPost]
         [ValidateAntiForgeryToken]

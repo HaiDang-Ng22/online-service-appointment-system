@@ -1,108 +1,376 @@
+@using System.Text.RegularExpressions
 @{
     ViewData["Title"] = "Trang chủ - AppointX";
     var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
     var featuredServices = ViewBag.FeaturedServices as List<Appointment.Models.Service> ?? new();
+    var topProviders = ViewBag.TopProviders as List<Appointment.Models.User> ?? new();
 }
 
-<div class="p-5 mb-4 bg-primary text-white rounded-4 shadow-sm">
-    <div class="row align-items-center py-3">
-        <div class="col-lg-12">
-            <h1 class="display-4 fw-bold mb-3">Đặt Lịch Dịch Vụ Nhanh Chóng & Dễ Dàng</h1>
-            <p class="fs-5 mb-4 opacity-75">
-                Tìm kiếm bác sĩ, salon/spa, chuyên gia tư vấn hoặc trung tâm thể thao và đặt lịch trực tuyến chỉ trong vài phút.
+@functions {
+    public static string CleanCategoryName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "Dịch vụ";
+        // Strip emoji or leftover unicode symbols
+        return Regex.Replace(name, @"[\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF]", "").Trim();
+    }
+
+    public static (string Icon, string Color, string Bg, string Border) GetCategoryTheme(string? name)
+    {
+        var n = (name ?? "").ToLower();
+        if (n.Contains("bác sĩ") || n.Contains("phòng khám") || n.Contains("y tế") || n.Contains("khám"))
+            return ("bi-hospital-fill", "#0284c7", "#e0f2fe", "#bae6fd");
+        if (n.Contains("salon") || n.Contains("spa") || n.Contains("thẩm mỹ") || n.Contains("làm đẹp") || n.Contains("tóc"))
+            return ("bi-scissors", "#db2777", "#fdf2f8", "#fbcfe8");
+        if (n.Contains("tư vấn") || n.Contains("tài chính") || n.Contains("pháp lý") || n.Contains("tâm lý"))
+            return ("bi-person-workspace", "#4f46e5", "#eef2ff", "#c7d2fe");
+        if (n.Contains("thể thao") || n.Contains("gym") || n.Contains("yoga") || n.Contains("fitness"))
+            return ("bi-lightning-charge-fill", "#ea580c", "#fff7ed", "#ffedd5");
+        if (n.Contains("giáo dục") || n.Contains("học") || n.Contains("gia sư") || n.Contains("đào tạo"))
+            return ("bi-mortarboard-fill", "#0d9488", "#f0fdfa", "#ccfbf1");
+        if (n.Contains("dịch vụ") || n.Contains("sửa chữa") || n.Contains("thiết bị") || n.Contains("bảo dưỡng"))
+            return ("bi-tools", "#475569", "#f1f5f9", "#e2e8f0");
+        return ("bi-grid-fill", "#2563eb", "#eff6ff", "#bfdbfe");
+    }
+}
+
+<!-- ========================================================
+     Hero Section
+     ======================================================== -->
+<section class="hero-wrapper mb-5">
+    <div class="row align-items-center">
+        <div class="col-lg-11 col-xl-10">
+            <div class="hero-badge">
+                <i class="bi bi-patch-check-fill text-info"></i> Nền tảng đặt lịch thông minh #1
+            </div>
+
+            <h1 class="hero-title mb-3">
+                Đặt Lịch Dịch Vụ Nhanh Chóng & Dễ Dàng
+            </h1>
+            <p class="hero-subtitle mb-4">
+                Kết nối với đội ngũ bác sĩ chuyên khoa, chuyên gia làm đẹp, tư vấn pháp lý và huấn luyện viên hàng đầu. Đặt lịch trực tuyến 24/7 với xác nhận tức thì.
             </p>
 
-            <form asp-controller="Services" asp-action="Index" method="get" class="bg-white p-2 rounded-4 shadow d-flex gap-2 flex-wrap flex-sm-nowrap">
-                <input type="text" name="search" class="form-control form-control-lg border-0 bg-transparent text-dark" placeholder="Tìm dịch vụ, nhà cung cấp..." />
-                <button type="submit" class="btn btn-warning btn-lg px-4 fw-bold text-dark rounded-3 text-nowrap">
-                    Tìm Kiếm
+            <!-- Search Bar with Category Filter -->
+            <form asp-controller="Services" asp-action="Index" method="get" class="search-box-pill d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center">
+                <div class="search-input-group flex-grow-1">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="search" class="form-control search-control" placeholder="Tìm theo tên dịch vụ, bác sĩ, cơ sở spa, huấn luyện viên..." />
+                </div>
+
+                <div class="d-none d-md-block" style="width: 1px; height: 32px; background: #e2e8f0;"></div>
+
+                <div class="px-2">
+                    <select name="categoryId" class="form-select search-select">
+                        <option value="">Tất cả danh mục</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.Id">@CleanCategoryName(cat.Name)</option>
+                        }
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-search-hero">
+                    <i class="bi bi-search me-1"></i> Tìm Lịch Hẹn
                 </button>
             </form>
-        </div>
-    </div>
-</div>
 
-<div class="row text-center my-4 g-3">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-3">
-            <h3 class="fw-bold text-primary mb-1">@ViewBag.TotalServices</h3>
-            <span class="text-muted">Dịch vụ đang hoạt động</span>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-3">
-            <h3 class="fw-bold text-success mb-1">@ViewBag.TotalProviders</h3>
-            <span class="text-muted">Nhà cung cấp uy tín</span>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-3">
-            <h3 class="fw-bold text-warning mb-1">@ViewBag.TotalAppointments</h3>
-            <span class="text-muted">Cuộc hẹn đã được tạo</span>
-        </div>
-    </div>
-</div>
+            <!-- Quick Search Tags -->
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
+                <span class="small text-white-50 me-1">Tìm kiếm phổ biến:</span>
+                @foreach (var cat in categories.Take(4))
+                {
+                    var cleanTitle = CleanCategoryName(cat.Name);
+                    var theme = GetCategoryTheme(cleanTitle);
+                    <a asp-controller="Services" asp-action="Index" asp-route-categoryId="@cat.Id" class="hero-quick-tag">
+                        <i class="bi @theme.Icon"></i> @cleanTitle
+                    </a>
+                }
+            </div>
 
-<div class="my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold mb-0 text-dark">Danh Mục Dịch Vụ</h3>
-        <a asp-controller="Services" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill fw-semibold">Xem tất cả</a>
+            <!-- Value Props -->
+            <div class="d-flex flex-wrap gap-4 mt-4 pt-3 border-top border-white-10 text-white-50 small">
+                <div class="d-flex align-items-center gap-2 text-white">
+                    <i class="bi bi-check-circle-fill text-info"></i>
+                    <span>Xác nhận lịch tức thì</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 text-white">
+                    <i class="bi bi-shield-check text-success"></i>
+                    <span>100% Nhà cung cấp xác thực</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 text-white">
+                    <i class="bi bi-clock-history text-warning"></i>
+                    <span>Chủ động chọn giờ 24/7</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================
+     Metrics Overview Bar
+     ======================================================== -->
+<section class="mb-5">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="bi bi-calendar2-event-fill"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@ViewBag.TotalServices</div>
+                    <div class="stat-label">Dịch vụ đang hoạt động</div>
+                    <div class="stat-badge"><i class="bi bi-check2 text-primary me-1"></i>Sẵn sàng nhận lịch hẹn</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-patch-check-fill"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@ViewBag.TotalProviders</div>
+                    <div class="stat-label">Nhà cung cấp uy tín</div>
+                    <div class="stat-badge"><i class="bi bi-shield-check text-success me-1"></i>Đã qua kiểm duyệt hồ sơ</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@ViewBag.TotalAppointments</div>
+                    <div class="stat-label">Cuộc hẹn đã hoàn tất</div>
+                    <div class="stat-badge"><i class="bi bi-star-fill text-warning me-1"></i>Đánh giá hài lòng cao</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================
+     Danh Mục Dịch Vụ
+     ======================================================== -->
+<section class="my-5">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+        <div>
+            <h3 class="section-header-title">Danh Mục Dịch Vụ</h3>
+            <p class="section-header-desc">Khám phá các chuyên ngành dịch vụ phù hợp với nhu cầu của bạn</p>
+        </div>
+        <a asp-controller="Services" asp-action="Index" class="btn-pill-view">
+            <span>Xem tất cả danh mục</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
     </div>
 
     <div class="row g-3">
         @foreach (var cat in categories)
         {
-            <div class="col-md-4 col-sm-6">
-                <a asp-controller="Services" asp-action="Index" asp-route-categoryId="@cat.Id" class="text-decoration-none">
-                    <div class="card h-100 border-0 shadow-sm rounded-3 hover-shadow p-3 text-dark">
-                        <div>
-                            <h5 class="fw-bold mb-1">@cat.Name</h5>
-                            <small class="text-muted">@cat.Description</small>
+            var cleanTitle = CleanCategoryName(cat.Name);
+            var theme = GetCategoryTheme(cleanTitle);
+            <div class="col-lg-4 col-md-6">
+                <a asp-controller="Services" asp-action="Index" asp-route-categoryId="@cat.Id" class="category-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="category-icon-wrapper" style="background-color: @theme.Bg; color: @theme.Color; border: 1px solid @theme.Border;">
+                            <i class="bi @theme.Icon"></i>
                         </div>
+                        <span class="category-arrow"><i class="bi bi-arrow-up-right"></i></span>
                     </div>
+
+                    <div class="category-title">
+                        <span>@cleanTitle</span>
+                    </div>
+
+                    <p class="category-desc">@cat.Description</p>
                 </a>
             </div>
         }
     </div>
-</div>
+</section>
 
-<div class="my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold mb-0 text-dark">Dịch Vụ Nổi Bật</h3>
-        <a asp-controller="Services" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill fw-semibold">Khám phá dịch vụ</a>
+<!-- ========================================================
+     Dịch Vụ Nổi Bật
+     ======================================================== -->
+<section class="my-5">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+        <div>
+            <h3 class="section-header-title">Dịch Vụ Nổi Bật</h3>
+            <p class="section-header-desc">Các gói dịch vụ được đặt nhiều nhất với thời gian khả dụng gần nhất</p>
+        </div>
+        <a asp-controller="Services" asp-action="Index" class="btn-pill-view">
+            <span>Khám phá thêm dịch vụ</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
     </div>
 
     <div class="row g-4">
         @foreach (var service in featuredServices)
         {
+            var categoryName = CleanCategoryName(service.Category?.Name);
+            var theme = GetCategoryTheme(categoryName);
             <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1">@service.Category?.Name</span>
-                            <span class="fw-bold text-success fs-5">@service.Price.ToString("N0") VNĐ</span>
-                        </div>
+                <div class="service-card">
+                    <div class="service-card-header">
+                        <span class="service-badge" style="background-color: @theme.Bg; color: @theme.Color; border: 1px solid @theme.Border;">
+                            <i class="bi @theme.Icon me-1"></i> @categoryName
+                        </span>
+                        <span class="service-price-tag">@service.Price.ToString("N0") VNĐ</span>
+                    </div>
 
-                        <h5 class="card-title fw-bold text-dark mb-2">@service.Name</h5>
-                        <p class="card-text text-muted small flex-grow-1">@service.Description</p>
+                    <div class="service-card-body">
+                        <h4 class="service-name">@service.Name</h4>
+                        <p class="service-desc">@service.Description</p>
 
-                        <div class="border-top pt-3 mt-3">
-                            <div class="d-flex align-items-center mb-2 small text-secondary">
+                        <div class="service-meta-box">
+                            <div class="service-meta-row">
+                                <i class="bi bi-building-check"></i>
                                 <span>Nhà cung cấp: <strong>@service.Provider?.FullName</strong></span>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center small text-secondary">
-                                <span>Thời lượng: @service.DurationMinutes phút</span>
-                                <span>Địa điểm: @service.Location</span>
+                            <div class="service-meta-row">
+                                <i class="bi bi-clock-history"></i>
+                                <span>Thời lượng thực hiện: <strong>@service.DurationMinutes phút</strong></span>
+                            </div>
+                            <div class="service-meta-row">
+                                <i class="bi bi-geo-alt-fill text-danger"></i>
+                                <span class="text-truncate">Địa điểm: <strong>@service.Location</strong></span>
                             </div>
                         </div>
                     </div>
-                    <div class="card-footer bg-light border-0 p-3">
-                        <a asp-controller="Services" asp-action="Details" asp-route-id="@service.Id" class="btn btn-primary w-100 fw-bold rounded-3">
-                            Xem Lịch & Đặt Ngay
+
+                    <div class="service-card-footer">
+                        <a asp-controller="Services" asp-action="Details" asp-route-id="@service.Id" class="btn-book-service">
+                            <i class="bi bi-calendar2-plus"></i> Xem Lịch & Đặt Ngay
                         </a>
                     </div>
                 </div>
             </div>
         }
     </div>
-</div>
+</section>
+
+<!-- ========================================================
+     Quy Trình Đặt Lịch (How it works)
+     ======================================================== -->
+<section id="how-it-works" class="how-it-works-section">
+    <div class="text-center max-w-600 mx-auto mb-4">
+        <h3 class="section-header-title">Quy Trình Đặt Lịch Dễ Dàng Với 3 Bước</h3>
+        <p class="section-header-desc">Tiết kiệm thời gian, loại bỏ khâu chờ đợi trực tiếp tại cơ sở</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="step-card">
+                <div class="step-icon-box">
+                    <i class="bi bi-search"></i>
+                    <span class="step-number">1</span>
+                </div>
+                <h5 class="step-title">Tìm Kiếm & Lựa Chọn</h5>
+                <p class="step-desc">Khám phá danh sách các bác sĩ, chuyên gia hoặc cơ sở thẩm mỹ phù hợp theo vị trí và nhu cầu của bạn.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="step-card">
+                <div class="step-icon-box">
+                    <i class="bi bi-calendar3"></i>
+                    <span class="step-number">2</span>
+                </div>
+                <h5 class="step-title">Chọn Khung Giờ Trống</h5>
+                <p class="step-desc">Theo dõi lịch khả dụng trực tiếp theo thời gian thực và lựa chọn thời điểm thuận tiện nhất cho lịch trình của bạn.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="step-card">
+                <div class="step-icon-box">
+                    <i class="bi bi-check-circle"></i>
+                    <span class="step-number">3</span>
+                </div>
+                <h5 class="step-title">Xác Nhận & Đến Đúng Giờ</h5>
+                <p class="step-desc">Nhận tin nhắn xác nhận lịch tức thì và nhận thông báo nhắc nhở tự động trước khi buổi hẹn diễn ra.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================
+     Top Nhà Cung Cấp Uy Tín
+     ======================================================== -->
+@if (topProviders.Any())
+{
+    <section class="my-5">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+            <div>
+                <h3 class="section-header-title">Nhà Cung Cấp & Đối Tác Tiêu Biểu</h3>
+                <p class="section-header-desc">Đơn vị uy tín được hàng ngàn khách hàng tin cậy đánh giá cao</p>
+            </div>
+            <a asp-controller="Services" asp-action="Index" class="btn-pill-view">
+                <span>Xem đối tác</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var provider in topProviders)
+            {
+                <div class="col-lg-6">
+                    <div class="provider-card">
+                        <div class="provider-avatar">
+                            @(string.IsNullOrWhiteSpace(provider.FullName) ? "P" : provider.FullName.Substring(0, 1).ToUpper())
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="provider-name d-flex align-items-center gap-2">
+                                <span>@provider.FullName</span>
+                                <span class="badge bg-success-subtle text-success small border border-success-subtle" style="font-size: 0.7rem;">
+                                    <i class="bi bi-patch-check-fill me-1"></i>Đã xác thực
+                                </span>
+                            </div>
+                            <div class="provider-info d-flex flex-column gap-1 mt-1">
+                                @if (!string.IsNullOrWhiteSpace(provider.Address))
+                                {
+                                    <span class="d-flex align-items-center gap-1 text-truncate">
+                                        <i class="bi bi-geo-alt text-muted"></i> @provider.Address
+                                    </span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(provider.PhoneNumber))
+                                {
+                                    <span class="d-flex align-items-center gap-1">
+                                        <i class="bi bi-telephone text-muted"></i> @provider.PhoneNumber
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                        <a asp-controller="Services" asp-action="Index" asp-route-search="@provider.FullName" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                            Xem lịch
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+<!-- ========================================================
+     Partner CTA Banner
+     ======================================================== -->
+<section class="my-5">
+    <div class="p-4 p-md-5 rounded-4 border bg-white shadow-sm d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4">
+        <div>
+            <span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill mb-2">
+                <i class="bi bi-briefcase-fill me-1"></i> Dành cho chuyên gia & Doanh nghiệp
+            </span>
+            <h3 class="fw-bold text-dark mb-2">Bạn là bác sĩ, chuyên gia hoặc chủ cơ sở dịch vụ?</h3>
+            <p class="text-secondary mb-0" style="max-width: 650px;">
+                Đăng ký tài khoản Đối tác để tự động hóa quản trị lịch hẹn, giảm thiểu tình trạng vắng mặt (no-show) và tiếp cận hàng ngàn khách hàng tiềm năng ngay hôm nay.
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="Account" asp-action="Register" class="btn btn-primary fw-bold px-4 py-2 rounded-3 text-nowrap">
+                <i class="bi bi-person-plus-fill me-1"></i> Đăng Ký Đối Tác
+            </a>
+            <a asp-controller="Services" asp-action="Index" class="btn btn-outline-secondary fw-semibold px-3 py-2 rounded-3 text-nowrap">
+                Tìm hiểu thêm
+            </a>
+        </div>
+    </div>
+</section>

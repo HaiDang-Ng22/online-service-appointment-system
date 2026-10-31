@@ -10,6 +10,8 @@ obj/
 ## Database files
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 
 ## App Settings Secrets if any

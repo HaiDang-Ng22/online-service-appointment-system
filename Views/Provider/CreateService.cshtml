@@ -1,72 +1,118 @@
 @model Appointment.Models.Service
 @{
-    ViewData["Title"] = "Tạo dịch vụ mới";
+    ViewData["Title"] = "Thêm dịch vụ mới";
     var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-header bg-primary text-white py-3">
-                <h4 class="fw-bold mb-0">Thêm Dịch Vụ Mới</h4>
+<div class="row justify-content-center my-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-slate-900 text-white p-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-badge" style="width: 40px; height: 40px; font-size: 1.2rem;">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </span>
+                    <div>
+                        <h4 class="fw-bold mb-0 text-white">Thêm Dịch Vụ Mới</h4>
+                        <small class="text-white-50">Đăng tải dịch vụ khám, làm đẹp, tư vấn vào hồ sơ của bạn</small>
+                    </div>
+                </div>
+                <a asp-action="Services" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại
+                </a>
             </div>
-            <div class="card-body p-4">
-                <form asp-action="CreateService" method="post">
-                    <div class="mb-3">
-                        <label asp-for="Name" class="form-label fw-semibold">Tên dịch vụ</label>
-                        <input asp-for="Name" class="form-control" placeholder="Ví dụ: Khám tổng quát, Cắt tóc nam..." required />
+
+            <div class="card-body p-4 p-md-5">
+                <form asp-action="CreateService" method="post" id="createServiceForm">
+                    <input type="hidden" name="ProviderId" value="@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)" />
+                    <div asp-validation-summary="All" class="alert alert-danger py-2 px-3 small rounded-3 mb-4"></div>
+
+                    <div class="mb-4">
+                        <label asp-for="Name" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-card-heading me-1 text-primary"></i>Tên dịch vụ <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Name" class="form-control rounded-3 py-2" placeholder="Ví dụ: Khám Sức Khỏe Tổng Quát, Cắt Tóc Tạo Kiểu..." required />
+                        <span asp-validation-for="Name" class="text-danger small mt-1 d-block"></span>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="CategoryId" class="form-label fw-semibold">Danh mục</label>
-                        <select asp-for="CategoryId" class="form-select" required>
-                            <option value="">-- Chọn danh mục --</option>
+                    <div class="mb-4">
+                        <label asp-for="CategoryId" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-tags me-1 text-primary"></i>Chuyên mục / Danh mục <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="CategoryId" class="form-select rounded-3 py-2" required>
+                            <option value="">-- Chọn danh mục dịch vụ phù hợp --</option>
                             @foreach (var c in categories)
                             {
                                 <option value="@c.Id">@c.Name</option>
                             }
                         </select>
+                        <span asp-validation-for="CategoryId" class="text-danger small mt-1 d-block"></span>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <label asp-for="Price" class="form-label fw-semibold">Giá dịch vụ (VNĐ)</label>
-                            <input asp-for="Price" type="number" step="1000" class="form-control" required />
+                            <label asp-for="Price" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-cash-stack me-1 text-success"></i>Giá dịch vụ (VNĐ) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input asp-for="Price" type="number" step="1000" min="0" class="form-control rounded-start-3 py-2" placeholder="500000" required />
+                                <span class="input-group-text bg-light text-muted rounded-end-3">VNĐ</span>
+                            </div>
+                            <span asp-validation-for="Price" class="text-danger small mt-1 d-block"></span>
                         </div>
+
                         <div class="col-md-6">
-                            <label asp-for="DurationMinutes" class="form-label fw-semibold">Thời lượng (Phút)</label>
-                            <select asp-for="DurationMinutes" class="form-select">
+                            <label asp-for="DurationMinutes" class="form-label fw-bold text-secondary small">
+                                <i class="bi bi-clock-history me-1 text-warning"></i>Thời lượng thực hiện <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="DurationMinutes" class="form-select rounded-3 py-2">
                                 <option value="15">15 phút</option>
                                 <option value="30" selected>30 phút</option>
                                 <option value="45">45 phút</option>
                                 <option value="60">60 phút (1 giờ)</option>
-                                <option value="90">90 phút</option>
+                                <option value="90">90 phút (1.5 giờ)</option>
                                 <option value="120">120 phút (2 giờ)</option>
                             </select>
+                            <span asp-validation-for="DurationMinutes" class="text-danger small mt-1 d-block"></span>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Location" class="form-label fw-semibold">Địa điểm thực hiện</label>
-                        <input asp-for="Location" class="form-control" placeholder="Địa chỉ cung cấp dịch vụ" />
+                    <div class="mb-4">
+                        <label asp-for="Location" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-geo-alt-fill me-1 text-danger"></i>Địa điểm thực hiện
+                        </label>
+                        <input asp-for="Location" class="form-control rounded-3 py-2" placeholder="Ví dụ: Phòng 302, 123 Nguyễn Trãi, Thanh Xuân, Hà Nội" />
+                        <span asp-validation-for="Location" class="text-danger small mt-1 d-block"></span>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Description" class="form-label fw-semibold">Mô tả dịch vụ</label>
-                        <textarea asp-for="Description" class="form-control" rows="4" placeholder="Mô tả chi tiết những gì dịch vụ bao gồm..."></textarea>
+                    <div class="mb-4">
+                        <label asp-for="Description" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-text-paragraph me-1 text-primary"></i>Mô tả chi tiết dịch vụ
+                        </label>
+                        <textarea asp-for="Description" class="form-control rounded-3" rows="4" placeholder="Mô tả nội dung dịch vụ, quy trình thực hiện, những điều khách hàng cần lưu ý trước khi đến..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger small mt-1 d-block"></span>
                     </div>
 
-                    <div class="form-check mb-4">
-                        <input asp-for="IsActive" class="form-check-input" checked />
-                        <label asp-for="IsActive" class="form-check-label">Cho phép hiển thị và đặt lịch ngay</label>
+                    <div class="form-check form-switch mb-4 p-3 bg-light rounded-3">
+                        <input asp-for="IsActive" class="form-check-input ms-0 me-2" type="checkbox" role="switch" checked id="isActiveSwitch">
+                        <label class="form-check-label fw-bold text-dark small" for="isActiveSwitch">
+                            Kích hoạt và cho phép khách hàng đặt lịch ngay lập tức
+                        </label>
                     </div>
 
-                    <div class="d-flex justify-content-end gap-2">
-                        <a asp-action="Services" class="btn btn-outline-secondary">Hủy</a>
-                        <button type="submit" class="btn btn-primary fw-bold px-4">Lưu Dịch Vụ</button>
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a asp-action="Services" class="btn btn-outline-secondary px-4 rounded-3">Hủy</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-4 rounded-3 d-flex align-items-center gap-2 shadow-sm">
+                            <i class="bi bi-check-lg"></i>
+                            <span>Lưu & Xuất Bản Dịch Vụ</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

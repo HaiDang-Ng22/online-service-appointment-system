@@ -3,59 +3,101 @@
     ViewData["Title"] = "Kênh Nhà cung cấp - Quản lý lịch hẹn";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0 text-primary">Kênh Quản Lý Cuộc Hẹn (Provider)</h3>
-    <a asp-action="CreateService" class="btn btn-success fw-bold">Thêm Dịch Vụ Mới</a>
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-calendar2-check text-primary me-2"></i>Kênh Quản Lý Cuộc Hẹn
+        </h3>
+        <p class="text-secondary small mb-0">Theo dõi lịch khám, tiếp nhận bệnh nhân, ghi chẩn đoán và in phiếu hẹn/hóa đơn</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Services" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            <i class="bi bi-grid me-1"></i>Dịch vụ của tôi
+        </a>
+        <a asp-action="CreateService" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-1">
+            <i class="bi bi-plus-lg"></i>
+            <span>Thêm Dịch Vụ Mới</span>
+        </a>
+    </div>
 </div>
 
+<!-- Status Filter Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <a asp-action="Index" asp-route-status="Pending" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 rounded-3 bg-warning-subtle text-dark">
-                <div class="fs-4 fw-bold">@ViewBag.PendingCount</div>
-                <small class="fw-semibold text-warning-emphasis">Chờ xác nhận</small>
+            <div class="stat-card p-3 @(ViewBag.CurrentStatusFilter == "Pending" ? "border-primary" : "")">
+                <div class="stat-icon warning" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div>
+                    <div class="stat-number fs-4">@ViewBag.PendingCount</div>
+                    <div class="stat-label small">Chờ xác nhận</div>
+                </div>
             </div>
         </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <a asp-action="Index" asp-route-status="Confirmed" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 rounded-3 bg-info-subtle text-dark">
-                <div class="fs-4 fw-bold">@ViewBag.ConfirmedCount</div>
-                <small class="fw-semibold text-info-emphasis">Đã xác nhận</small>
+            <div class="stat-card p-3 @(ViewBag.CurrentStatusFilter == "Confirmed" ? "border-primary" : "")">
+                <div class="stat-icon primary" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div>
+                    <div class="stat-number fs-4">@ViewBag.ConfirmedCount</div>
+                    <div class="stat-label small">Đã xác nhận</div>
+                </div>
             </div>
         </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <a asp-action="Index" asp-route-status="Completed" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 rounded-3 bg-success-subtle text-dark">
-                <div class="fs-4 fw-bold">@ViewBag.CompletedCount</div>
-                <small class="fw-semibold text-success-emphasis">Đã hoàn thành</small>
+            <div class="stat-card p-3 @(ViewBag.CurrentStatusFilter == "Completed" ? "border-primary" : "")">
+                <div class="stat-icon success" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-number fs-4">@ViewBag.CompletedCount</div>
+                    <div class="stat-label small">Đã hoàn thành</div>
+                </div>
             </div>
         </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <a asp-action="Index" asp-route-status="Cancelled" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 rounded-3 bg-secondary-subtle text-dark">
-                <div class="fs-4 fw-bold">@ViewBag.CancelledCount</div>
-                <small class="fw-semibold text-secondary-emphasis">Đã hủy</small>
+            <div class="stat-card p-3 @(ViewBag.CurrentStatusFilter == "Cancelled" ? "border-primary" : "")">
+                <div class="stat-icon" style="width: 44px; height: 44px; font-size: 1.2rem; background: #f1f5f9; color: #64748b;">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+                <div>
+                    <div class="stat-number fs-4">@ViewBag.CancelledCount</div>
+                    <div class="stat-label small">Đã hủy</div>
+                </div>
             </div>
         </a>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0">Danh Sách Lịch Hẹn Khách Hàng</h5>
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="card-header bg-slate-50 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-primary"></i>
+            <h5 class="fw-bold mb-0 text-dark">Danh Sách Lịch Hẹn Khách Hàng</h5>
+            <span class="badge bg-secondary-subtle text-secondary ms-1">@Model.Count</span>
+        </div>
         @if (!string.IsNullOrEmpty(ViewBag.CurrentStatusFilter as string))
         {
-            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Hiện tất cả</a>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                <i class="bi bi-funnel me-1"></i>Hiện tất cả cuộc hẹn
+            </a>
         }
     </div>
 
     @if (!Model.Any())
     {
         <div class="p-5 text-center text-muted">
-            Chưa có cuộc hẹn nào thuộc bộ lọc hiện tại.
+            <i class="bi bi-inbox display-4 text-secondary mb-2 d-block"></i>
+            <h6 class="fw-bold text-dark">Chưa có cuộc hẹn nào</h6>
+            <small>Chưa có lịch hẹn nào thuộc trạng thái được chọn.</small>
         </div>
     }
     else
@@ -64,63 +106,119 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Khách hàng</th>
-                        <th>Dịch vụ</th>
-                        <th>Ngày hẹn</th>
-                        <th>Khung giờ</th>
-                        <th>Ghi chú</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Cập nhật trạng thái</th>
+                        <th class="ps-4">Khách Hàng / Bệnh Nhân</th>
+                        <th>Dịch Vụ</th>
+                        <th>Thời Gian Hẹn</th>
+                        <th>Hồ Sơ Y Khoa / Chẩn Đoán</th>
+                        <th>Trạng Thái</th>
+                        <th class="text-end pe-4">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in Model)
                     {
                         <tr>
-                            <td>
-                                <div><strong>@item.Customer?.FullName</strong></div>
-                                <small class="text-muted">@item.Customer?.PhoneNumber</small>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 0.9rem;">
+                                        @(string.IsNullOrWhiteSpace(item.Customer?.FullName) ? "K" : item.Customer.FullName.Substring(0, 1).ToUpper())
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">@item.Customer?.FullName</div>
+                                        <div class="text-secondary small d-flex align-items-center gap-2">
+                                            <span><i class="bi bi-telephone text-muted me-1"></i>@(item.Customer?.PhoneNumber ?? "Chưa có SĐT")</span>
+                                            <span><i class="bi bi-envelope text-muted me-1"></i>@item.Customer?.Email</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
-                            <td>@item.Service?.Name</td>
-                            <td>@item.AppointmentDate.ToString("dd/MM/yyyy")</td>
                             <td>
+                                <strong class="text-dark">@item.Service?.Name</strong>
+                                <div class="small text-success fw-semibold">@item.Service?.Price.ToString("N0") VNĐ</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">@item.AppointmentDate.ToString("dd/MM/yyyy")</div>
                                 <span class="badge bg-light text-dark border">
-                                    @item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
+                                    <i class="bi bi-clock me-1 text-muted"></i>@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
                                 </span>
                             </td>
-                            <td><small class="text-muted">@(string.IsNullOrEmpty(item.Notes) ? "-" : item.Notes)</small></td>
                             <td>
-                                @if (item.Status == "Pending")
+                                @if (!string.IsNullOrWhiteSpace(item.Diagnosis))
                                 {
-                                    <span class="badge bg-warning text-dark">Pending</span>
-                                }
-                                else if (item.Status == "Confirmed")
-                                {
-                                    <span class="badge bg-info">Confirmed</span>
-                                }
-                                else if (item.Status == "Completed")
-                                {
-                                    <span class="badge bg-success">Completed</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Đã có chẩn đoán
+                                    </span>
+                                    <div class="small text-muted text-truncate" style="max-width: 180px;" title="@item.Diagnosis">
+                                        @item.Diagnosis
+                                    </div>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">Cancelled</span>
+                                    <span class="badge bg-light text-secondary border px-2 py-1">
+                                        <i class="bi bi-clock me-1"></i>Chưa nhập chẩn đoán
+                                    </span>
                                 }
                             </td>
-                            <td class="text-end">
-                                <form asp-action="UpdateStatus" method="post" class="d-inline-flex gap-1">
-                                    <input type="hidden" name="appointmentId" value="@item.Id" />
+                            <td>
+                                @if (item.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">Chờ xác nhận</span>
+                                }
+                                else if (item.Status == "Confirmed")
+                                {
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Đã xác nhận</span>
+                                }
+                                else if (item.Status == "Completed")
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Đã hoàn thành</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Đã hủy</span>
+                                }
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="d-inline-flex gap-1 align-items-center">
+                                    <!-- Diagnosis & Medical Record Button -->
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                                            onclick="openMedicalModal('@item.Id', '@item.Customer?.FullName', '@item.Customer?.PhoneNumber', '@item.Customer?.Email', '@item.Customer?.Address', '@item.Service?.Name', '@item.AppointmentDate.ToString("dd/MM/yyyy")', '@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")', '@item.Notes', '@item.Diagnosis', '@item.Prescription', '@item.Status')">
+                                        <i class="bi bi-clipboard2-pulse me-1"></i>Khám & Chẩn đoán
+                                    </button>
+
+                                    <!-- Print Voucher / Invoice Button -->
+                                    <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
+                                        <i class="bi bi-printer-fill"></i>
+                                    </a>
+
+                                    <!-- Quick Status Toggle -->
                                     @if (item.Status == "Pending")
                                     {
-                                        <button type="submit" name="newStatus" value="Confirmed" class="btn btn-sm btn-info text-white">Xác nhận</button>
-                                        <button type="submit" name="newStatus" value="Cancelled" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                        <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="appointmentId" value="@item.Id" />
+                                            <input type="hidden" name="newStatus" value="Confirmed" />
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold">Xác nhận</button>
+                                        </form>
                                     }
                                     else if (item.Status == "Confirmed")
                                     {
-                                        <button type="submit" name="newStatus" value="Completed" class="btn btn-sm btn-success">Hoàn thành</button>
-                                        <button type="submit" name="newStatus" value="Cancelled" class="btn btn-sm btn-outline-danger">Hủy</button>
+                                        <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="appointmentId" value="@item.Id" />
+                                            <input type="hidden" name="newStatus" value="Completed" />
+                                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">Hoàn thành</button>
+                                        </form>
                                     }
-                                </form>
+
+                                    @if (item.Status != "Cancelled" && item.Status != "Completed")
+                                    {
+                                        <form asp-action="UpdateStatus" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy cuộc hẹn này?');">
+                                            <input type="hidden" name="appointmentId" value="@item.Id" />
+                                            <input type="hidden" name="newStatus" value="Cancelled" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2" title="Hủy cuộc hẹn">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -129,3 +227,133 @@
         </div>
     }
 </div>
+
+<!-- ========================================================
+     Modal: Chi Tiết Khách Hàng & Ghi Chẩn Đoán Y Khoa
+     ======================================================== -->
+<div class="modal fade" id="medicalModal" tabindex="-1" aria-labelledby="medicalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-slate-900 text-white p-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-badge" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                        <i class="bi bi-clipboard2-pulse-fill"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-white mb-0" id="medicalModalLabel">Hồ Sơ Bệnh Án & Chẩn Đoán Dịch Vụ</h5>
+                        <small class="text-white-50">Xem thông tin khách hàng và cập nhật kết quả khám / chẩn đoán / đơn thuốc</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form asp-action="UpdateMedicalRecord" method="post" id="medicalRecordForm">
+                <input type="hidden" name="appointmentId" id="modalAppointmentId" />
+
+                <div class="modal-body p-4">
+                    <!-- Customer Information Overview -->
+                    <div class="p-3 bg-light rounded-3 mb-4 border">
+                        <div class="row g-2">
+                            <div class="col-sm-6">
+                                <div class="small text-muted">Họ và tên khách hàng:</div>
+                                <div class="fw-bold text-dark fs-6" id="modalCustomerName">-</div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted">Dịch vụ thực hiện:</div>
+                                <div class="fw-bold text-primary" id="modalServiceName">-</div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted">Số điện thoại:</div>
+                                <div class="fw-semibold text-dark" id="modalCustomerPhone">-</div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted">Email:</div>
+                                <div class="fw-semibold text-dark" id="modalCustomerEmail">-</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="small text-muted">Địa chỉ khách hàng:</div>
+                                <div class="text-secondary small" id="modalCustomerAddress">-</div>
+                            </div>
+                            <div class="col-12" id="modalNotesContainer">
+                                <div class="small text-muted">Ghi chú của khách hàng khi đặt:</div>
+                                <div class="text-dark small p-2 bg-white rounded border mt-1" id="modalCustomerNotes">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Diagnosis & Notes Fields -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="bi bi-file-earmark-medical me-1 text-primary"></i>Chẩn đoán / Kết luận của Bác sĩ & Chuyên gia <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="diagnosis" id="modalDiagnosis" class="form-control rounded-3" rows="3" placeholder="Nhập kết quả thăm khám, chẩn đoán bệnh lý, chỉ số sức khỏe hoặc tình trạng của khách hàng..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="bi bi-capsule me-1 text-success"></i>Đơn thuốc / Lời dặn điều trị & Chăm sóc
+                        </label>
+                        <textarea name="prescription" id="modalPrescription" class="form-control rounded-3" rows="3" placeholder="Nhập danh sách thuốc, liều dùng, lời dặn kiêng cữ hoặc lịch hẹn tái khám..."></textarea>
+                    </div>
+
+                    <div class="row g-3 align-items-center">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-bold text-dark small">
+                                <i class="bi bi-flag me-1 text-warning"></i>Trạng thái cuộc hẹn sau khi khám:
+                            </label>
+                            <select name="status" id="modalStatus" class="form-select rounded-3">
+                                <option value="Confirmed">Confirmed (Đã xác nhận / Đang khám)</option>
+                                <option value="Completed" selected>Completed (Đã hoàn thành khám & tư vấn)</option>
+                                <option value="Cancelled">Cancelled (Đã hủy)</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 pt-sm-4 text-sm-end">
+                            <a id="modalPrintLink" href="#" target="_blank" class="btn btn-outline-secondary rounded-pill px-3 btn-sm">
+                                <i class="bi bi-printer me-1"></i>Xem & In Phiếu Hẹn / Hóa Đơn
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm d-flex align-items-center gap-1">
+                        <i class="bi bi-check-lg"></i>
+                        <span>Lưu Kết Quả & Chẩn Đoán</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openMedicalModal(id, name, phone, email, address, serviceName, date, time, notes, diagnosis, prescription, status) {
+            document.getElementById('modalAppointmentId').value = id;
+            document.getElementById('modalCustomerName').innerText = name || 'Khách hàng';
+            document.getElementById('modalCustomerPhone').innerText = phone || 'Chưa cung cấp';
+            document.getElementById('modalCustomerEmail').innerText = email || 'Chưa cung cấp';
+            document.getElementById('modalCustomerAddress').innerText = address || 'Chưa cung cấp';
+            document.getElementById('modalServiceName').innerText = serviceName + ' (' + date + ' ' + time + ')';
+            
+            const notesEl = document.getElementById('modalCustomerNotes');
+            if (notes && notes.trim() !== '') {
+                notesEl.innerText = notes;
+                document.getElementById('modalNotesContainer').style.display = 'block';
+            } else {
+                document.getElementById('modalNotesContainer').style.display = 'none';
+            }
+
+            document.getElementById('modalDiagnosis').value = diagnosis || '';
+            document.getElementById('modalPrescription').value = prescription || '';
+            document.getElementById('modalStatus').value = status || 'Completed';
+            
+            // Set Print link
+            document.getElementById('modalPrintLink').href = '/Appointments/PrintInvoice/' + id;
+
+            const modal = new bootstrap.Modal(document.getElementById('medicalModal'));
+            modal.show();
+        }
+    </script>
+}

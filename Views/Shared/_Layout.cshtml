@@ -4,96 +4,139 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - AppointX</title>
+    
+    <!-- Google Fonts & Bootstrap Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="d-flex flex-column min-vh-100 bg-light">
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm py-3">
+<body class="d-flex flex-column min-vh-100">
+    <header class="sticky-top">
+        <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
             <div class="container">
-                <a class="navbar-brand fw-bold fs-4" asp-area="" asp-controller="@(User.IsInRole("Admin") ? "Admin" : User.IsInRole("Provider") ? "Provider" : User.IsInRole("Staff") ? "Staff" : "Home")" asp-action="Index">
-                    AppointX
+                <a class="navbar-brand d-flex align-items-center gap-2 fw-bold fs-4 text-white" asp-area="" asp-controller="@(User.IsInRole("Admin") ? "Admin" : User.IsInRole("Provider") ? "Provider" : User.IsInRole("Staff") ? "Staff" : "Home")" asp-action="Index">
+                    <span class="brand-badge">
+                        <i class="bi bi-calendar2-check-fill"></i>
+                    </span>
+                    <span>Appoint<span style="color: #38bdf8;">X</span></span>
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain"
+                
+                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
+
                 <div class="collapse navbar-collapse" id="navbarMain">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3 gap-1">
                         @if (!User.Identity?.IsAuthenticated == true)
                         {
                             <!-- Guest Links -->
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Home" asp-action="Index">Trang chủ</a>
+                                <a class="nav-link" asp-controller="Home" asp-action="Index">
+                                    <i class="bi bi-house-door me-1"></i> Trang chủ
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Services" asp-action="Index">Dịch vụ & Tìm kiếm</a>
+                                <a class="nav-link" asp-controller="Services" asp-action="Index">
+                                    <i class="bi bi-grid-fill me-1"></i> Dịch vụ & Đặt lịch
+                                </a>
                             </li>
                         }
                         else if (User.IsInRole("Customer"))
                         {
                             <!-- Customer Links -->
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Home" asp-action="Index">Trang chủ</a>
+                                <a class="nav-link" asp-controller="Home" asp-action="Index">
+                                    <i class="bi bi-house-door me-1"></i> Trang chủ
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Services" asp-action="Index">Dịch vụ & Tìm kiếm</a>
+                                <a class="nav-link" asp-controller="Services" asp-action="Index">
+                                    <i class="bi bi-grid-fill me-1"></i> Dịch vụ & Đặt lịch
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Appointments" asp-action="Index">Lịch hẹn của tôi</a>
+                                <a class="nav-link" asp-controller="Appointments" asp-action="Index">
+                                    <i class="bi bi-calendar-check me-1"></i> Lịch hẹn của tôi
+                                </a>
                             </li>
                         }
                         else if (User.IsInRole("Provider"))
                         {
                             <!-- Provider Links Only -->
                             <li class="nav-item">
-                                <a class="nav-link text-warning fw-bold" asp-controller="Provider" asp-action="Index">Kênh Provider</a>
+                                <a class="nav-link text-warning fw-bold" asp-controller="Provider" asp-action="Index">
+                                    <i class="bi bi-speedometer2 me-1"></i> Kênh Đối tác
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Provider" asp-action="Services">Quản lý Dịch vụ</a>
+                                <a class="nav-link" asp-controller="Provider" asp-action="Services">
+                                    <i class="bi bi-list-task me-1"></i> Quản lý Dịch vụ
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Provider" asp-action="OffDays">Quản lý Ngày nghỉ</a>
+                                <a class="nav-link" asp-controller="Provider" asp-action="OffDays">
+                                    <i class="bi bi-calendar-x me-1"></i> Quản lý Ngày nghỉ
+                                </a>
                             </li>
                         }
                         else if (User.IsInRole("Staff"))
                         {
                             <!-- Staff Links Only -->
                             <li class="nav-item">
-                                <a class="nav-link text-info fw-bold" asp-controller="Staff" asp-action="Index">Kênh Nhân viên</a>
+                                <a class="nav-link text-info fw-bold" asp-controller="Staff" asp-action="Index">
+                                    <i class="bi bi-person-badge me-1"></i> Kênh Nhân viên
+                                </a>
                             </li>
                         }
                         else if (User.IsInRole("Admin"))
                         {
                             <!-- Admin Links Only -->
                             <li class="nav-item">
-                                <a class="nav-link text-warning fw-bold" asp-controller="Admin" asp-action="Index">Trang Admin</a>
+                                <a class="nav-link text-warning fw-bold" asp-controller="Admin" asp-action="Index">
+                                    <i class="bi bi-shield-check me-1"></i> Quản trị
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Admin" asp-action="Users">Quản lý Tài khoản</a>
+                                <a class="nav-link" asp-controller="Admin" asp-action="Users">
+                                    <i class="bi bi-people me-1"></i> Tài khoản
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-white fw-semibold" asp-controller="Admin" asp-action="Categories">Danh mục</a>
+                                <a class="nav-link" asp-controller="Admin" asp-action="Categories">
+                                    <i class="bi bi-tags me-1"></i> Danh mục
+                                </a>
                             </li>
                         }
                     </ul>
 
-                    <ul class="navbar-nav ms-auto">
+                    <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white fw-bold" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    @User.Identity.Name
-                                    <span class="badge bg-light text-dark ms-1">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
+                                <a class="nav-link dropdown-toggle text-white fw-bold d-flex align-items-center gap-2 px-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    <span>@User.Identity.Name</span>
+                                    <span class="badge bg-secondary-subtle text-light border border-secondary" style="font-size: 0.7rem;">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2" aria-labelledby="userDropdown">
                                     <li>
-                                        <a class="dropdown-item" asp-controller="Account" asp-action="Profile">Thông tin cá nhân</a>
+                                        <a class="dropdown-item py-2" asp-controller="Account" asp-action="Profile">
+                                            <i class="bi bi-person-gear me-2 text-primary"></i> Thông tin cá nhân
+                                        </a>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                            <button type="submit" class="dropdown-item text-danger fw-semibold">Đăng xuất</button>
+                                            <button type="submit" class="dropdown-item py-2 text-danger fw-semibold">
+                                                <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                                            </button>
                                         </form>
                                     </li>
                                 </ul>
@@ -102,10 +145,14 @@
                         else
                         {
                             <li class="nav-item">
-                                <a class="btn btn-outline-light me-2 btn-sm px-3" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+                                <a class="btn btn-outline-light btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn btn-warning btn-sm px-3 fw-bold text-dark" asp-controller="Account" asp-action="Register">Đăng ký (Khách hàng)</a>
+                                <a class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Register">
+                                    <i class="bi bi-person-plus-fill me-1"></i> Đăng ký
+                                </a>
                             </li>
                         }
                     </ul>
@@ -117,16 +164,18 @@
     <div class="container my-4 flex-grow-1">
         @if (TempData["SuccessMessage"] != null)
         {
-            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-                @TempData["SuccessMessage"]
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+                <div class="flex-grow-1">@TempData["SuccessMessage"]</div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }
 
         @if (TempData["ErrorMessage"] != null)
         {
-            <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-                @TempData["ErrorMessage"]
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+                <div class="flex-grow-1">@TempData["ErrorMessage"]</div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }
@@ -136,10 +185,72 @@
         </main>
     </div>
 
-    <footer class="footer border-top bg-dark text-white py-4 mt-auto">
-        <div class="container text-center">
-            <p class="mb-1">&copy; 2026 <strong>AppointX</strong> - Hệ thống quản lý & Đặt lịch dịch vụ trực tuyến.</p>
-            <small class="text-secondary">Đồ án Công nghệ phần mềm nâng cao | ASP.NET Core & PostgreSQL</small>
+    <footer class="footer-custom py-5 mt-auto">
+        <div class="container">
+            <div class="row g-4 mb-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="d-flex align-items-center gap-2 fw-bold fs-4 text-white mb-3">
+                        <span class="brand-badge">
+                            <i class="bi bi-calendar2-check-fill"></i>
+                        </span>
+                        <span>Appoint<span style="color: #38bdf8;">X</span></span>
+                    </div>
+                    <p class="text-secondary small mb-3 pe-lg-4">
+                        Nền tảng đặt lịch dịch vụ trực tuyến thông minh. Kết nối người dùng nhanh chóng với mạng lưới bác sĩ, salon, chuyên gia tư vấn và huấn luyện viên uy tín hàng đầu.
+                    </p>
+                    <div class="d-flex align-items-center gap-3 text-secondary">
+                        <span class="d-flex align-items-center gap-1 small"><i class="bi bi-shield-lock-fill text-success"></i> Bảo mật 100%</span>
+                        <span class="d-flex align-items-center gap-1 small"><i class="bi bi-clock-history text-primary"></i> 24/7 Sẵn sàng</span>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-6 col-6">
+                    <h6>Dịch vụ tiêu biểu</h6>
+                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
+                        <li><a asp-controller="Services" asp-action="Index">Khám sức khỏe</a></li>
+                        <li><a asp-controller="Services" asp-action="Index">Chăm sóc sắc đẹp</a></li>
+                        <li><a asp-controller="Services" asp-action="Index">Tư vấn tâm lý & luật</a></li>
+                        <li><a asp-controller="Services" asp-action="Index">Thể thao & Yoga</a></li>
+                        <li><a asp-controller="Services" asp-action="Index">Dịch vụ gia đình</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-6">
+                    <h6>Quy trình & Hỗ trợ</h6>
+                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
+                        <li><a href="#how-it-works">Hướng dẫn đặt lịch</a></li>
+                        <li><a asp-controller="Account" asp-action="Register">Đăng ký trở thành đối tác</a></li>
+                        <li><a href="#">Chính sách bảo mật</a></li>
+                        <li><a href="#">Điều khoản sử dụng</a></li>
+                        <li><a href="#">Giải quyết khiếu nại</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <h6>Liên hệ & Hỗ trợ</h6>
+                    <div class="small d-flex flex-column gap-2 text-secondary">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-geo-alt-fill text-primary mt-1"></i>
+                            <span>Hà Nội & TP. Hồ Chí Minh, Việt Nam</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-envelope-fill text-primary"></i>
+                            <span>support@appointx.com</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-telephone-fill text-primary"></i>
+                            <span>1900 6868 (8:00 - 21:00)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="footer-divider mb-4 mt-0" />
+
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center small text-secondary gap-2">
+                <div>&copy; 2026 <strong>AppointX</strong>. Toàn bộ quyền được bảo lưu.</div>
+                <div>Hệ thống quản lý & Đặt lịch đa dịch vụ trực tuyến</div>
+            </div>
         </div>
     </footer>
 

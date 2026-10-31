@@ -36,30 +36,64 @@ namespace Appointment.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            var existingUser = await _context.Users.AnyAsync(u => u.Email.ToLower() == model.Email.ToLower());
-            if (existingUser)
+            try
             {
-                ModelState.AddModelError("Email", "Email này đã được sử dụng trong hệ thống.");
+                var existingUser = await _context.Users.AnyAsync(u => u.Email.ToLower() == model.Email.Trim().ToLower());
+                if (existingUser)
+                {
+                    ModelState.AddModelError("Email", "Email này đã được sử dụng trong hệ thống.");
+                    return View(model);
+                }
+
+                var assignedRole = (model.Role == "Provider") ? "Provider" 
+                                 : (model.Role == "Staff") ? "Staff" 
+                                 : "Customer";
+
+                var newUser = new User
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    FullName = model.FullName.Trim(),
+                    Email = model.Email.Trim().ToLower(),
+                    PasswordHash = PasswordHasher.HashPassword(model.Password),
+                    PhoneNumber = model.PhoneNumber?.Trim(),
+                    Address = model.Address?.Trim(),
+                    Role = assignedRole,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(newUser);
+
+                // If user registered as Provider, initialize default Working Hours (Mon - Sat, 8:00 - 17:00)
+                if (assignedRole == "Provider")
+                {
+                    foreach (var day in Enum.GetValues<DayOfWeek>())
+                    {
+                        if (day != DayOfWeek.Sunday)
+                        {
+                            _context.WorkingHours.Add(new WorkingHour
+                            {
+                                Id = Guid.NewGuid().ToString("N"),
+                                ProviderId = newUser.Id,
+                                DayOfWeek = day,
+                                StartTime = new TimeSpan(8, 0, 0),
+                                EndTime = new TimeSpan(17, 0, 0),
+                                IsAvailable = true
+                            });
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Đăng ký tài khoản {(assignedRole == "Provider" ? "Đối tác / Bác sĩ" : "Khách hàng")} thành công! Vui lòng đăng nhập.";
+                return RedirectToAction(nameof(Login));
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, $"Lỗi khi lưu tài khoản: {ex.Message}");
                 return View(model);
             }
-
-            var newUser = new User
-            {
-                FullName = model.FullName,
-                Email = model.Email.Trim(),
-                PasswordHash = PasswordHasher.HashPassword(model.Password),
-                PhoneNumber = model.PhoneNumber,
-                Address = model.Address,
-                Role = "Customer",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Đăng ký tài khoản thành công! Vui lòng đăng nhập.";
-            return RedirectToAction(nameof(Login));
         }
 
         [HttpGet]

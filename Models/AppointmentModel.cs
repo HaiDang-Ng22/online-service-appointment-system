@@ -41,6 +41,14 @@ namespace Appointment.Models
         [StringLength(500)]
         public string? Notes { get; set; }
 
+        [StringLength(1000)]
+        [Display(Name = "Chẩn đoán / Kết luận")]
+        public string? Diagnosis { get; set; }
+
+        [StringLength(1000)]
+        [Display(Name = "Đơn thuốc / Lời dặn")]
+        public string? Prescription { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
