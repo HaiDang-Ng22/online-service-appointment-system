@@ -15,6 +15,9 @@ namespace Appointment.Data
         public DbSet<WorkingHour> WorkingHours { get; set; } = null!;
         public DbSet<AppointmentModel> Appointments { get; set; } = null!;
         public DbSet<ProviderOffDay> ProviderOffDays { get; set; } = null!;
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = null!;
+        public DbSet<Review> Reviews { get; set; } = null!;
+        public DbSet<Payment> Payments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,6 +66,55 @@ namespace Appointment.Data
                 .WithMany(u => u.OffDays)
                 .HasForeignKey(p => p.ProviderId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // US-26: Password reset tokens
+            modelBuilder.Entity<PasswordResetToken>()
+                .HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PasswordResetToken>()
+                .HasIndex(t => t.TokenHash);
+
+            // US-30: Reviews (mỗi lịch hẹn chỉ có 1 đánh giá)
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.AppointmentId)
+                .IsUnique();
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Appointment)
+                .WithMany()
+                .HasForeignKey(r => r.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Service)
+                .WithMany()
+                .HasForeignKey(r => r.ServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Customer)
+                .WithMany()
+                .HasForeignKey(r => r.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // US-28: Payments
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Appointment)
+                .WithMany()
+                .HasForeignKey(p => p.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Customer)
+                .WithMany()
+                .HasForeignKey(p => p.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.AppointmentId);
         }
     }
 }

@@ -1,4 +1,5 @@
 using Appointment.Data;
+using Appointment.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,6 +40,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 builder.Services.AddAuthorization();
+
+// Cấu hình & dịch vụ bổ sung: email (US-26), quy tắc đặt/hủy lịch (US-19, US-37), thanh toán (US-28)
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<BookingRulesOptions>(builder.Configuration.GetSection("BookingRules"));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
+
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddSingleton<IPaymentGateway, SandboxPaymentGateway>();
+
+// US-37: tác vụ nền tự động hủy lịch hẹn chưa xác nhận quá hạn
+builder.Services.AddHostedService<AppointmentAutoCancelService>();
 
 var app = builder.Build();
 

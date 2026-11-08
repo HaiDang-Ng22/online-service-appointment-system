@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Appointment.Data;
+using Appointment.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,12 @@ namespace Appointment.Controllers
     public class StaffController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly PaymentService _paymentService;
 
-        public StaffController(AppDbContext context)
+        public StaffController(AppDbContext context, PaymentService paymentService)
         {
             _context = context;
+            _paymentService = paymentService;
         }
 
         // GET: /Staff
@@ -79,11 +82,24 @@ namespace Appointment.Controllers
             var appointment = await _context.Appointments.FindAsync(appointmentId);
             if (appointment == null) return NotFound();
 
+            // US-24: chỉ cho phép chuyển trạng thái hợp lệ
+            if (!AppointmentRules.TryValidateTransition(appointment, status, out string transitionError))
+            {
+                TempData["ErrorMessage"] = transitionError;
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (status == AppointmentRules.Cancelled && appointment.Status != AppointmentRules.Cancelled)
+            {
+                appointment.CancelReason = "Nhân viên hủy lịch hẹn";
+                await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
+            }
+
             appointment.Status = status;
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"Đã chuyển trạng thái cuộc hẹn thành '{status}'.";
+            TempData["SuccessMessage"] = $"Đã chuyển trạng thái cuộc hẹn thành '{AppointmentRules.StatusLabel(status)}'.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -97,10 +113,22 @@ namespace Appointment.Controllers
 
             if (appointment == null) return NotFound();
 
+            // US-24: chỉ cho phép chuyển trạng thái hợp lệ
+            if (!AppointmentRules.TryValidateTransition(appointment, status, out string transitionError))
+            {
+                TempData["ErrorMessage"] = transitionError;
+                return RedirectToAction(nameof(Index));
+            }
+
             appointment.Diagnosis = diagnosis?.Trim();
             appointment.Prescription = prescription?.Trim();
             if (!string.IsNullOrEmpty(status))
             {
+                if (status == AppointmentRules.Cancelled && appointment.Status != AppointmentRules.Cancelled)
+                {
+                    appointment.CancelReason = "Nhân viên hủy lịch hẹn";
+                    await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
+                }
                 appointment.Status = status;
             }
 

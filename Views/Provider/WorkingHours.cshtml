@@ -1,0 +1,92 @@
+@model Appointment.Models.ViewModels.WorkingHoursViewModel
+@{
+    ViewData["Title"] = "Giờ làm việc theo tuần";
+    string DayName(DayOfWeek d) => d switch
+    {
+        DayOfWeek.Monday => "Thứ Hai",
+        DayOfWeek.Tuesday => "Thứ Ba",
+        DayOfWeek.Wednesday => "Thứ Tư",
+        DayOfWeek.Thursday => "Thứ Năm",
+        DayOfWeek.Friday => "Thứ Sáu",
+        DayOfWeek.Saturday => "Thứ Bảy",
+        _ => "Chủ Nhật"
+    };
+}
+
+<div class="row justify-content-center my-2">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-slate-50 py-3 px-4 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="brand-badge" style="width: 38px; height: 38px; font-size: 1.1rem;"><i class="bi bi-clock-fill text-white"></i></span>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">Cấu Hình Khung Giờ Làm Việc Theo Tuần</h5>
+                        <small class="text-secondary">Khách hàng chỉ đặt được lịch trong các ngày & giờ bạn bật bên dưới</small>
+                    </div>
+                </div>
+            </div>
+
+            <form asp-action="WorkingHours" method="post">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Ngày</th>
+                                <th class="text-center">Làm việc</th>
+                                <th>Giờ bắt đầu</th>
+                                <th>Giờ kết thúc</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < Model.Days.Count; i++)
+                            {
+                                <tr class="wh-row">
+                                    <td class="ps-4 fw-bold text-dark">
+                                        @DayName(Model.Days[i].Day)
+                                        <input type="hidden" asp-for="Days[i].Day" />
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input asp-for="Days[i].IsAvailable" class="form-check-input wh-toggle" role="switch" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="time" name="Days[@i].StartTime" value="@Model.Days[i].StartTime.ToString(@"hh\:mm")" class="form-control rounded-3 wh-time" />
+                                    </td>
+                                    <td>
+                                        <input type="time" name="Days[@i].EndTime" value="@Model.Days[i].EndTime.ToString(@"hh\:mm")" class="form-control rounded-3 wh-time" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Ngày nghỉ đột xuất vẫn quản lý ở mục "Quản lý Ngày nghỉ".</small>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i>Lưu khung giờ làm việc
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function syncRow(row) {
+            var on = row.querySelector('.wh-toggle').checked;
+            row.querySelectorAll('.wh-time').forEach(function (t) { t.disabled = !on; });
+            row.classList.toggle('opacity-50', !on);
+        }
+        document.querySelectorAll('.wh-row').forEach(function (row) {
+            syncRow(row);
+            row.querySelector('.wh-toggle').addEventListener('change', function () { syncRow(row); });
+        });
+        // Input bị disable sẽ không được gửi lên -> bật lại trước khi submit để server nhận đủ giờ
+        document.querySelector('form').addEventListener('submit', function () {
+            document.querySelectorAll('.wh-time').forEach(function (t) { t.disabled = false; });
+        });
+    </script>
+}

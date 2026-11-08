@@ -1,0 +1,74 @@
+@model Appointment.Models.ViewModels.ReviewFormViewModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Sửa đánh giá dịch vụ" : "Đánh giá dịch vụ";
+}
+
+<div class="row justify-content-center my-3">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
+            <div class="p-4 pb-3 text-center border-bottom bg-slate-50">
+                <div class="d-inline-flex align-items-center justify-content-center brand-badge mb-2 shadow-sm" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                    <i class="bi bi-star-fill"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-1">@(Model.IsEdit ? "Sửa Đánh Giá" : "Đánh Giá Dịch Vụ")</h4>
+                <p class="text-secondary small mb-0">
+                    <strong>@Model.ServiceName</strong> - @Model.ProviderName<br />
+                    Ngày sử dụng: @Model.AppointmentDate.ToString("dd/MM/yyyy")
+                </p>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small rounded-3 mb-3 border-0 shadow-sm"></div>
+                    <input type="hidden" asp-for="AppointmentId" />
+
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-bold text-secondary small d-block mb-2">Bạn hài lòng với dịch vụ ở mức nào?</label>
+                        <div class="star-rating d-inline-flex flex-row-reverse gap-1" id="starRating">
+                            @for (int i = 5; i >= 1; i--)
+                            {
+                                <input type="radio" class="btn-check" name="Rating" id="star@(i)" value="@i" checked="@(Model.Rating == i)" />
+                                <label for="star@(i)" class="star-label fs-1" title="@i sao"><i class="bi bi-star-fill"></i></label>
+                            }
+                        </div>
+                        <div class="small text-muted mt-1" id="ratingText">@(Model.Rating > 0 ? $"{Model.Rating}/5 sao" : "Chọn số sao")</div>
+                        <span asp-validation-for="Rating" class="text-danger small d-block"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Comment" class="form-label fw-bold text-secondary small">
+                            <i class="bi bi-chat-left-text me-1"></i>Nhận xét của bạn (không bắt buộc)
+                        </label>
+                        <textarea asp-for="Comment" class="form-control rounded-3" rows="4" maxlength="1000" placeholder="Chia sẻ trải nghiệm: thái độ phục vụ, chất lượng dịch vụ, đúng giờ..."></textarea>
+                        <span asp-validation-for="Comment" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a asp-controller="Appointments" asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
+                        <button type="submit" class="btn btn-primary flex-grow-1 rounded-pill fw-bold">
+                            <i class="bi bi-send-fill me-1"></i>@(Model.IsEdit ? "Cập nhật đánh giá" : "Gửi đánh giá")
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .star-rating .star-label { cursor: pointer; color: #cbd5e1; transition: color .15s ease; margin: 0; }
+    .star-rating .star-label:hover,
+    .star-rating .star-label:hover ~ .star-label,
+    .star-rating .btn-check:checked ~ .star-label { color: #f59e0b; }
+</style>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll('#starRating input[name="Rating"]').forEach(function (r) {
+            r.addEventListener('change', function () {
+                document.getElementById('ratingText').textContent = r.value + '/5 sao';
+            });
+        });
+    </script>
+}

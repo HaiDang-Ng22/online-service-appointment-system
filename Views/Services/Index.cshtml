@@ -105,6 +105,23 @@
 
                             <div class="service-card-body">
                                 <h5 class="service-name">@item.Name</h5>
+                                @{
+                                    var ratingMap = ViewBag.Ratings as Dictionary<string, Appointment.Models.ViewModels.RatingInfo>;
+                                    Appointment.Models.ViewModels.RatingInfo? itemRating = null;
+                                    ratingMap?.TryGetValue(item.Id, out itemRating);
+                                }
+                                <div class="small mb-2">
+                                    @if (itemRating != null && itemRating.Count > 0)
+                                    {
+                                        <partial name="_RatingStars" model="itemRating.Average" />
+                                        <strong class="ms-1">@itemRating.Average.ToString("0.0")</strong>
+                                        <span class="text-muted">(@itemRating.Count đánh giá)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted"><i class="bi bi-star me-1"></i>Chưa có đánh giá</span>
+                                    }
+                                </div>
                                 <p class="service-desc">@item.Description</p>
 
                                 <div class="service-meta-box">

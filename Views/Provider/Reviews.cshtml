@@ -1,0 +1,53 @@
+@model List<Appointment.Models.Review>
+@{
+    ViewData["Title"] = "Đánh giá từ khách hàng";
+    double avg = Model.Any() ? Model.Average(r => r.Rating) : 0;
+}
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark"><i class="bi bi-star-fill text-warning me-2"></i>Đánh Giá Từ Khách Hàng</h3>
+        <p class="text-secondary small mb-0">Phản hồi về chất lượng các dịch vụ của bạn</p>
+    </div>
+    @if (Model.Any())
+    {
+        <div class="card border-0 shadow-sm rounded-4 px-4 py-2 bg-white text-center">
+            <div class="fs-3 fw-extrabold text-dark">@avg.ToString("0.0") <small class="fs-6 text-muted">/ 5</small></div>
+            <partial name="_RatingStars" model="avg" />
+            <div class="small text-muted">@Model.Count đánh giá</div>
+        </div>
+    }
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+        <div class="mb-3 text-secondary" style="font-size: 3rem;"><i class="bi bi-chat-square-heart"></i></div>
+        <h5 class="fw-bold text-dark">Chưa có đánh giá nào</h5>
+        <p class="text-secondary small mb-0">Khách hàng có thể đánh giá sau khi lịch hẹn được đánh dấu hoàn thành.</p>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr><th class="ps-4">Dịch vụ</th><th>Khách hàng</th><th>Điểm</th><th>Nhận xét</th><th>Ngày</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td class="ps-4 fw-bold text-dark">@r.Service?.Name</td>
+                            <td>@r.Customer?.FullName</td>
+                            <td><partial name="_RatingStars" model="(double)r.Rating" /> <small class="text-muted">@r.Rating/5</small></td>
+                            <td class="small text-secondary" style="max-width: 360px;">@(string.IsNullOrWhiteSpace(r.Comment) ? "—" : r.Comment)</td>
+                            <td class="small text-muted">@r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

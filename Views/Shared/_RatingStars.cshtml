@@ -1,0 +1,22 @@
+@* Hiển thị số sao theo điểm trung bình (model: double). US-30 *@
+@model double
+@{
+    double value = Math.Round(Model * 2, MidpointRounding.AwayFromZero) / 2.0; // làm tròn 0.5
+}
+<span class="text-warning" aria-label="@Model.ToString("0.0") trên 5 sao">
+    @for (int i = 1; i <= 5; i++)
+    {
+        if (value >= i)
+        {
+            <i class="bi bi-star-fill"></i>
+        }
+        else if (value >= i - 0.5)
+        {
+            <i class="bi bi-star-half"></i>
+        }
+        else
+        {
+            <i class="bi bi-star"></i>
+        }
+    }
+</span>

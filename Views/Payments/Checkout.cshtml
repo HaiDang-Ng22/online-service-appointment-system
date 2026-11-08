@@ -1,0 +1,141 @@
+@model Appointment.Models.ViewModels.CheckoutViewModel
+@{
+    ViewData["Title"] = "Thanh toán & đặt cọc";
+    var a = Model.Appointment;
+    var s = Model.Summary;
+    bool canDeposit = s.Paid <= 0 && s.DepositAmount > 0 && s.DepositAmount < s.Remaining;
+}
+
+<div class="row justify-content-center my-3">
+    <div class="col-lg-10">
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <span class="brand-badge" style="width: 42px; height: 42px; font-size: 1.2rem;"><i class="bi bi-credit-card-2-front-fill text-white"></i></span>
+            <div>
+                <h3 class="fw-bold mb-0 text-dark">Thanh Toán & Đặt Cọc</h3>
+                <small class="text-secondary">Mã đặt chỗ: <span class="font-monospace">#APX-@a.Id.Substring(0, 8).ToUpper()</span></small>
+            </div>
+        </div>
+
+        @if (Model.IsSandbox)
+        {
+            <div class="alert alert-warning border-0 shadow-sm rounded-3 small d-flex gap-2 align-items-start">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <div><strong>Cổng thanh toán đang ở chế độ thử nghiệm (sandbox).</strong> Giao dịch được mô phỏng, không trừ tiền thật và không cần nhập thông tin thẻ.</div>
+            </div>
+        }
+
+        <div class="row g-4">
+            <!-- Appointment & summary -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                    <h6 class="fw-bold text-primary mb-3"><i class="bi bi-receipt me-1"></i>Thông tin lịch hẹn</h6>
+                    <p class="mb-1"><strong>Dịch vụ:</strong> @a.Service?.Name</p>
+                    <p class="mb-1"><strong>Nhà cung cấp:</strong> @a.Provider?.FullName</p>
+                    <p class="mb-3"><strong>Thời gian:</strong> @a.AppointmentDate.ToString("dd/MM/yyyy") | @a.StartTime.ToString(@"hh\:mm") - @a.EndTime.ToString(@"hh\:mm")</p>
+
+                    <div class="border-top pt-3">
+                        <div class="d-flex justify-content-between mb-1"><span class="text-secondary">Giá dịch vụ</span><strong>@s.Total.ToString("N0") VNĐ</strong></div>
+                        <div class="d-flex justify-content-between mb-1"><span class="text-secondary">Đã thanh toán</span><strong class="text-success">@s.Paid.ToString("N0") VNĐ</strong></div>
+                        <div class="d-flex justify-content-between fs-5 mt-2"><span class="fw-bold">Còn lại</span><strong class="text-danger">@s.Remaining.ToString("N0") VNĐ</strong></div>
+                        <div class="mt-2"><span class="badge @s.BadgeClass px-2 py-1">@s.Label</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment form -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    @if (s.Remaining <= 0)
+                    {
+                        <div class="text-center py-4">
+                            <div class="text-success mb-2" style="font-size: 3rem;"><i class="bi bi-check-circle-fill"></i></div>
+                            <h5 class="fw-bold">Lịch hẹn đã được thanh toán đầy đủ</h5>
+                            <a asp-controller="Appointments" asp-action="Details" asp-route-id="@a.Id" class="btn btn-primary rounded-pill px-4 mt-2">Xem chi tiết lịch hẹn</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="Pay" method="post" id="payForm">
+                            <input type="hidden" name="id" value="@a.Id" />
+
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cash-coin me-1"></i>1. Chọn hình thức thanh toán</h6>
+                            <div class="d-flex flex-column gap-2 mb-4">
+                                @if (canDeposit)
+                                {
+                                    <div>
+                                        <input type="radio" class="btn-check" name="paymentType" id="typeDeposit" value="Deposit" checked />
+                                        <label class="btn btn-outline-primary w-100 text-start p-3 rounded-3 d-flex justify-content-between align-items-center" for="typeDeposit">
+                                            <span><i class="bi bi-shield-check me-2"></i><strong>Đặt cọc @Model.DepositPercent%</strong><br /><small class="text-muted">Giữ chỗ ngay, thanh toán phần còn lại sau</small></span>
+                                            <strong>@s.DepositAmount.ToString("N0") VNĐ</strong>
+                                        </label>
+                                    </div>
+                                }
+                                <div>
+                                    <input type="radio" class="btn-check" name="paymentType" id="typeFull" value="Full" @(canDeposit ? "" : "checked") />
+                                    <label class="btn btn-outline-primary w-100 text-start p-3 rounded-3 d-flex justify-content-between align-items-center" for="typeFull">
+                                        <span><i class="bi bi-wallet2 me-2"></i><strong>@(s.Paid > 0 ? "Thanh toán phần còn lại" : "Thanh toán toàn bộ")</strong><br /><small class="text-muted">Hoàn tất thanh toán trực tuyến</small></span>
+                                        <strong>@s.Remaining.ToString("N0") VNĐ</strong>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-credit-card me-1"></i>2. Chọn phương thức</h6>
+                            <div class="row g-2 mb-4">
+                                <div class="col-sm-4">
+                                    <input type="radio" class="btn-check" name="method" id="mCard" value="Card" checked />
+                                    <label class="btn btn-outline-secondary w-100 py-3 rounded-3" for="mCard"><i class="bi bi-credit-card-fill d-block fs-4 mb-1"></i>Thẻ ATM / Visa</label>
+                                </div>
+                                <div class="col-sm-4">
+                                    <input type="radio" class="btn-check" name="method" id="mWallet" value="EWallet" />
+                                    <label class="btn btn-outline-secondary w-100 py-3 rounded-3" for="mWallet"><i class="bi bi-phone-fill d-block fs-4 mb-1"></i>Ví điện tử</label>
+                                </div>
+                                <div class="col-sm-4">
+                                    <input type="radio" class="btn-check" name="method" id="mBank" value="BankTransfer" />
+                                    <label class="btn btn-outline-secondary w-100 py-3 rounded-3" for="mBank"><i class="bi bi-qr-code d-block fs-4 mb-1"></i>Chuyển khoản QR</label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold rounded-3 shadow d-flex align-items-center justify-content-center gap-2">
+                                <i class="bi bi-lock-fill"></i><span>Thanh toán an toàn</span>
+                            </button>
+                        </form>
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <a asp-controller="Appointments" asp-action="Index" class="btn btn-link text-secondary text-decoration-none px-0">
+                            <i class="bi bi-clock-history me-1"></i>Thanh toán sau
+                        </a>
+                        <small class="text-muted">Hủy lịch hợp lệ sẽ được hoàn tiền đã thanh toán.</small>
+                    </div>
+                </div>
+
+                @if (Model.History.Any())
+                {
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mt-4">
+                        <h6 class="fw-bold text-primary mb-3"><i class="bi bi-clock-history me-1"></i>Lịch sử giao dịch</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light"><tr><th>Mã GD</th><th>Loại</th><th>Số tiền</th><th>Trạng thái</th></tr></thead>
+                                <tbody>
+                                    @foreach (var p in Model.History)
+                                    {
+                                        <tr>
+                                            <td class="font-monospace small">@p.TransactionCode</td>
+                                            <td>@(p.Type == "Deposit" ? "Đặt cọc" : p.Type == "Remaining" ? "Còn lại" : "Toàn bộ")</td>
+                                            <td>@p.Amount.ToString("N0")</td>
+                                            <td>
+                                                @if (p.Status == "Paid") { <span class="badge bg-success-subtle text-success">Đã thanh toán</span> }
+                                                else if (p.Status == "Refunded") { <span class="badge bg-secondary-subtle text-secondary">Đã hoàn tiền</span> }
+                                                else { <span class="badge bg-danger-subtle text-danger">Thất bại</span> }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

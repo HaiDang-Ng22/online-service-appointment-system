@@ -183,3 +183,21 @@ Ngày: 20/09/2026
 11:00  ❌ Đã đặt
 13:00  ✅ Còn trống
 14:00  ❌ Đã đặt
+
+---
+
+# 🆕 Chức năng bổ sung (US-26, US-28, US-30, US-37 + hoàn thiện US-14, US-19, US-21, US-24)
+
+| Chức năng | Mô tả | Vị trí chính |
+|---|---|---|
+| US-26 Quên/đặt lại mật khẩu | Gửi link đặt lại qua email (hiệu lực 30 phút, dùng 1 lần, token lưu dạng băm) | `AccountController`, `Views/Account/ForgotPassword*`, `ResetPassword` |
+| US-28 Thanh toán & đặt cọc | Đặt cọc (mặc định 30%) hoặc thanh toán toàn bộ; hoàn tiền khi lịch bị hủy. Cổng thanh toán hiện là **sandbox** (`IPaymentGateway`) | `PaymentsController`, `Infrastructure/PaymentService.cs` |
+| US-30 Đánh giá dịch vụ | Khách chấm 1-5 sao + nhận xét sau khi lịch hoàn thành; hiển thị ở danh sách/chi tiết dịch vụ; Provider xem tại `/Provider/Reviews` | `ReviewsController` |
+| US-37 Tự hủy lịch quá hạn | Tác vụ nền hủy lịch `Pending` quá giờ hẹn hoặc quá `ConfirmationTimeoutHours`, hoàn tiền & gửi email | `Infrastructure/AppointmentAutoCancelService.cs` |
+| US-14 Giờ làm việc theo tuần | Provider bật/tắt từng ngày & chỉnh giờ tại `/Provider/WorkingHours`; lịch trống & đặt lịch tuân theo cấu hình | `ProviderController.WorkingHours` |
+| US-19 Hủy lịch trước giờ phục vụ | Khách chỉ hủy được trước giờ hẹn ≥ `CancelBeforeHours` | `AppointmentRules.CanCustomerCancel` |
+| US-21/24 Cập nhật trạng thái | Kiểm tra luồng trạng thái hợp lệ (Pending→Confirmed→Completed, hủy...) | `AppointmentRules.TryValidateTransition` |
+
+Cấu hình trong `appsettings.json`: mục `Email` (SMTP), `BookingRules`, `Payment`.
+Khi chưa bật SMTP và chạy ở môi trường Development, link đặt lại mật khẩu được hiển thị ngay trên trang xác nhận để thử nghiệm.
+CSDL cũ được tự nâng cấp (thêm bảng `PasswordResetTokens`, `Reviews`, `Payments`, cột `Appointments.CancelReason`) — không ảnh hưởng dữ liệu hiện có.

@@ -65,6 +65,9 @@ namespace Appointment.Data
                     ");
                 }
                 catch { }
+
+                // Bổ sung bảng/cột mới: PasswordResetTokens, Reviews, Payments, Appointments.CancelReason
+                SchemaUpgrader.Apply(context);
             }
             catch (Exception ex)
             {
