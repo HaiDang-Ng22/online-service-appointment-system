@@ -198,6 +198,4 @@ Ngày: 20/09/2026
 | US-19 Hủy lịch trước giờ phục vụ | Khách chỉ hủy được trước giờ hẹn ≥ `CancelBeforeHours` | `AppointmentRules.CanCustomerCancel` |
 | US-21/24 Cập nhật trạng thái | Kiểm tra luồng trạng thái hợp lệ (Pending→Confirmed→Completed, hủy...) | `AppointmentRules.TryValidateTransition` |
 
-Cấu hình trong `appsettings.json`: mục `Email` (SMTP), `BookingRules`, `Payment`.
-Khi chưa bật SMTP và chạy ở môi trường Development, link đặt lại mật khẩu được hiển thị ngay trên trang xác nhận để thử nghiệm.
-CSDL cũ được tự nâng cấp (thêm bảng `PasswordResetTokens`, `Reviews`, `Payments`, cột `Appointments.CancelReason`) — không ảnh hưởng dữ liệu hiện có.
+
