@@ -1,8 +1,12 @@
 using System.Security.Claims;
 using Appointment.Data;
+using Appointment.Helpers;
 using Appointment.Infrastructure;
+using Appointment.Models;
+using Appointment.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace Appointment.Controllers
@@ -157,6 +161,189 @@ namespace Appointment.Controllers
 
             TempData["SuccessMessage"] = $"Đã cập nhật ghi chú nội bộ cho lịch hẹn #{appointment.Id.Substring(0, 8).ToUpper()} ({appointment.Customer?.FullName})!";
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: /Staff/WalkInBooking (US-40: Đặt lịch hẹn hộ cho khách vãng lai tại quầy)
+        [HttpGet]
+        public async Task<IActionResult> WalkInBooking()
+        {
+            var model = new WalkInBookingViewModel
+            {
+                AppointmentDate = DateTime.Today,
+                SelectedTimeSlot = DateTime.Now.ToString("HH:mm")
+            };
+
+            await PopulateWalkInDropdowns(model);
+            return View(model);
+        }
+
+        // GET: /Staff/LookupCustomer?phone=... (US-40)
+        [HttpGet]
+        public async Task<IActionResult> LookupCustomer(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                return Json(new { found = false });
+            }
+
+            var cleanPhone = phone.Trim();
+            var customer = await _context.Users
+                .FirstOrDefaultAsync(u => u.PhoneNumber == cleanPhone);
+
+            if (customer != null)
+            {
+                return Json(new
+                {
+                    found = true,
+                    fullName = customer.FullName,
+                    email = customer.Email.EndsWith("@walkin.appointx.vn") ? "" : customer.Email,
+                    address = customer.Address ?? ""
+                });
+            }
+
+            return Json(new { found = false });
+        }
+
+        // POST: /Staff/WalkInBooking (US-40)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WalkInBooking(WalkInBookingViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                await PopulateWalkInDropdowns(model);
+                return View(model);
+            }
+
+            var service = await _context.Services
+                .Include(s => s.Provider)
+                .FirstOrDefaultAsync(s => s.Id == model.ServiceId);
+
+            if (service == null || !service.IsActive)
+            {
+                ModelState.AddModelError("ServiceId", "Dịch vụ đã chọn không tồn tại hoặc đã ngừng hoạt động.");
+                await PopulateWalkInDropdowns(model);
+                return View(model);
+            }
+
+            string providerId = !string.IsNullOrWhiteSpace(model.ProviderId) ? model.ProviderId : service.ProviderId;
+
+            if (!TimeSpan.TryParse(model.SelectedTimeSlot, out TimeSpan startTime))
+            {
+                ModelState.AddModelError("SelectedTimeSlot", "Khung giờ bắt đầu không hợp lệ.");
+                await PopulateWalkInDropdowns(model);
+                return View(model);
+            }
+
+            TimeSpan endTime = startTime.Add(TimeSpan.FromMinutes(service.DurationMinutes));
+
+            // Kiểm tra ngày nghỉ của bác sĩ
+            bool isOff = await _context.ProviderOffDays
+                .AnyAsync(p => p.ProviderId == providerId && p.OffDate.Date == model.AppointmentDate.Date);
+            if (isOff)
+            {
+                ModelState.AddModelError("", "Bác sĩ / Nhà cung cấp được chọn đang trong ngày nghỉ vào ngày này. Vui lòng chọn bác sĩ hoặc ngày khác.");
+                await PopulateWalkInDropdowns(model);
+                return View(model);
+            }
+
+            // Kiểm tra trùng lịch hẹn đang hoạt động
+            var conflicts = await _context.Appointments
+                .Where(a => a.ProviderId == providerId && a.Status != "Cancelled" && a.AppointmentDate.Date == model.AppointmentDate.Date)
+                .ToListAsync();
+
+            bool isOverlap = conflicts.Any(a => a.StartTime < endTime && a.EndTime > startTime);
+            if (isOverlap)
+            {
+                ModelState.AddModelError("", "Bác sĩ đã có lịch hẹn khác trong khung giờ này. Vui lòng chọn khung giờ khác hoặc đổi bác sĩ.");
+                await PopulateWalkInDropdowns(model);
+                return View(model);
+            }
+
+            // 1. Tự động tạo hoặc tìm hồ sơ khách hàng nhanh
+            string cleanPhone = model.PhoneNumber.Trim();
+            var customer = await _context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == cleanPhone);
+            if (customer == null)
+            {
+                string email = !string.IsNullOrWhiteSpace(model.Email) ? model.Email.Trim() : $"{cleanPhone}@walkin.appointx.vn";
+                if (await _context.Users.AnyAsync(u => u.Email == email))
+                {
+                    email = $"{cleanPhone}_{Guid.NewGuid().ToString("N").Substring(0, 4)}@walkin.appointx.vn";
+                }
+
+                customer = new User
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    FullName = model.CustomerName.Trim(),
+                    PhoneNumber = cleanPhone,
+                    Email = email,
+                    Address = model.Address?.Trim(),
+                    Role = "Customer",
+                    PasswordHash = PasswordHasher.HashPassword("123456"),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Users.Add(customer);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(model.CustomerName)) customer.FullName = model.CustomerName.Trim();
+                if (!string.IsNullOrWhiteSpace(model.Address)) customer.Address = model.Address.Trim();
+                _context.Users.Update(customer);
+                await _context.SaveChangesAsync();
+            }
+
+            // 2. Tạo cuộc hẹn tại quầy
+            var staffId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var appointment = new AppointmentModel
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                CustomerId = customer.Id,
+                ServiceId = service.Id,
+                ProviderId = providerId,
+                StaffId = staffId,
+                AppointmentDate = model.AppointmentDate.Date,
+                StartTime = startTime,
+                EndTime = endTime,
+                Status = string.IsNullOrWhiteSpace(model.Status) ? "Confirmed" : model.Status,
+                Notes = string.IsNullOrWhiteSpace(model.Notes) ? "Khách vãng lai đăng ký tại quầy tiếp tân" : model.Notes.Trim(),
+                InternalNote = string.IsNullOrWhiteSpace(model.InternalNote) ? null : model.InternalNote.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Appointments.Add(appointment);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Đặt lịch tại quầy thành công cho khách hàng {customer.FullName}! Đang mở phiếu hẹn...";
+            return RedirectToAction("PrintInvoice", "Appointments", new { id = appointment.Id });
+        }
+
+        private async Task PopulateWalkInDropdowns(WalkInBookingViewModel model)
+        {
+            var services = await _context.Services
+                .Include(s => s.Category)
+                .Include(s => s.Provider)
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.Name)
+                .ToListAsync();
+
+            model.ServicesList = services.Select(s => new SelectListItem
+            {
+                Value = s.Id,
+                Text = $"{s.Name} ({s.Price:N0} đ - {s.DurationMinutes}p) - {s.Provider?.FullName}"
+            }).ToList();
+
+            var providers = await _context.Users
+                .Where(u => u.Role == "Provider" && u.IsActive)
+                .OrderBy(u => u.FullName)
+                .ToListAsync();
+
+            model.ProvidersList = providers.Select(p => new SelectListItem
+            {
+                Value = p.Id,
+                Text = $"{p.FullName} - {p.PhoneNumber ?? p.Email}"
+            }).ToList();
         }
     }
 }

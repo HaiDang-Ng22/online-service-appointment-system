@@ -1,0 +1,221 @@
+@model Appointment.Models.ViewModels.WalkInBookingViewModel
+@{
+    ViewData["Title"] = "Đặt lịch hẹn tại quầy (Walk-in Booking)";
+}
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-person-plus-fill text-primary me-2"></i>Đặt Lịch Hẹn Tại Quầy (Walk-in Booking)
+        </h3>
+        <p class="text-secondary small mb-0">Tiếp nhận khách vãng lai, tự động tạo hồ sơ khách hàng và in ngay phiếu hẹn / số thứ tự</p>
+    </div>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+        </a>
+    </div>
+</div>
+
+<form asp-action="WalkInBooking" method="post" id="walkInForm">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger rounded-3 mb-4" role="alert"></div>
+
+    <div class="row g-4">
+        <!-- Cột 1: Thông tin khách hàng -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+                    <i class="bi bi-person-vcard text-primary me-2"></i>1. Thông Tin Khách Hàng
+                </h5>
+
+                <div class="mb-3">
+                    <label asp-for="PhoneNumber" class="form-label fw-bold small text-dark">
+                        Số điện thoại khách hàng <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-telephone"></i>
+                        </span>
+                        <input asp-for="PhoneNumber" id="customerPhone" class="form-control border-start-0 rounded-end-3" placeholder="Ví dụ: 0912345678" autofocus />
+                    </div>
+                    <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                    <div id="lookupAlert" class="small mt-1 text-success fw-semibold" style="display: none;">
+                        <i class="bi bi-check-circle-fill me-1"></i>Đã tìm thấy thông tin khách hàng cũ trong hệ thống!
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CustomerName" class="form-label fw-bold small text-dark">
+                        Họ và tên khách hàng <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-person"></i>
+                        </span>
+                        <input asp-for="CustomerName" id="customerName" class="form-control border-start-0 rounded-end-3" placeholder="Nhập họ và tên đầy đủ" />
+                    </div>
+                    <span asp-validation-for="CustomerName" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label fw-bold small text-dark">
+                        Địa chỉ Email <span class="text-muted fw-normal">(Không bắt buộc)</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-envelope"></i>
+                        </span>
+                        <input asp-for="Email" id="customerEmail" type="email" class="form-control border-start-0 rounded-end-3" placeholder="tenkhach@gmail.com" />
+                    </div>
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Address" class="form-label fw-bold small text-dark">
+                        Địa chỉ nơi ở
+                    </label>
+                    <input asp-for="Address" id="customerAddress" class="form-control rounded-3" placeholder="Số nhà, đường, phường/xã, quận/huyện..." />
+                    <span asp-validation-for="Address" class="text-danger small"></span>
+                </div>
+
+                <div class="p-3 bg-light rounded-3 text-secondary small mt-auto border">
+                    <i class="bi bi-info-circle text-primary me-1"></i>
+                    <em>Nếu khách hàng chưa từng có tài khoản, hệ thống sẽ tự động tạo hồ sơ khách hàng mới với số điện thoại này.</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột 2: Chọn dịch vụ & Bác sĩ tiếp nhận -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+                    <i class="bi bi-clipboard2-check text-success me-2"></i>2. Dịch Vụ & Tiếp Nhận
+                </h5>
+
+                <div class="mb-3">
+                    <label asp-for="ServiceId" class="form-label fw-bold small text-dark">
+                        Chọn dịch vụ phục vụ <span class="text-danger">*</span>
+                    </label>
+                    <select asp-for="ServiceId" asp-items="Model.ServicesList" class="form-select rounded-3">
+                        <option value="">-- Chọn dịch vụ --</option>
+                    </select>
+                    <span asp-validation-for="ServiceId" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ProviderId" class="form-label fw-bold small text-dark">
+                        Bác sĩ / Chuyên gia tiếp nhận <span class="text-muted fw-normal">(Nếu để trống sẽ dùng bác sĩ mặc định của dịch vụ)</span>
+                    </label>
+                    <select asp-for="ProviderId" asp-items="Model.ProvidersList" class="form-select rounded-3">
+                        <option value="">-- Mặc định theo dịch vụ --</option>
+                    </select>
+                    <span asp-validation-for="ProviderId" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label asp-for="AppointmentDate" class="form-label fw-bold small text-dark">
+                            Ngày hẹn khám / phục vụ <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="AppointmentDate" type="date" class="form-control rounded-3" />
+                        <span asp-validation-for="AppointmentDate" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-sm-6">
+                        <label asp-for="SelectedTimeSlot" class="form-label fw-bold small text-dark">
+                            Khung giờ tiếp nhận <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="SelectedTimeSlot" type="time" class="form-control rounded-3" />
+                        <span asp-validation-for="SelectedTimeSlot" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Status" class="form-label fw-bold small text-dark">
+                        Trạng thái tiếp nhận ban đầu
+                    </label>
+                    <select asp-for="Status" class="form-select rounded-3">
+                        <option value="Confirmed" selected>Confirmed (Đã xác nhận - Chờ vào phòng khám)</option>
+                        <option value="In-Progress">In-Progress (Đang thực hiện dịch vụ ngay)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Notes" class="form-label fw-bold small text-dark">
+                        Yêu cầu / Triệu chứng của khách
+                    </label>
+                    <textarea asp-for="Notes" rows="2" class="form-control rounded-3" placeholder="Nhập triệu chứng sơ bộ hoặc yêu cầu của khách tại quầy..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="InternalNote" class="form-label fw-bold small text-dark">
+                        <i class="bi bi-shield-lock text-warning me-1"></i>Ghi chú nghiệp vụ nội bộ <span class="badge bg-warning-subtle text-warning-emphasis">US-42</span>
+                    </label>
+                    <textarea asp-for="InternalNote" rows="2" class="form-control rounded-3" placeholder="Ghi chú sở thích, lưu ý tiền sử, thói quen cho Bác sĩ & Nhân viên xem..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thanh nút điều hướng -->
+        <div class="col-12 text-end">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white d-flex flex-row justify-content-between align-items-center">
+                <span class="text-muted small ps-2">
+                    <i class="bi bi-printer me-1"></i>Hệ thống sẽ tự động chuyển sang trang in <strong>Phiếu Hẹn & Số Thứ Tự</strong> ngay sau khi lưu.
+                </span>
+                <div class="d-flex gap-2">
+                    <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">Hủy</a>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>Tạo Lịch & In Phiếu Hẹn</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const phoneInput = document.getElementById('customerPhone');
+        const nameInput = document.getElementById('customerName');
+        const emailInput = document.getElementById('customerEmail');
+        const addressInput = document.getElementById('customerAddress');
+        const lookupAlert = document.getElementById('lookupAlert');
+
+        let timeout = null;
+        phoneInput.addEventListener('input', function () {
+            clearTimeout(timeout);
+            const phone = this.value.trim();
+            if (phone.length >= 9) {
+                timeout = setTimeout(() => {
+                    fetch('/Staff/LookupCustomer?phone=' + encodeURIComponent(phone))
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.found) {
+                                if (!nameInput.value || nameInput.value.trim() === '') {
+                                    nameInput.value = data.fullName;
+                                }
+                                if (!emailInput.value || emailInput.value.trim() === '') {
+                                    emailInput.value = data.email || '';
+                                }
+                                if (!addressInput.value || addressInput.value.trim() === '') {
+                                    addressInput.value = data.address || '';
+                                }
+                                lookupAlert.style.display = 'block';
+                            } else {
+                                lookupAlert.style.display = 'none';
+                            }
+                        })
+                        .catch(() => {
+                            lookupAlert.style.display = 'none';
+                        });
+                }, 400);
+            } else {
+                lookupAlert.style.display = 'none';
+            }
+        });
+    </script>
+}
