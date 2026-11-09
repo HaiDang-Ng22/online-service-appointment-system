@@ -41,6 +41,11 @@ namespace Appointment.Models
         [StringLength(500)]
         public string? Notes { get; set; }
 
+        /// <summary>Ghi chú nghiệp vụ nội bộ (chỉ Staff và Provider xem/sửa, không hiển thị cho Khách hàng - US-42)</summary>
+        [StringLength(1000)]
+        [Display(Name = "Ghi chú nội bộ")]
+        public string? InternalNote { get; set; }
+
         [StringLength(1000)]
         [Display(Name = "Chẩn đoán / Kết luận")]
         public string? Diagnosis { get; set; }

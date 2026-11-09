@@ -78,6 +78,12 @@
                                 <div class="text-secondary small">
                                     <i class="bi bi-telephone text-muted me-1"></i>@(item.Customer?.PhoneNumber ?? "Chưa có SĐT")
                                 </div>
+                                @if (!string.IsNullOrWhiteSpace(item.InternalNote))
+                                {
+                                    <div class="mt-1 small text-dark bg-warning-subtle border border-warning-subtle rounded-2 px-2 py-1" style="font-size: 0.78rem;" title="Ghi chú nội bộ chỉ nhân viên và bác sĩ nhìn thấy">
+                                        <i class="bi bi-shield-lock-fill text-warning me-1"></i><strong>Nội bộ:</strong> @item.InternalNote
+                                    </div>
+                                }
                             </td>
                             <td>
                                 <strong class="text-dark">@item.Service?.Name</strong>
@@ -133,6 +139,13 @@
                                         </form>
                                     }
 
+                                    <!-- Nút Ghi chú nội bộ (US-42) -->
+                                    <button type="button" class="btn btn-sm @(!string.IsNullOrWhiteSpace(item.InternalNote) ? "btn-warning" : "btn-outline-warning") rounded-pill px-2"
+                                            title="Ghi chú nghiệp vụ nội bộ (US-42)"
+                                            data-bs-toggle="modal" data-bs-target="#internalNoteModal-@item.Id">
+                                        <i class="bi bi-journal-text"></i>
+                                    </button>
+
                                     <!-- Print Voucher / Invoice Button -->
                                     <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
                                         <i class="bi bi-printer-fill"></i>
@@ -146,6 +159,46 @@
                                             <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold">Hoàn tất</button>
                                         </form>
                                     }
+                                </div>
+
+                                <!-- Modal Ghi chú nội bộ US-42 -->
+                                <div class="modal fade text-start" id="internalNoteModal-@item.Id" tabindex="-1" aria-labelledby="noteModalLabel-@item.Id" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-4 border-0 shadow">
+                                            <form asp-action="UpdateInternalNote" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="appointmentId" value="@item.Id" />
+                                                <div class="modal-header bg-slate-50 border-bottom px-4 py-3">
+                                                    <h5 class="modal-title fw-bold text-dark fs-6" id="noteModalLabel-@item.Id">
+                                                        <i class="bi bi-shield-lock text-warning me-2"></i>Ghi Chú Nội Bộ (Internal Notes)
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="p-3 bg-light rounded-3 mb-3 small">
+                                                        <div><strong>Khách hàng:</strong> @item.Customer?.FullName (@(item.Customer?.PhoneNumber ?? "Chưa có SĐT"))</div>
+                                                        <div><strong>Dịch vụ:</strong> @item.Service?.Name - <strong>Ngày:</strong> @item.AppointmentDate.ToString("dd/MM/yyyy") (@item.StartTime.ToString(@"hh\:mm"))</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold small text-dark">
+                                                            <i class="bi bi-pencil-square me-1 text-primary"></i>Nội dung ghi chú chăm sóc khách hàng:
+                                                        </label>
+                                                        <textarea name="internalNote" rows="4" class="form-control rounded-3" placeholder="Nhập sở thích, lưu ý tiền sử, thói quen, mức độ ưu tiên hoặc lưu ý bảo mật riêng cho nhân viên/bác sĩ...">@item.InternalNote</textarea>
+                                                    </div>
+                                                    <div class="alert alert-warning py-2 px-3 small mb-0 rounded-3">
+                                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                        <em>Ghi chú này là <strong>bí mật nghiệp vụ nội bộ</strong>, chỉ Nhân viên và Bác sĩ/Provider thấy. Khách hàng và hoá đơn in ra sẽ KHÔNG hiển thị.</em>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-top px-4 py-3">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                                                    <button type="submit" class="btn btn-sm btn-warning rounded-pill px-4 fw-bold">
+                                                        <i class="bi bi-check2-circle me-1"></i>Lưu Ghi Chú
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
