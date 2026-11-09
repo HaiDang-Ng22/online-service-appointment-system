@@ -1,6 +1,11 @@
 @model List<Appointment.Models.AppointmentModel>
 @{
     ViewData["Title"] = "Lịch hẹn của tôi";
+    var paymentSummaries = ViewBag.PaymentSummaries as Dictionary<string, Appointment.Infrastructure.PaymentSummary>
+                           ?? new Dictionary<string, Appointment.Infrastructure.PaymentSummary>();
+    var reviewedIds = ViewBag.ReviewedIds as HashSet<string> ?? new HashSet<string>();
+    var cancelableIds = ViewBag.CancelableIds as HashSet<string> ?? new HashSet<string>();
+    int cancelBeforeHours = ViewBag.CancelBeforeHours is int h ? h : 0;
 }
 
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
@@ -94,6 +99,15 @@ else
                                 {
                                     <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Đã hủy</span>
                                 }
+
+                                @if (paymentSummaries.TryGetValue(item.Id, out var paySummary) && paySummary.Status != "Free")
+                                {
+                                    <div class="mt-1">
+                                        <span class="badge @paySummary.BadgeClass px-2 py-1" title="Đã thanh toán @paySummary.Paid.ToString("N0") / @paySummary.Total.ToString("N0") VNĐ">
+                                            <i class="bi bi-credit-card me-1"></i>@paySummary.Label
+                                        </span>
+                                    </div>
+                                }
                             </td>
                             <td class="text-end pe-4">
                                 <div class="d-inline-flex gap-1 align-items-center">
@@ -105,13 +119,39 @@ else
                                         <i class="bi bi-printer-fill"></i>
                                     </a>
 
+                                    @if ((item.Status == "Pending" || item.Status == "Confirmed")
+                                         && paymentSummaries.TryGetValue(item.Id, out var payInfo) && payInfo.Remaining > 0)
+                                    {
+                                        <a asp-controller="Payments" asp-action="Checkout" asp-route-id="@item.Id" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" title="Thanh toán / đặt cọc online">
+                                            <i class="bi bi-credit-card-fill me-1"></i>@(payInfo.Paid > 0 ? "Thanh toán nốt" : "Đặt cọc")
+                                        </a>
+                                    }
+
+                                    @if (item.Status == "Completed")
+                                    {
+                                        <a asp-controller="Reviews" asp-action="Create" asp-route-appointmentId="@item.Id" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" title="Đánh giá chất lượng dịch vụ">
+                                            <i class="bi bi-star-fill me-1"></i>@(reviewedIds.Contains(item.Id) ? "Sửa đánh giá" : "Đánh giá")
+                                        </a>
+                                    }
+
                                     @if (item.Status == "Pending" || item.Status == "Confirmed")
                                     {
-                                        <form asp-action="Cancel" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" title="Hủy lịch hẹn">
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </form>
+                                        @if (cancelableIds.Contains(item.Id))
+                                        {
+                                            <form asp-action="Cancel" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2" title="Hủy lịch hẹn">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="d-inline-block" tabindex="0" title="Chỉ được hủy lịch trước giờ phục vụ tối thiểu @cancelBeforeHours giờ">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2" disabled>
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </span>
+                                        }
                                     }
                                 </div>
                             </td>

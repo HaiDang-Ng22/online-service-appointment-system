@@ -1,6 +1,12 @@
 @model Appointment.Models.AppointmentModel
 @{
     ViewData["Title"] = "Chi tiết lịch hẹn #" + Model.Id.Substring(0, 8).ToUpper();
+    var paySummary = ViewBag.PaymentSummary as Appointment.Infrastructure.PaymentSummary;
+    var payments = ViewBag.Payments as List<Appointment.Models.Payment> ?? new List<Appointment.Models.Payment>();
+    var myReview = ViewBag.Review as Appointment.Models.Review;
+    bool canCancel = ViewBag.CanCancel is bool cc && cc;
+    string cancelError = ViewBag.CancelError as string ?? string.Empty;
+    bool isOwnerCustomer = User.IsInRole("Customer");
 }
 
 <div class="row justify-content-center my-3">
@@ -93,6 +99,92 @@
                     </div>
                 }
 
+                @if (Model.Status == "Cancelled" && !string.IsNullOrWhiteSpace(Model.CancelReason))
+                {
+                    <div class="p-3 bg-danger-subtle rounded-3 mb-4 border border-danger-subtle">
+                        <strong class="text-danger small d-block mb-1"><i class="bi bi-x-octagon-fill me-1"></i>Lịch hẹn đã bị hủy</strong>
+                        <p class="mb-0 text-dark small">@Model.CancelReason</p>
+                    </div>
+                }
+
+                <!-- Thanh toán & đặt cọc -->
+                @if (paySummary != null && paySummary.Status != "Free")
+                {
+                    <div class="p-4 bg-light rounded-3 mb-4 border">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                            <h6 class="fw-bold text-primary mb-0"><i class="bi bi-credit-card-2-front-fill me-1"></i>Thanh Toán & Đặt Cọc</h6>
+                            <span class="badge @paySummary.BadgeClass px-3 py-2 rounded-pill">@paySummary.Label</span>
+                        </div>
+                        <div class="row g-2 small mb-2">
+                            <div class="col-4"><div class="text-muted">Giá dịch vụ</div><strong>@paySummary.Total.ToString("N0") VNĐ</strong></div>
+                            <div class="col-4"><div class="text-muted">Đã thanh toán</div><strong class="text-success">@paySummary.Paid.ToString("N0") VNĐ</strong></div>
+                            <div class="col-4"><div class="text-muted">Còn lại</div><strong class="text-danger">@paySummary.Remaining.ToString("N0") VNĐ</strong></div>
+                        </div>
+
+                        @if (payments.Any())
+                        {
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm align-middle mb-0 bg-white">
+                                    <thead class="table-light"><tr><th>Thời gian</th><th>Mã giao dịch</th><th>Loại</th><th>Số tiền</th><th>Trạng thái</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var pay in payments.OrderByDescending(x => x.CreatedAt))
+                                        {
+                                            <tr>
+                                                <td class="small">@pay.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                                <td class="font-monospace small">@pay.TransactionCode</td>
+                                                <td class="small">@(pay.Type == "Deposit" ? "Đặt cọc" : pay.Type == "Remaining" ? "Phần còn lại" : "Toàn bộ")</td>
+                                                <td class="small">@pay.Amount.ToString("N0") VNĐ</td>
+                                                <td>
+                                                    @if (pay.Status == "Paid") { <span class="badge bg-success-subtle text-success">Đã thanh toán</span> }
+                                                    else if (pay.Status == "Refunded") { <span class="badge bg-secondary-subtle text-secondary">Đã hoàn tiền</span> }
+                                                    else { <span class="badge bg-danger-subtle text-danger">Thất bại</span> }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @if (isOwnerCustomer && (Model.Status == "Pending" || Model.Status == "Confirmed") && paySummary.Remaining > 0)
+                        {
+                            <div class="mt-3">
+                                <a asp-controller="Payments" asp-action="Checkout" asp-route-id="@Model.Id" class="btn btn-success rounded-pill px-4 fw-bold">
+                                    <i class="bi bi-credit-card-fill me-1"></i>@(paySummary.Paid > 0 ? "Thanh toán phần còn lại" : "Đặt cọc / Thanh toán online")
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Đánh giá dịch vụ -->
+                @if (isOwnerCustomer && Model.Status == "Completed")
+                {
+                    <div class="p-4 bg-warning-subtle rounded-3 mb-4 border border-warning-subtle">
+                        @if (myReview != null)
+                        {
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                    <strong class="small text-dark d-block mb-1">Đánh giá của bạn</strong>
+                                    <partial name="_RatingStars" model="(double)myReview.Rating" />
+                                    @if (!string.IsNullOrWhiteSpace(myReview.Comment))
+                                    {
+                                        <p class="mb-0 mt-1 small text-dark">@myReview.Comment</p>
+                                    }
+                                </div>
+                                <a asp-controller="Reviews" asp-action="Create" asp-route-appointmentId="@Model.Id" class="btn btn-sm btn-outline-dark rounded-pill px-3">Sửa đánh giá</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <span class="small text-dark"><i class="bi bi-star-fill text-warning me-1"></i>Bạn thấy dịch vụ này thế nào? Hãy chia sẻ đánh giá của bạn.</span>
+                                <a asp-controller="Reviews" asp-action="Create" asp-route-appointmentId="@Model.Id" class="btn btn-warning rounded-pill px-4 fw-bold">Đánh giá ngay</a>
+                            </div>
+                        }
+                    </div>
+                }
+
                 <!-- Medical Result & Doctor Prescription -->
                 @if (!string.IsNullOrWhiteSpace(Model.Diagnosis) || !string.IsNullOrWhiteSpace(Model.Prescription))
                 {
@@ -130,11 +222,22 @@
 
                         @if (Model.Status == "Pending" || Model.Status == "Confirmed")
                         {
-                            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
-                                <button type="submit" class="btn btn-outline-danger rounded-pill px-3">
-                                    <i class="bi bi-x-circle me-1"></i>Hủy cuộc hẹn
-                                </button>
-                            </form>
+                            @if (!isOwnerCustomer || canCancel)
+                            {
+                                <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?');">
+                                    <button type="submit" class="btn btn-outline-danger rounded-pill px-3">
+                                        <i class="bi bi-x-circle me-1"></i>Hủy cuộc hẹn
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="d-inline-block" tabindex="0" title="@cancelError">
+                                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" disabled>
+                                        <i class="bi bi-x-circle me-1"></i>Không thể hủy
+                                    </button>
+                                </span>
+                            }
                         }
                     </div>
                 </div>

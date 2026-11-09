@@ -60,6 +60,17 @@ namespace Appointment.Controllers
             ViewBag.Location = location;
 
             var services = await query.OrderByDescending(s => s.CreatedAt).ToListAsync();
+
+            // US-30: điểm đánh giá trung bình của từng dịch vụ
+            var serviceIds = services.Select(s => s.Id).ToList();
+            var ratingRows = await _context.Reviews.AsNoTracking()
+                .Where(r => serviceIds.Contains(r.ServiceId))
+                .Select(r => new { r.ServiceId, r.Rating })
+                .ToListAsync();
+            ViewBag.Ratings = ratingRows
+                .GroupBy(r => r.ServiceId)
+                .ToDictionary(g => g.Key, g => new RatingInfo { Average = g.Average(x => x.Rating), Count = g.Count() });
+
             return View(services);
         }
 
@@ -93,6 +104,13 @@ namespace Appointment.Controllers
 
             TimeSpan startTime = workingHours?.StartTime ?? new TimeSpan(8, 0, 0);
             TimeSpan endTime = workingHours?.EndTime ?? new TimeSpan(17, 0, 0);
+
+            // US-14: nhà cung cấp đã cấu hình lịch tuần mà ngày này không làm việc -> không có khung giờ nào
+            bool hasWeeklySchedule = await _context.WorkingHours.AnyAsync(w => w.ProviderId == service.ProviderId);
+            if (hasWeeklySchedule && workingHours == null)
+            {
+                endTime = startTime;
+            }
 
             // Fetch existing booked appointments
             var allAppointments = await _context.Appointments
@@ -137,6 +155,18 @@ namespace Appointment.Controllers
                 IsProviderOffDay = isOffDay,
                 OffDayReason = offDay?.Reason,
                 AvailableSlots = slots
+            };
+
+            // US-30: đánh giá của khách hàng
+            var reviews = await _context.Reviews.AsNoTracking()
+                .Include(r => r.Customer)
+                .Where(r => r.ServiceId == service.Id)
+                .ToListAsync();
+            ViewBag.Reviews = reviews.OrderByDescending(r => r.CreatedAt).ToList();
+            ViewBag.Rating = new RatingInfo
+            {
+                Average = reviews.Any() ? reviews.Average(r => r.Rating) : 0,
+                Count = reviews.Count
             };
 
             ViewBag.Service = service;

@@ -49,6 +49,10 @@ namespace Appointment.Models
         [Display(Name = "Đơn thuốc / Lời dặn")]
         public string? Prescription { get; set; }
 
+        /// <summary>Lý do hủy (hủy tự động quá hạn, khách hủy, nhà cung cấp hủy...).</summary>
+        [StringLength(250)]
+        public string? CancelReason { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

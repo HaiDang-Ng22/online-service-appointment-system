@@ -19,6 +19,23 @@
 
             <h3 class="fw-bold text-dark mb-2">@Model.ServiceName</h3>
 
+            @{
+                var ratingInfo = ViewBag.Rating as Appointment.Models.ViewModels.RatingInfo;
+                var reviewList = ViewBag.Reviews as List<Appointment.Models.Review> ?? new List<Appointment.Models.Review>();
+            }
+            <div class="mb-3 small">
+                @if (ratingInfo != null && ratingInfo.Count > 0)
+                {
+                    <partial name="_RatingStars" model="ratingInfo.Average" />
+                    <strong class="ms-1">@ratingInfo.Average.ToString("0.0")</strong>
+                    <span class="text-muted">/ 5 (@ratingInfo.Count đánh giá)</span>
+                }
+                else
+                {
+                    <span class="text-muted"><i class="bi bi-star me-1"></i>Chưa có đánh giá nào</span>
+                }
+            </div>
+
             <div class="fs-3 text-success fw-extrabold mb-4">
                 @Model.Price.ToString("N0") <span class="fs-6 text-muted fw-semibold">VNĐ</span>
             </div>
@@ -186,4 +203,50 @@
             </form>
         </div>
     </div>
+</div>
+
+<!-- US-30: Đánh giá của khách hàng -->
+<div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white my-4" id="reviews">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+        <h4 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-chat-heart-fill text-primary me-2"></i>Đánh giá từ khách hàng
+        </h4>
+        @if (ratingInfo != null && ratingInfo.Count > 0)
+        {
+            <div class="text-sm-end">
+                <span class="fs-3 fw-extrabold text-dark">@ratingInfo.Average.ToString("0.0")</span>
+                <span class="text-muted">/ 5</span>
+                <div><partial name="_RatingStars" model="ratingInfo.Average" /> <small class="text-muted">(@ratingInfo.Count đánh giá)</small></div>
+            </div>
+        }
+    </div>
+
+    @if (!reviewList.Any())
+    {
+        <div class="text-center text-muted py-4 bg-light rounded-3">
+            <i class="bi bi-star fs-3 d-block mb-2"></i>
+            Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sau khi sử dụng dịch vụ!
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var review in reviewList)
+            {
+                <div class="p-3 bg-light rounded-3 border">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+                        <div>
+                            <strong class="text-dark">@(review.Customer?.FullName ?? "Khách hàng")</strong>
+                            <div><partial name="_RatingStars" model="(double)review.Rating" /></div>
+                        </div>
+                        <small class="text-muted">@review.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(review.Comment))
+                    {
+                        <p class="mb-0 mt-2 text-secondary small">@review.Comment</p>
+                    }
+                </div>
+            }
+        </div>
+    }
 </div>

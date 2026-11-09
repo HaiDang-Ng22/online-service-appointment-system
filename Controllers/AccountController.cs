@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Appointment.Data;
 using Appointment.Helpers;
+using Appointment.Infrastructure;
 using Appointment.Models;
 using Appointment.Models.ViewModels;
 using Microsoft.AspNetCore.Authentication;
@@ -14,10 +16,14 @@ namespace Appointment.Controllers
     public class AccountController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IEmailSender _emailSender;
+        private readonly IWebHostEnvironment _env;
 
-        public AccountController(AppDbContext context)
+        public AccountController(AppDbContext context, IEmailSender emailSender, IWebHostEnvironment env)
         {
             _context = context;
+            _emailSender = emailSender;
+            _env = env;
         }
 
         [HttpGet]
@@ -236,6 +242,154 @@ namespace Appointment.Controllers
         public IActionResult AccessDenied()
         {
             return View();
+        }
+
+        // =====================================================================
+        // US-26: Khôi phục & đặt lại mật khẩu qua email
+        // =====================================================================
+
+        private const int ResetTokenMinutes = 30;
+
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction(nameof(Profile));
+            }
+            return View(new ForgotPasswordViewModel());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var email = model.Email.Trim().ToLower();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+
+            // Luôn trả về cùng một thông báo để không lộ việc email có tồn tại hay không.
+            if (user != null && user.IsActive)
+            {
+                var activeTokens = await _context.PasswordResetTokens
+                    .Where(t => t.UserId == user.Id && t.UsedAt == null)
+                    .ToListAsync();
+
+                // Chống spam: tối đa 1 email / 60 giây cho mỗi tài khoản
+                bool tooSoon = activeTokens.Any(t => (DateTime.UtcNow - DateTime.SpecifyKind(t.CreatedAt, DateTimeKind.Utc)).TotalSeconds < 60);
+
+                if (!tooSoon)
+                {
+                    foreach (var old in activeTokens)
+                    {
+                        old.UsedAt = DateTime.UtcNow; // vô hiệu hóa token cũ
+                    }
+
+                    var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+                        .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+                    _context.PasswordResetTokens.Add(new PasswordResetToken
+                    {
+                        Id = Guid.NewGuid().ToString("N"),
+                        UserId = user.Id,
+                        TokenHash = PasswordHasher.HashPassword(rawToken),
+                        ExpiresAt = DateTime.UtcNow.AddMinutes(ResetTokenMinutes),
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+
+                    var link = Url.Action(nameof(ResetPassword), "Account", new { email = user.Email, token = rawToken }, Request.Scheme)!;
+
+                    var body = $@"
+<div style='font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:auto'>
+  <h2 style='color:#0f172a'>Đặt lại mật khẩu AppointX</h2>
+  <p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(user.FullName)}</strong>,</p>
+  <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn vào nút bên dưới để tạo mật khẩu mới (liên kết có hiệu lực trong {ResetTokenMinutes} phút và chỉ dùng được một lần):</p>
+  <p style='text-align:center;margin:28px 0'>
+    <a href='{link}' style='background:#2563eb;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600'>Đặt lại mật khẩu</a>
+  </p>
+  <p style='color:#64748b;font-size:13px'>Nếu nút không hoạt động, hãy sao chép liên kết sau vào trình duyệt:<br/>{link}</p>
+  <p style='color:#64748b;font-size:13px'>Nếu bạn không yêu cầu việc này, hãy bỏ qua email — mật khẩu của bạn vẫn được giữ nguyên.</p>
+</div>";
+
+                    bool sent = await _emailSender.SendAsync(user.Email, "[AppointX] Đặt lại mật khẩu", body);
+
+                    // Chỉ ở môi trường Development và khi chưa cấu hình SMTP: hiển thị link để dev thử nghiệm.
+                    if (!sent && _env.IsDevelopment())
+                    {
+                        TempData["DevResetLink"] = link;
+                    }
+                }
+            }
+
+            return RedirectToAction(nameof(ForgotPasswordConfirmation));
+        }
+
+        [HttpGet]
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ResetPassword(string? email, string? token)
+        {
+            var model = new ResetPasswordViewModel
+            {
+                Email = email ?? string.Empty,
+                Token = token ?? string.Empty
+            };
+
+            var (user, _) = await FindValidResetTokenAsync(email, token);
+            model.IsTokenValid = user != null;
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var (user, record) = await FindValidResetTokenAsync(model.Email, model.Token);
+            if (user == null || record == null)
+            {
+                model.IsTokenValid = false;
+                return View(model);
+            }
+
+            user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
+            record.UsedAt = DateTime.UtcNow;
+
+            // Vô hiệu hóa mọi token còn lại của tài khoản
+            var others = await _context.PasswordResetTokens
+                .Where(t => t.UserId == user.Id && t.UsedAt == null && t.Id != record.Id)
+                .ToListAsync();
+            foreach (var t in others) t.UsedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        private async Task<(User? User, PasswordResetToken? Token)> FindValidResetTokenAsync(string? email, string? token)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token)) return (null, null);
+
+            var normalized = email.Trim().ToLower();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+            if (user == null) return (null, null);
+
+            var hash = PasswordHasher.HashPassword(token);
+            var record = await _context.PasswordResetTokens
+                .FirstOrDefaultAsync(t => t.UserId == user.Id && t.TokenHash == hash && t.UsedAt == null);
+
+            if (record == null || record.ExpiresAt < DateTime.UtcNow) return (null, null);
+
+            return (user, record);
         }
     }
 }
