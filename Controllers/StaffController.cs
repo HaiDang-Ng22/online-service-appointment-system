@@ -170,7 +170,7 @@ namespace Appointment.Controllers
             var model = new WalkInBookingViewModel
             {
                 AppointmentDate = DateTime.Today,
-                SelectedTimeSlot = DateTime.Now.ToString("HH:mm")
+                SelectedTimeSlot = string.Empty
             };
 
             await PopulateWalkInDropdowns(model);
@@ -202,6 +202,95 @@ namespace Appointment.Controllers
             }
 
             return Json(new { found = false });
+        }
+
+        // GET: /Staff/GetAvailableSlots (US-40: Lấy mốc thời gian theo từng loại dịch vụ và bác sĩ)
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableSlots(string serviceId, string? providerId, DateTime? date)
+        {
+            if (string.IsNullOrWhiteSpace(serviceId))
+            {
+                return Json(new { success = false, message = "Vui lòng chọn dịch vụ." });
+            }
+
+            var service = await _context.Services.FindAsync(serviceId);
+            if (service == null)
+            {
+                return Json(new { success = false, message = "Dịch vụ không tồn tại." });
+            }
+
+            var targetDate = (date ?? DateTime.Today).Date;
+            string actualProviderId = !string.IsNullOrWhiteSpace(providerId) ? providerId : service.ProviderId;
+
+            // Kiểm tra ngày nghỉ của nhà cung cấp / bác sĩ
+            var offDay = await _context.ProviderOffDays
+                .FirstOrDefaultAsync(p => p.ProviderId == actualProviderId && p.OffDate.Date == targetDate);
+
+            if (offDay != null)
+            {
+                return Json(new
+                {
+                    success = true,
+                    isOffDay = true,
+                    offDayReason = offDay.Reason ?? "Bác sĩ / Nhà cung cấp nghỉ vào ngày này.",
+                    durationMinutes = service.DurationMinutes,
+                    slots = new List<object>()
+                });
+            }
+
+            // Lấy cấu hình giờ làm việc theo tuần
+            var workingHoursList = await _context.WorkingHours
+                .Where(w => w.ProviderId == actualProviderId && w.IsAvailable)
+                .ToListAsync();
+
+            var workingHours = workingHoursList.FirstOrDefault(w => w.DayOfWeek == targetDate.DayOfWeek);
+
+            TimeSpan startTime = workingHours?.StartTime ?? new TimeSpan(8, 0, 0);
+            TimeSpan endTime = workingHours?.EndTime ?? new TimeSpan(17, 0, 0);
+
+            bool hasWeeklySchedule = await _context.WorkingHours.AnyAsync(w => w.ProviderId == actualProviderId);
+            if (hasWeeklySchedule && workingHours == null)
+            {
+                endTime = startTime; // Ngày nghỉ tuần
+            }
+
+            // Lấy danh sách lịch đã đặt của bác sĩ
+            var bookedAppointments = await _context.Appointments
+                .Where(a => a.ProviderId == actualProviderId && a.Status != "Cancelled" && a.AppointmentDate.Date == targetDate)
+                .ToListAsync();
+
+            int stepMinutes = service.DurationMinutes > 0 ? service.DurationMinutes : 30;
+            var slots = new List<object>();
+            TimeSpan current = startTime;
+
+            while (current.Add(TimeSpan.FromMinutes(stepMinutes)) <= endTime)
+            {
+                TimeSpan slotEnd = current.Add(TimeSpan.FromMinutes(stepMinutes));
+                bool isBooked = bookedAppointments.Any(a => a.StartTime < slotEnd && a.EndTime > current);
+                // Đối với khách tại quầy, nếu ca hẹn đã trôi qua (kết thúc trước giờ hiện tại) thì không chọn được
+                bool isPast = (targetDate == DateTime.Today && slotEnd <= DateTime.Now.TimeOfDay);
+
+                bool available = !isBooked && !isPast;
+
+                slots.Add(new
+                {
+                    time = current.ToString(@"hh\:mm"),
+                    endTime = slotEnd.ToString(@"hh\:mm"),
+                    display = $"{current:hh\\:mm} - {slotEnd:hh\\:mm}",
+                    isAvailable = available
+                });
+
+                current = slotEnd;
+            }
+
+            return Json(new
+            {
+                success = true,
+                isOffDay = false,
+                durationMinutes = stepMinutes,
+                serviceName = service.Name,
+                slots = slots
+            });
         }
 
         // POST: /Staff/WalkInBooking (US-40)
@@ -331,8 +420,13 @@ namespace Appointment.Controllers
             model.ServicesList = services.Select(s => new SelectListItem
             {
                 Value = s.Id,
-                Text = $"{s.Name} ({s.Price:N0} đ - {s.DurationMinutes}p) - {s.Provider?.FullName}"
+                Text = $"{s.Name} ({s.Price:N0} đ - {s.DurationMinutes} phút/ca) - {s.Provider?.FullName}"
             }).ToList();
+
+            if (string.IsNullOrEmpty(model.ServiceId) && model.ServicesList.Any())
+            {
+                model.ServiceId = model.ServicesList.First().Value;
+            }
 
             var providers = await _context.Users
                 .Where(u => u.Role == "Provider" && u.IsActive)

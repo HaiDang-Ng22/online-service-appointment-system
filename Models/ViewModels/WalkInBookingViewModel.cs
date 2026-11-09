@@ -34,9 +34,9 @@ namespace Appointment.Models.ViewModels
         [Display(Name = "Ngày tiếp nhận")]
         public DateTime AppointmentDate { get; set; } = DateTime.Today;
 
-        [Required(ErrorMessage = "Vui lòng chọn giờ phục vụ")]
-        [Display(Name = "Khung giờ bắt đầu")]
-        public string SelectedTimeSlot { get; set; } = DateTime.Now.ToString("HH:mm");
+        [Required(ErrorMessage = "Vui lòng chọn một khung giờ còn trống trong danh sách")]
+        [Display(Name = "Khung giờ phục vụ")]
+        public string SelectedTimeSlot { get; set; } = string.Empty;
 
         [StringLength(500)]
         [Display(Name = "Yêu cầu / Ghi chú của khách")]
