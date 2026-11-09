@@ -138,5 +138,25 @@ namespace Appointment.Controllers
             TempData["SuccessMessage"] = $"Đã cập nhật chẩn đoán/kết luận dịch vụ cho khách hàng {appointment.Customer?.FullName}!";
             return RedirectToAction(nameof(Index));
         }
+
+        // POST: /Staff/UpdateInternalNote (US-42: Ghi chú nghiệp vụ chăm sóc khách hàng nội bộ)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateInternalNote(string appointmentId, string? internalNote)
+        {
+            var appointment = await _context.Appointments
+                .Include(a => a.Customer)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId);
+
+            if (appointment == null) return NotFound();
+
+            appointment.InternalNote = string.IsNullOrWhiteSpace(internalNote) ? null : internalNote.Trim();
+
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Đã cập nhật ghi chú nội bộ cho lịch hẹn #{appointment.Id.Substring(0, 8).ToUpper()} ({appointment.Customer?.FullName})!";
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

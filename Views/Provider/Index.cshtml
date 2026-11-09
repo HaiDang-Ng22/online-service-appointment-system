@@ -129,6 +129,12 @@
                                             <span><i class="bi bi-telephone text-muted me-1"></i>@(item.Customer?.PhoneNumber ?? "Chưa có SĐT")</span>
                                             <span><i class="bi bi-envelope text-muted me-1"></i>@item.Customer?.Email</span>
                                         </div>
+                                        @if (!string.IsNullOrWhiteSpace(item.InternalNote))
+                                        {
+                                            <div class="mt-1 small text-dark bg-warning-subtle border border-warning-subtle rounded-2 px-2 py-1" style="font-size: 0.78rem;" title="Ghi chú nghiệp vụ nội bộ">
+                                                <i class="bi bi-shield-lock-fill text-warning me-1"></i><strong>Nội bộ:</strong> @item.InternalNote
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             </td>
@@ -181,7 +187,7 @@
                                 <div class="d-inline-flex gap-1 align-items-center">
                                     <!-- Diagnosis & Medical Record Button -->
                                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
-                                            onclick="openMedicalModal('@item.Id', '@item.Customer?.FullName', '@item.Customer?.PhoneNumber', '@item.Customer?.Email', '@item.Customer?.Address', '@item.Service?.Name', '@item.AppointmentDate.ToString("dd/MM/yyyy")', '@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")', '@item.Notes', '@item.Diagnosis', '@item.Prescription', '@item.Status')">
+                                            onclick="openMedicalModal('@item.Id', '@item.Customer?.FullName', '@item.Customer?.PhoneNumber', '@item.Customer?.Email', '@item.Customer?.Address', '@item.Service?.Name', '@item.AppointmentDate.ToString("dd/MM/yyyy")', '@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")', '@item.Notes', '@item.Diagnosis', '@item.Prescription', '@item.Status', '@item.InternalNote')">
                                         <i class="bi bi-clipboard2-pulse me-1"></i>Khám & Chẩn đoán
                                     </button>
 
@@ -296,6 +302,13 @@
                         <textarea name="prescription" id="modalPrescription" class="form-control rounded-3" rows="3" placeholder="Nhập danh sách thuốc, liều dùng, lời dặn kiêng cữ hoặc lịch hẹn tái khám..."></textarea>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="bi bi-shield-lock me-1 text-warning"></i>Ghi chú nghiệp vụ nội bộ (chỉ Nhân viên & Bác sĩ xem - US-42):
+                        </label>
+                        <textarea name="internalNote" id="modalInternalNote" class="form-control rounded-3" rows="2" placeholder="Ghi chú sở thích, tiền sử, lưu ý đặc biệt của khách hàng..."></textarea>
+                    </div>
+
                     <div class="row g-3 align-items-center">
                         <div class="col-sm-6">
                             <label class="form-label fw-bold text-dark small">
@@ -329,7 +342,7 @@
 
 @section Scripts {
     <script>
-        function openMedicalModal(id, name, phone, email, address, serviceName, date, time, notes, diagnosis, prescription, status) {
+        function openMedicalModal(id, name, phone, email, address, serviceName, date, time, notes, diagnosis, prescription, status, internalNote) {
             document.getElementById('modalAppointmentId').value = id;
             document.getElementById('modalCustomerName').innerText = name || 'Khách hàng';
             document.getElementById('modalCustomerPhone').innerText = phone || 'Chưa cung cấp';
@@ -347,6 +360,7 @@
 
             document.getElementById('modalDiagnosis').value = diagnosis || '';
             document.getElementById('modalPrescription').value = prescription || '';
+            document.getElementById('modalInternalNote').value = internalNote || '';
             document.getElementById('modalStatus').value = status || 'Completed';
             
             // Set Print link
