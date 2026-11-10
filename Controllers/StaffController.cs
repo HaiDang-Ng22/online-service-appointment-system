@@ -408,6 +408,158 @@ namespace Appointment.Controllers
             return RedirectToAction("PrintInvoice", "Appointments", new { id = appointment.Id });
         }
 
+        // GET: /Staff/ScanQR (US-39: Quét mã QR Check-in điểm danh tại quầy)
+        [HttpGet]
+        public IActionResult ScanQR()
+        {
+            return View();
+        }
+
+        public class CheckInRequest
+        {
+            public string Code { get; set; } = string.Empty;
+        }
+
+        // POST: /Staff/ProcessCheckIn (US-39)
+        [HttpPost]
+        public async Task<IActionResult> ProcessCheckIn([FromBody] CheckInRequest? jsonReq, [FromForm] string? code)
+        {
+            string rawCode = (jsonReq?.Code ?? code ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(rawCode))
+            {
+                return Json(new { success = false, message = "Mã check-in không được để trống." });
+            }
+
+            // Xử lý chuỗi mã quét được: có thể là URL chứa id/code, tiền tố #APX-, hoặc ID thô
+            string cleanId = rawCode;
+            if (cleanId.Contains("id="))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(cleanId, @"[?&]id=([a-zA-Z0-9]+)");
+                if (match.Success) cleanId = match.Groups[1].Value;
+            }
+            else if (cleanId.Contains("code="))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(cleanId, @"[?&]code=([a-zA-Z0-9]+)");
+                if (match.Success) cleanId = match.Groups[1].Value;
+            }
+            else if (cleanId.StartsWith("#APX-", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanId = cleanId.Substring(5);
+            }
+            else if (cleanId.StartsWith("APX-", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanId = cleanId.Substring(4);
+            }
+
+            cleanId = cleanId.Trim().ToLowerInvariant();
+
+            // Tìm lịch hẹn theo Id chính xác hoặc tiền tố
+            var appointment = await _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service)
+                .Include(a => a.Provider)
+                .Include(a => a.Staff)
+                .FirstOrDefaultAsync(a => a.Id.ToLower() == cleanId || a.Id.ToLower().StartsWith(cleanId));
+
+            if (appointment == null)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = $"Không tìm thấy lịch hẹn nào tương ứng với mã '{rawCode}'."
+                });
+            }
+
+            // Kiểm tra trạng thái hiện tại
+            if (appointment.Status == AppointmentRules.Cancelled)
+            {
+                return Json(new
+                {
+                    success = false,
+                    isCancelled = true,
+                    message = $"Lịch hẹn đã bị HỦY trước đó. Lý do: {(string.IsNullOrEmpty(appointment.CancelReason) ? "Không có lý do cụ thể" : appointment.CancelReason)}",
+                    appointment = new
+                    {
+                        id = appointment.Id,
+                        shortId = appointment.Id.Substring(0, 8).ToUpper(),
+                        customerName = appointment.Customer?.FullName ?? "N/A",
+                        customerPhone = appointment.Customer?.PhoneNumber ?? "N/A",
+                        serviceName = appointment.Service?.Name ?? "N/A",
+                        providerName = appointment.Provider?.FullName ?? "N/A",
+                        date = appointment.AppointmentDate.ToString("dd/MM/yyyy"),
+                        time = $"{appointment.StartTime:hh\\:mm} - {appointment.EndTime:hh\\:mm}",
+                        status = appointment.Status,
+                        statusLabel = AppointmentRules.StatusLabel(appointment.Status)
+                    }
+                });
+            }
+
+            if (appointment.Status == AppointmentRules.Completed)
+            {
+                return Json(new
+                {
+                    success = false,
+                    isCompleted = true,
+                    message = "Lịch hẹn này đã HOÀN THÀNH trước đó, không thể check-in lại.",
+                    appointment = new
+                    {
+                        id = appointment.Id,
+                        shortId = appointment.Id.Substring(0, 8).ToUpper(),
+                        customerName = appointment.Customer?.FullName ?? "N/A",
+                        customerPhone = appointment.Customer?.PhoneNumber ?? "N/A",
+                        serviceName = appointment.Service?.Name ?? "N/A",
+                        providerName = appointment.Provider?.FullName ?? "N/A",
+                        date = appointment.AppointmentDate.ToString("dd/MM/yyyy"),
+                        time = $"{appointment.StartTime:hh\\:mm} - {appointment.EndTime:hh\\:mm}",
+                        status = appointment.Status,
+                        statusLabel = AppointmentRules.StatusLabel(appointment.Status)
+                    }
+                });
+            }
+
+            bool wasAlreadyInProgress = (appointment.Status == AppointmentRules.InProgress);
+
+            var staffId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(appointment.StaffId) && !string.IsNullOrEmpty(staffId))
+            {
+                appointment.StaffId = staffId;
+            }
+
+            // Tự động chuyển trạng thái thành In-Progress ngay khi quét thành công (Acceptance Criteria US-39)
+            appointment.Status = AppointmentRules.InProgress;
+            _context.Appointments.Update(appointment);
+            await _context.SaveChangesAsync();
+
+            string msg = wasAlreadyInProgress
+                ? "Khách hàng đã điểm danh trước đó và đang thực hiện dịch vụ."
+                : "Điểm danh Check-in thành công! Cuộc hẹn đã chuyển sang trạng thái Đang thực hiện (In-Progress).";
+
+            return Json(new
+            {
+                success = true,
+                wasAlreadyInProgress = wasAlreadyInProgress,
+                message = msg,
+                appointment = new
+                {
+                    id = appointment.Id,
+                    shortId = appointment.Id.Substring(0, 8).ToUpper(),
+                    customerName = appointment.Customer?.FullName ?? "N/A",
+                    customerPhone = appointment.Customer?.PhoneNumber ?? "N/A",
+                    customerEmail = appointment.Customer?.Email ?? "N/A",
+                    serviceName = appointment.Service?.Name ?? "N/A",
+                    serviceDuration = appointment.Service?.DurationMinutes ?? 30,
+                    providerName = appointment.Provider?.FullName ?? "N/A",
+                    staffName = appointment.Staff?.FullName ?? "Tiếp tân",
+                    date = appointment.AppointmentDate.ToString("dd/MM/yyyy"),
+                    time = $"{appointment.StartTime:hh\\:mm} - {appointment.EndTime:hh\\:mm}",
+                    status = appointment.Status,
+                    statusLabel = AppointmentRules.StatusLabel(appointment.Status),
+                    internalNote = appointment.InternalNote ?? "",
+                    notes = appointment.Notes ?? ""
+                }
+            });
+        }
+
         private async Task PopulateWalkInDropdowns(WalkInBookingViewModel model)
         {
             var services = await _context.Services
