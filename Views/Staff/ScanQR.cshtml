@@ -1,0 +1,403 @@
+@{
+    ViewData["Title"] = "Quét mã QR Check-in điểm danh";
+}
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-qr-code-scan text-primary me-2"></i>Quét Mã QR Check-in Điểm Danh
+        </h3>
+        <p class="text-secondary small mb-0">Điểm danh khách hàng vào phòng phục vụ chỉ với 1 giây bằng camera hoặc máy quét cầm tay</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="WalkInBooking" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-person-plus-fill me-1"></i>Đặt lịch tại quầy
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i>Danh sách lịch hẹn
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột 1: Camera Web (HTML5 QR Scanner) -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-camera-video text-primary me-2"></i>1. Quét Bằng Camera
+                </h5>
+                <span id="cameraStatusBadge" class="badge bg-secondary-subtle text-secondary border px-2 py-1">
+                    Camera chưa bật
+                </span>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-sm-8">
+                    <select id="cameraSelection" class="form-select form-select-sm rounded-3">
+                        <option value="">-- Đang dò tìm camera thiết bị... --</option>
+                    </select>
+                </div>
+                <div class="col-sm-4">
+                    <button type="button" id="btnToggleCamera" class="btn btn-sm btn-primary w-100 rounded-3 fw-bold">
+                        <i class="bi bi-camera me-1"></i>Bật Camera
+                    </button>
+                </div>
+            </div>
+
+            <!-- Khung chiếu Camera -->
+            <div class="position-relative rounded-4 overflow-hidden bg-slate-900 border" style="min-height: 320px; display: flex; align-items: center; justify-content: center;">
+                <div id="qr-reader" style="width: 100%;"></div>
+                <div id="cameraPlaceholder" class="text-center text-white-50 p-4">
+                    <i class="bi bi-camera-video-off display-3 d-block mb-3 text-secondary"></i>
+                    <h6 class="text-white fw-bold">Camera đang tắt</h6>
+                    <small>Bấm nút <strong>"Bật Camera"</strong> ở trên và cấp quyền truy cập để quét mã QR trực tiếp từ phiếu hẹn.</small>
+                </div>
+            </div>
+
+            <div class="p-3 bg-light rounded-3 text-secondary small mt-3 border">
+                <i class="bi bi-lightbulb text-warning me-1"></i>
+                <em>Mẹo: Cầm phiếu hẹn cách camera khoảng 15 - 25cm, giữ thẳng góc để hệ thống nhận diện nhanh trong tích tắc.</em>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột 2: Máy quét mã vạch cầm tay / Nhập thủ công & Kết quả điểm danh -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column">
+            <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+                <i class="bi bi-upc-scan text-success me-2"></i>2. Máy Quét Cầm Tay / Nhập Mã
+            </h5>
+
+            <!-- Ô nhập quét barcode hoặc gõ tay -->
+            <form id="manualScanForm" onsubmit="handleManualSubmit(event)" class="mb-4">
+                <label for="manualCodeInput" class="form-label fw-bold small text-dark">
+                    Mã phiếu hẹn / Mã vạch
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted">
+                        <i class="bi bi-upc"></i>
+                    </span>
+                    <input type="text" id="manualCodeInput" class="form-control form-control-lg border-start-0 rounded-end-3" 
+                           placeholder="Quét mã vạch hoặc nhập mã (vd: #APX-ABCD1234)..." autofocus autocomplete="off" />
+                    <button type="submit" class="btn btn-success px-4 fw-bold rounded-3 ms-2 shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i>Điểm Danh
+                    </button>
+                </div>
+                <div class="text-muted small mt-1">
+                    <i class="bi bi-keyboard me-1"></i><em>Tương thích hoàn toàn với máy quét mã vạch USB/Bluetooth (tự động nhấn Enter sau khi quét).</em>
+                </div>
+            </form>
+
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                <i class="bi bi-card-checklist text-primary me-1"></i>Kết Quả Điểm Danh Khách Hàng
+            </h6>
+
+            <!-- Vùng hiển thị kết quả quét -->
+            <div id="resultContainer" class="flex-grow-1 d-flex flex-column justify-content-center">
+                <div id="emptyResultPlaceholder" class="p-4 text-center text-muted border rounded-4 bg-light">
+                    <i class="bi bi-person-bounding-box display-4 text-secondary mb-2 d-block"></i>
+                    <h6 class="fw-bold text-dark">Sẵn sàng tiếp nhận</h6>
+                    <small>Hướng camera vào mã QR trên phiếu hẹn hoặc quét mã vạch bằng máy quét cầm tay.</small>
+                </div>
+
+                <!-- Card kết quả khi quét thành công / thất bại -->
+                <div id="checkInResultCard" class="card border-0 shadow-sm rounded-4 overflow-hidden" style="display: none;">
+                    <div id="resultHeader" class="card-header text-white p-3 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i id="resultIcon" class="bi fs-4"></i>
+                            <span id="resultTitle" class="fw-bold fs-6"></span>
+                        </div>
+                        <span id="resultBadge" class="badge rounded-pill px-3 py-1"></span>
+                    </div>
+
+                    <div class="card-body p-4 bg-white">
+                        <div class="alert alert-success py-2 px-3 small rounded-3 mb-3" id="resultMessageAlert">
+                            <span id="resultMessage"></span>
+                        </div>
+
+                        <div class="p-3 bg-light rounded-3 mb-3 small border">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="text-muted">Mã lịch hẹn:</div>
+                                    <div class="fw-bold font-monospace text-primary fs-6" id="resShortId">#APX-</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Khách hàng:</div>
+                                    <div class="fw-bold text-dark" id="resCustomerName">-</div>
+                                    <div class="text-secondary small" id="resCustomerPhone">-</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Dịch vụ:</div>
+                                    <strong class="text-dark" id="resServiceName">-</strong>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Bác sĩ / Nhà cung cấp:</div>
+                                    <strong class="text-dark" id="resProviderName">-</strong>
+                                </div>
+                                <div class="col-12 border-top pt-2 mt-2">
+                                    <div class="text-muted">Thời gian phục vụ:</div>
+                                    <span class="badge bg-primary text-white" id="resDateTime">-</span>
+                                </div>
+                                <div class="col-12" id="resInternalNoteBox" style="display: none;">
+                                    <div class="mt-2 p-2 bg-warning-subtle border border-warning-subtle rounded-2 text-dark small">
+                                        <i class="bi bi-shield-lock-fill text-warning me-1"></i><strong>Ghi chú nội bộ (US-42):</strong>
+                                        <span id="resInternalNote"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-2">
+                            <button type="button" onclick="resetForNextScan()" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                                <i class="bi bi-arrow-repeat me-1"></i>Quét tiếp khách khác
+                            </button>
+                            <a id="resPrintLink" href="#" target="_blank" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
+                                <i class="bi bi-printer-fill me-1"></i>In Phiếu Hẹn / Số TT
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Thư viện quét mã QR chuẩn HTML5 -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        let html5QrCode = null;
+        let isScanning = false;
+        let audioCtx = null;
+
+        // Âm thanh Beep khi quét thành công (Web Audio API)
+        function playSuccessBeep() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz (A5)
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) { }
+        }
+
+        function playErrorBeep() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) { }
+        }
+
+        // 1. Quét bằng Camera
+        const cameraSelection = document.getElementById('cameraSelection');
+        const btnToggleCamera = document.getElementById('btnToggleCamera');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const cameraStatusBadge = document.getElementById('cameraStatusBadge');
+
+        // Lấy danh sách camera
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                cameraSelection.innerHTML = '';
+                devices.forEach((device, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = device.id;
+                    opt.text = device.label || `Camera ${index + 1}`;
+                    cameraSelection.appendChild(opt);
+                });
+            } else {
+                cameraSelection.innerHTML = '<option value="">Không tìm thấy camera</option>';
+            }
+        }).catch(err => {
+            cameraSelection.innerHTML = '<option value="">Không thể truy cập camera</option>';
+        });
+
+        btnToggleCamera.addEventListener('click', function () {
+            if (isScanning) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        });
+
+        function startCamera() {
+            const cameraId = cameraSelection.value;
+            if (!cameraId) {
+                alert('Vui lòng chọn một camera trong danh sách.');
+                return;
+            }
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+            cameraPlaceholder.style.display = 'none';
+
+            html5QrCode.start(
+                cameraId,
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                (decodedText, decodedResult) => {
+                    // Khi nhận diện mã QR thành công
+                    handleCheckIn(decodedText);
+                    // Tạm dừng 1.5s để tránh trigger liên tục
+                    if (html5QrCode && html5QrCode.pause) {
+                        html5QrCode.pause();
+                        setTimeout(() => {
+                            if (html5QrCode && html5QrCode.resume) html5QrCode.resume();
+                        }, 2000);
+                    }
+                },
+                (errorMessage) => {
+                    // Đang quét khung hình (bỏ qua log lỗi từng frame)
+                }
+            ).then(() => {
+                isScanning = true;
+                btnToggleCamera.innerHTML = '<i class="bi bi-camera-video-off me-1"></i>Tắt Camera';
+                btnToggleCamera.classList.remove('btn-primary');
+                btnToggleCamera.classList.add('btn-danger');
+                cameraStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                cameraStatusBadge.innerText = 'Camera đang quét...';
+            }).catch(err => {
+                cameraPlaceholder.style.display = 'block';
+                alert('Không thể khởi động camera: ' + err);
+            });
+        }
+
+        function stopCamera() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    isScanning = false;
+                    cameraPlaceholder.style.display = 'block';
+                    btnToggleCamera.innerHTML = '<i class="bi bi-camera me-1"></i>Bật Camera';
+                    btnToggleCamera.classList.remove('btn-danger');
+                    btnToggleCamera.classList.add('btn-primary');
+                    cameraStatusBadge.className = 'badge bg-secondary-subtle text-secondary border px-2 py-1';
+                    cameraStatusBadge.innerText = 'Camera chưa bật';
+                }).catch(err => { });
+            }
+        }
+
+        // 2. Xử lý quét mã vạch / gõ phím thủ công
+        function handleManualSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('manualCodeInput');
+            const code = input.value.trim();
+            if (code) {
+                handleCheckIn(code);
+                input.value = '';
+            }
+        }
+
+        // 3. Gửi mã lên server để check-in & chuyển In-Progress
+        function handleCheckIn(code) {
+            fetch('/Staff/ProcessCheckIn', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ code: code })
+            })
+            .then(res => res.json())
+            .then(data => {
+                renderResult(data);
+            })
+            .catch(err => {
+                playErrorBeep();
+                renderResult({
+                    success: false,
+                    message: 'Lỗi đường truyền hoặc máy chủ không phản hồi.'
+                });
+            });
+        }
+
+        // 4. Render kết quả lên giao diện
+        function renderResult(data) {
+            const placeholder = document.getElementById('emptyResultPlaceholder');
+            const card = document.getElementById('checkInResultCard');
+            const header = document.getElementById('resultHeader');
+            const icon = document.getElementById('resultIcon');
+            const title = document.getElementById('resultTitle');
+            const badge = document.getElementById('resultBadge');
+            const alertBox = document.getElementById('resultMessageAlert');
+            const msg = document.getElementById('resultMessage');
+
+            placeholder.style.display = 'none';
+            card.style.display = 'block';
+
+            if (data.success) {
+                playSuccessBeep();
+                header.className = 'card-header bg-success text-white p-3 d-flex justify-content-between align-items-center';
+                icon.className = 'bi bi-check-circle-fill fs-4';
+                title.innerText = 'ĐIỂM DANH THÀNH CÔNG';
+                badge.className = 'badge bg-white text-success fw-bold px-3 py-1';
+                badge.innerText = 'In-Progress (Đang thực hiện)';
+                alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mb-3';
+                msg.innerText = data.message;
+
+                const a = data.appointment;
+                document.getElementById('resShortId').innerText = '#APX-' + a.shortId;
+                document.getElementById('resCustomerName').innerText = a.customerName;
+                document.getElementById('resCustomerPhone').innerText = a.customerPhone;
+                document.getElementById('resServiceName').innerText = `${a.serviceName} (${a.serviceDuration}p)`;
+                document.getElementById('resProviderName').innerText = a.providerName;
+                document.getElementById('resDateTime').innerText = `${a.date} | ${a.time}`;
+                document.getElementById('resPrintLink').href = `/Appointments/PrintInvoice/${a.id}`;
+
+                const noteBox = document.getElementById('resInternalNoteBox');
+                if (a.internalNote && a.internalNote.trim() !== '') {
+                    document.getElementById('resInternalNote').innerText = a.internalNote;
+                    noteBox.style.display = 'block';
+                } else {
+                    noteBox.style.display = 'none';
+                }
+            } else {
+                playErrorBeep();
+                header.className = 'card-header bg-danger text-white p-3 d-flex justify-content-between align-items-center';
+                icon.className = 'bi bi-x-circle-fill fs-4';
+                title.innerText = 'ĐIỂM DANH THẤT BẠI';
+                badge.className = 'badge bg-white text-danger fw-bold px-3 py-1';
+                badge.innerText = data.isCancelled ? 'ĐÃ HỦY' : (data.isCompleted ? 'HOÀN TẤT' : 'KHÔNG HỢP LỆ');
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+                msg.innerText = data.message;
+
+                if (data.appointment) {
+                    const a = data.appointment;
+                    document.getElementById('resShortId').innerText = '#APX-' + a.shortId;
+                    document.getElementById('resCustomerName').innerText = a.customerName;
+                    document.getElementById('resCustomerPhone').innerText = a.customerPhone;
+                    document.getElementById('resServiceName').innerText = a.serviceName;
+                    document.getElementById('resProviderName').innerText = a.providerName;
+                    document.getElementById('resDateTime').innerText = `${a.date} | ${a.time}`;
+                    document.getElementById('resPrintLink').href = `/Appointments/PrintInvoice/${a.id}`;
+                }
+            }
+        }
+
+        function resetForNextScan() {
+            document.getElementById('checkInResultCard').style.display = 'none';
+            document.getElementById('emptyResultPlaceholder').style.display = 'block';
+            document.getElementById('manualCodeInput').focus();
+        }
+    </script>
+}

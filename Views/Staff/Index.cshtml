@@ -11,6 +11,10 @@
         <p class="text-secondary small mb-0">Tiếp nhận khách hàng, điều phối lịch hẹn, hỗ trợ bác sĩ và in phiếu dịch vụ tại quầy</p>
     </div>
     <div class="d-flex gap-2">
+        <a asp-action="ScanQR" class="btn btn-outline-primary rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-qr-code-scan"></i>
+            <span>Quét QR Check-in</span>
+        </a>
         <a asp-action="WalkInBooking" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-person-plus-fill"></i>
             <span>Đặt Lịch Tại Quầy</span>
@@ -28,6 +32,7 @@
                 <option value="">-- Tất cả trạng thái --</option>
                 <option value="Pending" selected="@(ViewBag.StatusFilter == "Pending" ? "selected" : null)">Pending (Chờ xác nhận)</option>
                 <option value="Confirmed" selected="@(ViewBag.StatusFilter == "Confirmed" ? "selected" : null)">Confirmed (Đã xác nhận)</option>
+                <option value="In-Progress" selected="@(ViewBag.StatusFilter == "In-Progress" ? "selected" : null)">In-Progress (Đang thực hiện)</option>
                 <option value="Completed" selected="@(ViewBag.StatusFilter == "Completed" ? "selected" : null)">Completed (Hoàn thành)</option>
                 <option value="Cancelled" selected="@(ViewBag.StatusFilter == "Cancelled" ? "selected" : null)">Cancelled (Đã hủy)</option>
             </select>
@@ -124,6 +129,12 @@
                                 {
                                     <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Đã xác nhận</span>
                                 }
+                                else if (item.Status == "In-Progress")
+                                {
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                        <i class="bi bi-play-circle-fill me-1"></i>Đang thực hiện
+                                    </span>
+                                }
                                 else if (item.Status == "Completed")
                                 {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Đã hoàn thành</span>
@@ -158,6 +169,16 @@
                                     </a>
 
                                     @if (item.Status == "Confirmed")
+                                    {
+                                        <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                            <input type="hidden" name="appointmentId" value="@item.Id" />
+                                            <input type="hidden" name="status" value="In-Progress" />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2" title="Điểm danh bắt đầu phục vụ (In-Progress)">
+                                                <i class="bi bi-play-fill"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (item.Status == "Confirmed" || item.Status == "In-Progress")
                                     {
                                         <form asp-action="UpdateStatus" method="post" class="d-inline">
                                             <input type="hidden" name="appointmentId" value="@item.Id" />

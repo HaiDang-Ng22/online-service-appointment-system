@@ -2,15 +2,16 @@ using Appointment.Models;
 
 namespace Appointment.Infrastructure
 {
-    /// <summary>Các quy tắc nghiệp vụ dùng chung cho trạng thái lịch hẹn (US-19, US-21, US-24, US-37).</summary>
+    /// <summary>Các quy tắc nghiệp vụ dùng chung cho trạng thái lịch hẹn (US-19, US-21, US-24, US-37, US-39).</summary>
     public static class AppointmentRules
     {
         public const string Pending = "Pending";
         public const string Confirmed = "Confirmed";
+        public const string InProgress = "In-Progress";
         public const string Completed = "Completed";
         public const string Cancelled = "Cancelled";
 
-        public static readonly string[] AllStatuses = { Pending, Confirmed, Completed, Cancelled };
+        public static readonly string[] AllStatuses = { Pending, Confirmed, InProgress, Completed, Cancelled };
 
         /// <summary>Thời điểm bắt đầu phục vụ (giờ máy chủ).</summary>
         public static DateTime StartAt(AppointmentModel a) => a.AppointmentDate.Date + a.StartTime;
@@ -31,6 +32,12 @@ namespace Appointment.Infrastructure
             if (appointment.Status == Completed)
             {
                 error = "Không thể hủy lịch hẹn đã hoàn thành.";
+                return false;
+            }
+
+            if (appointment.Status == InProgress)
+            {
+                error = "Dịch vụ đang trong quá trình thực hiện nên không thể hủy.";
                 return false;
             }
 
@@ -56,6 +63,7 @@ namespace Appointment.Infrastructure
         {
             Pending => "Chờ xác nhận",
             Confirmed => "Đã xác nhận",
+            InProgress => "Đang thực hiện",
             Completed => "Đã hoàn thành",
             Cancelled => "Đã hủy",
             _ => status
@@ -63,7 +71,7 @@ namespace Appointment.Infrastructure
 
         /// <summary>
         /// Kiểm tra việc chuyển trạng thái do Provider/Staff thực hiện.
-        /// Pending -> Confirmed | Completed | Cancelled; Confirmed -> Completed | Cancelled; Completed/Cancelled là trạng thái cuối.
+        /// Pending -> Confirmed | InProgress | Completed | Cancelled; Confirmed -> InProgress | Completed | Cancelled; InProgress -> Completed | Cancelled; Completed/Cancelled là trạng thái cuối.
         /// Cho phép giữ nguyên trạng thái (để cập nhật chẩn đoán).
         /// </summary>
         public static bool TryValidateTransition(AppointmentModel appointment, string? newStatus, out string error)
@@ -83,8 +91,9 @@ namespace Appointment.Infrastructure
 
             bool allowed = appointment.Status switch
             {
-                Pending => newStatus is Confirmed or Completed or Cancelled,
-                Confirmed => newStatus is Completed or Cancelled,
+                Pending => newStatus is Confirmed or InProgress or Completed or Cancelled,
+                Confirmed => newStatus is InProgress or Completed or Cancelled,
+                InProgress => newStatus is Completed or Cancelled,
                 _ => false
             };
 
