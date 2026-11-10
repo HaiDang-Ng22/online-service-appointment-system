@@ -16,11 +16,13 @@ namespace Appointment.Controllers
     {
         private readonly AppDbContext _context;
         private readonly PaymentService _paymentService;
+        private readonly IEmailSender _emailSender;
 
-        public StaffController(AppDbContext context, PaymentService paymentService)
+        public StaffController(AppDbContext context, PaymentService paymentService, IEmailSender emailSender)
         {
             _context = context;
             _paymentService = paymentService;
+            _emailSender = emailSender;
         }
 
         // GET: /Staff
@@ -590,6 +592,283 @@ namespace Appointment.Controllers
                 Value = p.Id,
                 Text = $"{p.FullName} - {p.PhoneNumber ?? p.Email}"
             }).ToList();
+        }
+
+        // GET: /Staff/EmergencyReschedule (US-41: Điều phối và dời lịch khẩn cấp khi có sự cố)
+        [HttpGet]
+        public async Task<IActionResult> EmergencyReschedule(string? sourceProviderId, DateTime? incidentDate, string? shiftFilter, string? targetProviderId, DateTime? targetDate)
+        {
+            var model = new EmergencyRescheduleViewModel
+            {
+                SourceProviderId = sourceProviderId,
+                IncidentDate = incidentDate ?? DateTime.Today,
+                ShiftFilter = shiftFilter ?? "All",
+                TargetProviderId = targetProviderId ?? string.Empty,
+                TargetDate = targetDate ?? incidentDate ?? DateTime.Today
+            };
+
+            var providers = await _context.Users
+                .Where(u => u.Role == "Provider" && u.IsActive)
+                .OrderBy(u => u.FullName)
+                .ToListAsync();
+
+            model.ProvidersList = providers.Select(p => new SelectListItem
+            {
+                Value = p.Id,
+                Text = $"{p.FullName} ({p.PhoneNumber ?? p.Email})"
+            }).ToList();
+
+            if (string.IsNullOrEmpty(model.SourceProviderId) && providers.Any())
+            {
+                model.SourceProviderId = providers.First().Id;
+            }
+
+            if (string.IsNullOrEmpty(model.TargetProviderId))
+            {
+                var otherProvider = providers.FirstOrDefault(p => p.Id != model.SourceProviderId) ?? providers.FirstOrDefault();
+                model.TargetProviderId = otherProvider?.Id ?? string.Empty;
+            }
+
+            if (!string.IsNullOrEmpty(model.SourceProviderId))
+            {
+                var query = _context.Appointments
+                    .Include(a => a.Customer)
+                    .Include(a => a.Service)
+                    .Include(a => a.Provider)
+                    .Where(a => a.ProviderId == model.SourceProviderId
+                                && a.AppointmentDate.Date == model.IncidentDate.Date
+                                && a.Status != AppointmentRules.Cancelled
+                                && a.Status != AppointmentRules.Completed);
+
+                var list = await query.ToListAsync();
+
+                // Lọc theo ca
+                if (model.ShiftFilter == "Morning")
+                {
+                    list = list.Where(a => a.StartTime < TimeSpan.FromHours(12)).ToList();
+                }
+                else if (model.ShiftFilter == "Afternoon")
+                {
+                    list = list.Where(a => a.StartTime >= TimeSpan.FromHours(12) && a.StartTime < TimeSpan.FromHours(18)).ToList();
+                }
+                else if (model.ShiftFilter == "Evening")
+                {
+                    list = list.Where(a => a.StartTime >= TimeSpan.FromHours(18)).ToList();
+                }
+
+                // Lấy lịch của bác sĩ đích trong ngày đích để kiểm tra xung đột (Acceptance criteria 2)
+                var targetDoctorBookings = new List<AppointmentModel>();
+                if (!string.IsNullOrEmpty(model.TargetProviderId))
+                {
+                    targetDoctorBookings = await _context.Appointments
+                        .Where(a => a.ProviderId == model.TargetProviderId
+                                    && a.AppointmentDate.Date == model.TargetDate.Date
+                                    && a.Status != AppointmentRules.Cancelled)
+                        .ToListAsync();
+                }
+
+                bool isTargetOffDay = false;
+                if (!string.IsNullOrEmpty(model.TargetProviderId))
+                {
+                    isTargetOffDay = await _context.ProviderOffDays
+                        .AnyAsync(p => p.ProviderId == model.TargetProviderId && p.OffDate.Date == model.TargetDate.Date);
+                }
+
+                model.AffectedAppointments = list
+                    .OrderBy(a => a.StartTime)
+                    .Select(a =>
+                    {
+                        bool hasConflict = false;
+                        string? conflictDetail = null;
+
+                        if (isTargetOffDay)
+                        {
+                            hasConflict = true;
+                            conflictDetail = "Bác sĩ thay thế có lịch nghỉ vào ngày này!";
+                        }
+                        else if (!string.IsNullOrEmpty(model.TargetProviderId))
+                        {
+                            var conflictAppointment = targetDoctorBookings
+                                .FirstOrDefault(t => t.Id != a.Id && t.StartTime < a.EndTime && t.EndTime > a.StartTime);
+
+                            if (conflictAppointment != null)
+                            {
+                                hasConflict = true;
+                                conflictDetail = $"Bị trùng lịch với #{conflictAppointment.Id.Substring(0, 8).ToUpper()} ({conflictAppointment.StartTime:hh\\:mm} - {conflictAppointment.EndTime:hh\\:mm})";
+                            }
+                        }
+
+                        return new AffectedAppointmentItem
+                        {
+                            Id = a.Id,
+                            ShortId = a.Id.Substring(0, 8).ToUpper(),
+                            CustomerName = a.Customer?.FullName ?? "N/A",
+                            CustomerPhone = a.Customer?.PhoneNumber ?? "N/A",
+                            CustomerEmail = a.Customer?.Email ?? "",
+                            ServiceName = a.Service?.Name ?? "N/A",
+                            ServiceDuration = a.Service?.DurationMinutes ?? 30,
+                            TimeSlot = $"{a.StartTime:hh\\:mm} - {a.EndTime:hh\\:mm}",
+                            StartTime = a.StartTime,
+                            EndTime = a.EndTime,
+                            Status = a.Status,
+                            HasConflict = hasConflict,
+                            ConflictDetail = conflictDetail
+                        };
+                    }).ToList();
+            }
+
+            return View(model);
+        }
+
+        // POST: /Staff/EmergencyReschedule (US-41)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EmergencyReschedule(EmergencyRescheduleViewModel model)
+        {
+            if (model.SelectedAppointmentIds == null || !model.SelectedAppointmentIds.Any())
+            {
+                TempData["ErrorMessage"] = "Vui lòng tích chọn ít nhất một cuộc hẹn cần điều phối dời lịch!";
+                return RedirectToAction(nameof(EmergencyReschedule), new
+                {
+                    sourceProviderId = model.SourceProviderId,
+                    incidentDate = model.IncidentDate.ToString("yyyy-MM-dd"),
+                    shiftFilter = model.ShiftFilter,
+                    targetProviderId = model.TargetProviderId,
+                    targetDate = model.TargetDate.ToString("yyyy-MM-dd")
+                });
+            }
+
+            var targetProvider = await _context.Users.FindAsync(model.TargetProviderId);
+            if (targetProvider == null)
+            {
+                TempData["ErrorMessage"] = "Bác sĩ thay thế không tồn tại.";
+                return RedirectToAction(nameof(EmergencyReschedule));
+            }
+
+            // Kiểm tra ngày nghỉ của bác sĩ thay thế
+            bool isTargetOffDay = await _context.ProviderOffDays
+                .AnyAsync(p => p.ProviderId == model.TargetProviderId && p.OffDate.Date == model.TargetDate.Date);
+
+            if (isTargetOffDay)
+            {
+                TempData["ErrorMessage"] = $"Bác sĩ thay thế ({targetProvider.FullName}) có lịch nghỉ vào ngày {model.TargetDate:dd/MM/yyyy}. Không thể dời lịch sang ngày này!";
+                return RedirectToAction(nameof(EmergencyReschedule), new
+                {
+                    sourceProviderId = model.SourceProviderId,
+                    incidentDate = model.IncidentDate.ToString("yyyy-MM-dd"),
+                    shiftFilter = model.ShiftFilter,
+                    targetProviderId = model.TargetProviderId,
+                    targetDate = model.TargetDate.ToString("yyyy-MM-dd")
+                });
+            }
+
+            var appointments = await _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service)
+                .Include(a => a.Provider)
+                .Where(a => model.SelectedAppointmentIds.Contains(a.Id))
+                .ToListAsync();
+
+            var staffId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentStaff = await _context.Users.FindAsync(staffId);
+            string staffName = currentStaff?.FullName ?? "Nhân viên điều phối";
+
+            int successCount = 0;
+            int conflictCount = 0;
+            int emailCount = 0;
+
+            // Lấy danh sách lịch hiện có của bác sĩ thay thế
+            var targetDoctorBookings = await _context.Appointments
+                .Where(a => a.ProviderId == model.TargetProviderId
+                            && a.AppointmentDate.Date == model.TargetDate.Date
+                            && a.Status != AppointmentRules.Cancelled)
+                .ToListAsync();
+
+            foreach (var a in appointments)
+            {
+                // Kiểm tra xung đột lịch
+                bool isConflict = targetDoctorBookings.Any(t => t.Id != a.Id && t.StartTime < a.EndTime && t.EndTime > a.StartTime);
+                if (isConflict)
+                {
+                    conflictCount++;
+                    continue; // Bỏ qua lịch hẹn bị xung đột để tránh trùng lịch
+                }
+
+                string oldDoctor = a.Provider?.FullName ?? "Bác sĩ cũ";
+                DateTime oldDate = a.AppointmentDate;
+                string oldTime = $"{a.StartTime:hh\\:mm} - {a.EndTime:hh\\:mm}";
+
+                // 1. Cập nhật thông tin bác sĩ & ngày mới
+                a.ProviderId = model.TargetProviderId;
+                a.AppointmentDate = model.TargetDate.Date;
+                a.StaffId = staffId;
+
+                // 2. Ghi chú nội bộ US-42
+                string rescheduleLog = $"[ĐIỀU PHỐI KHẨN CẤP {DateTime.Now:dd/MM/yyyy HH:mm} bởi {staffName}]: Sự cố: {model.Reason}. Đổi từ [{oldDoctor} ngày {oldDate:dd/MM/yyyy}] sang [{targetProvider.FullName} ngày {model.TargetDate:dd/MM/yyyy} ({oldTime})].";
+                a.InternalNote = string.IsNullOrEmpty(a.InternalNote)
+                    ? rescheduleLog
+                    : $"{a.InternalNote}\n{rescheduleLog}";
+
+                // 3. Ghi chú thông báo cho khách hàng
+                string notice = $"[Thông báo dời lịch {DateTime.Now:dd/MM/yyyy}]: Do {model.Reason}, lịch hẹn đã được điều phối sang {targetProvider.FullName} vào {model.TargetDate:dd/MM/yyyy} lúc {oldTime}.";
+                a.Notes = string.IsNullOrEmpty(a.Notes)
+                    ? notice
+                    : $"{a.Notes}\n{notice}";
+
+                _context.Appointments.Update(a);
+
+                // Cập nhật vào danh sách tạm để chống xung đột các cuộc hẹn tiếp theo trong cùng đợt dời
+                targetDoctorBookings.Add(a);
+                successCount++;
+
+                // 4. Gửi email xin lỗi và thông báo giờ hẹn mới tới khách hàng (Acceptance Criteria 3)
+                if (!string.IsNullOrWhiteSpace(a.Customer?.Email) && !a.Customer.Email.EndsWith("@walkin.appointx.vn"))
+                {
+                    try
+                    {
+                        string subject = $"[AppointX] Thông báo điều phối lịch hẹn #{a.Id.Substring(0, 8).ToUpper()}";
+                        string body = $@"
+                            <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;'>
+                                <div style='text-align: center; margin-bottom: 20px;'>
+                                    <h2 style='color: #2563eb; margin: 0;'>Appoint<span style='color: #0284c7;'>X</span></h2>
+                                    <h4 style='color: #d97706; margin-top: 5px;'>THÔNG BÁO ĐIỀU PHỐI LỊCH HẸN KHẨN CẤP</h4>
+                                </div>
+                                <p>Kính gửi Quý khách <strong>{a.Customer.FullName}</strong>,</p>
+                                <p>Hệ thống trân trọng thông báo về việc điều phối cuộc hẹn cho dịch vụ <strong>{a.Service?.Name}</strong> do phát sinh sự cố đột xuất:</p>
+                                <div style='background-color: #f8fafc; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 6px;'>
+                                    <p style='margin: 4px 0;'><strong>Lý do sự cố:</strong> {model.Reason}</p>
+                                    <p style='margin: 4px 0;'><strong>Bác sĩ / Chuyên gia tiếp nhận mới:</strong> <span style='color: #0284c7; font-weight: bold;'>{targetProvider.FullName}</span></p>
+                                    <p style='margin: 4px 0;'><strong>Ngày hẹn mới:</strong> {model.TargetDate:dd/MM/yyyy}</p>
+                                    <p style='margin: 4px 0;'><strong>Khung giờ phục vụ:</strong> {oldTime}</p>
+                                </div>
+                                <p>{(string.IsNullOrWhiteSpace(model.ApologyMessage) ? "Chúng tôi vô cùng xin lỗi Quý khách vì sự cố ngoài ý muốn này. Đội ngũ y bác sĩ và nhân viên cam kết sẽ phục vụ chu đáo nhất khi Quý khách đến cơ sở." : model.ApologyMessage)}</p>
+                                <p>Nếu Quý khách muốn đổi sang thời gian khác, xin vui lòng gọi hotline miễn cước: <strong>1900 6868</strong>.</p>
+                                <hr style='border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;'/>
+                                <p style='color: #64748b; font-size: 0.85em; text-align: center;'>Email được gửi tự động từ Hệ thống quản lý đặt lịch AppointX.</p>
+                            </div>";
+
+                        bool sent = await _emailSender.SendAsync(a.Customer.Email, subject, body);
+                        if (sent) emailCount++;
+                    }
+                    catch { }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            string resultMsg = $"Điều phối thành công {successCount} lịch hẹn sang Bác sĩ {targetProvider.FullName} ({model.TargetDate:dd/MM/yyyy})!";
+            if (emailCount > 0) resultMsg += $" Đã gửi email thông báo xin lỗi tới {emailCount} khách hàng.";
+            if (conflictCount > 0) resultMsg += $" (Đã bỏ qua {conflictCount} lịch do trùng giờ của bác sĩ thay thế).";
+
+            TempData["SuccessMessage"] = resultMsg;
+            return RedirectToAction(nameof(EmergencyReschedule), new
+            {
+                sourceProviderId = model.SourceProviderId,
+                incidentDate = model.IncidentDate.ToString("yyyy-MM-dd"),
+                shiftFilter = model.ShiftFilter,
+                targetProviderId = model.TargetProviderId,
+                targetDate = model.TargetDate.ToString("yyyy-MM-dd")
+            });
         }
     }
 }

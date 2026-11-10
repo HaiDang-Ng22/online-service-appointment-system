@@ -1,0 +1,328 @@
+@model Appointment.Models.ViewModels.EmergencyRescheduleViewModel
+@{
+    ViewData["Title"] = "Điều phối & Dời lịch khẩn cấp";
+}
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-shield-exclamation text-warning me-2"></i>Điều Phối & Dời Lịch Khẩn Cấp (Emergency Rescheduling)
+        </h3>
+        <p class="text-secondary small mb-0">Xử lý sự cố mất điện, thiết bị hỏng hoặc bác sĩ vắng mặt đột xuất; dời lịch hàng loạt và thông báo xin lỗi khách hàng</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+        </a>
+    </div>
+</div>
+
+<!-- 1. BỘ LỌC PHẠM VI SỰ CỐ -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+        <i class="bi bi-funnel-fill text-primary me-2"></i>1. Xác Định Phạm Vi Sự Cố
+    </h5>
+
+    <form asp-action="EmergencyReschedule" method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label small fw-bold text-secondary">
+                <i class="bi bi-person-x-fill text-danger me-1"></i>Bác sĩ / Nhà cung cấp gặp sự cố <span class="text-danger">*</span>
+            </label>
+            <select name="sourceProviderId" class="form-select rounded-3" onchange="this.form.submit()">
+                @foreach (var p in Model.ProvidersList)
+                {
+                    <option value="@p.Value" selected="@(p.Value == Model.SourceProviderId ? "selected" : null)">@p.Text</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-secondary">
+                <i class="bi bi-calendar-event me-1"></i>Ngày xảy ra sự cố <span class="text-danger">*</span>
+            </label>
+            <input type="date" name="incidentDate" class="form-control rounded-3" value="@Model.IncidentDate.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-secondary">
+                <i class="bi bi-clock me-1"></i>Ca làm việc bị ảnh hưởng
+            </label>
+            <select name="shiftFilter" class="form-select rounded-3" onchange="this.form.submit()">
+                <option value="All" selected="@(Model.ShiftFilter == "All" ? "selected" : null)">Tất cả các ca (Toàn bộ ngày)</option>
+                <option value="Morning" selected="@(Model.ShiftFilter == "Morning" ? "selected" : null)">Ca sáng (Trước 12:00)</option>
+                <option value="Afternoon" selected="@(Model.ShiftFilter == "Afternoon" ? "selected" : null)">Ca chiều (12:00 - 18:00)</option>
+                <option value="Evening" selected="@(Model.ShiftFilter == "Evening" ? "selected" : null)">Ca tối (Sau 18:00)</option>
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100 rounded-3 fw-bold">
+                <i class="bi bi-search me-1"></i>Tra Cứu
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- FORM ĐIỀU PHỐI VÀ DỜI LỊCH -->
+<form asp-action="EmergencyReschedule" method="post" id="rescheduleForm">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="sourceProviderId" value="@Model.SourceProviderId" />
+    <input type="hidden" name="incidentDate" value="@Model.IncidentDate.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="shiftFilter" value="@Model.ShiftFilter" />
+
+    <div class="row g-4 mb-4">
+        <!-- 2. PHƯƠNG ÁN ĐIỀU PHỐI MỚI -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+                    <i class="bi bi-arrow-left-right text-success me-2"></i>2. Phương Án Điều Phối Mới
+                </h5>
+
+                <div class="mb-3">
+                    <label asp-for="TargetProviderId" class="form-label fw-bold small text-dark">
+                        Bác sĩ / Chuyên gia tiếp nhận thay thế <span class="text-danger">*</span>
+                    </label>
+                    <select asp-for="TargetProviderId" id="targetProviderSelect" class="form-select rounded-3" onchange="updateConflictPreview()">
+                        @foreach (var p in Model.ProvidersList)
+                        {
+                            <option value="@p.Value" selected="@(p.Value == Model.TargetProviderId ? "selected" : null)">@p.Text</option>
+                        }
+                    </select>
+                    <span asp-validation-for="TargetProviderId" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="TargetDate" class="form-label fw-bold small text-dark">
+                        Ngày hẹn mới <span class="text-danger">*</span>
+                    </label>
+                    <input asp-for="TargetDate" id="targetDateInput" type="date" class="form-control rounded-3" value="@Model.TargetDate.ToString("yyyy-MM-dd")" onchange="updateConflictPreview()" />
+                    <span asp-validation-for="TargetDate" class="text-danger small"></span>
+                    <small class="text-muted"><em>(Có thể giữ nguyên ngày xảy ra sự cố nếu chỉ đổi bác sĩ, hoặc dời sang ngày khác)</em></small>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Reason" class="form-label fw-bold small text-dark">
+                        Lý do sự cố khẩn cấp <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group mb-2">
+                        <select class="form-select rounded-3" id="quickReasonSelect" onchange="applyQuickReason(this.value)">
+                            <option value="Bác sĩ gặp sự cố sức khỏe đột xuất">Bác sĩ gặp sự cố sức khỏe đột xuất</option>
+                            <option value="Sự cố mất điện / bảo trì trang thiết bị y tế">Sự cố mất điện / bảo trì trang thiết bị y tế</option>
+                            <option value="Sự cố kỹ thuật tại cơ sở phục vụ">Sự cố kỹ thuật tại cơ sở phục vụ</option>
+                            <option value="Bác sĩ bận lịch phẫu thuật / công tác khẩn cấp">Bác sĩ bận lịch phẫu thuật / công tác khẩn cấp</option>
+                            <option value="other">Lý do khác (Nhập tùy ý)...</option>
+                        </select>
+                    </div>
+                    <input asp-for="Reason" id="reasonInput" class="form-control rounded-3" placeholder="Nhập lý do dời lịch..." />
+                    <span asp-validation-for="Reason" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. THÔNG BÁO XIN LỖI GỬI KHÁCH HÀNG -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark border-bottom pb-3 mb-3">
+                    <i class="bi bi-chat-heart-fill text-danger me-2"></i>3. Lời Xin Lỗi & Thông Báo Khách Hàng
+                </h5>
+
+                <div class="mb-3">
+                    <label asp-for="ApologyMessage" class="form-label fw-bold small text-dark">
+                        Nội dung thư thông báo xin lỗi (Gửi qua Email / Ghi nhận vào lịch hẹn):
+                    </label>
+                    <textarea asp-for="ApologyMessage" rows="5" class="form-control rounded-3" placeholder="Chúng tôi vô cùng xin lỗi Quý khách vì sự cố ngoài ý muốn này. Đội ngũ y bác sĩ cam kết sẽ đón tiếp và phục vụ chu đáo nhất vào khung giờ mới..."></textarea>
+                    <span asp-validation-for="ApologyMessage" class="text-danger small"></span>
+                </div>
+
+                <div class="p-3 bg-light rounded-3 text-secondary small border">
+                    <div class="fw-bold text-dark mb-1"><i class="bi bi-envelope-check-fill text-primary me-1"></i>Cơ chế tự động:</div>
+                    <ul class="ps-3 mb-0">
+                        <li>Tự động gửi email thông báo kèm khung giờ mới tới từng khách hàng có email.</li>
+                        <li>Ghi nhận toàn bộ vết lịch sử điều phối vào <strong>Ghi chú nội bộ (US-42)</strong> và Ghi chú lịch hẹn.</li>
+                        <li>Tự động loại trừ các lịch bị trùng giờ của bác sĩ thay thế để chống chồng chéo lịch.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. DANH SÁCH LỊCH HẸN BỊ ẢNH HƯỞNG -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+        <div class="card-header bg-slate-50 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-people-fill me-1 text-primary"></i>Danh Sách Lịch Hẹn Cần Điều Phối (@Model.AffectedAppointments.Count)
+                </h5>
+                <small class="text-muted">Tích chọn các cuộc hẹn bạn muốn chuyển sang bác sĩ hoặc ngày mới</small>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="toggleSelectAll(this)">
+                    <i class="bi bi-check-all me-1"></i>Chọn tất cả
+                </button>
+            </div>
+        </div>
+
+        @if (!Model.AffectedAppointments.Any())
+        {
+            <div class="p-5 text-center text-muted">
+                <i class="bi bi-calendar2-check display-4 text-success mb-2 d-block"></i>
+                <h6 class="fw-bold text-dark">Không có lịch hẹn nào bị ảnh hưởng</h6>
+                <small>Bác sĩ này không có lịch hẹn chưa hoàn thành nào trong phạm vi ca và ngày đã chọn.</small>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;" class="ps-4">
+                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input" onchange="handleSelectAllChange(this)" />
+                            </th>
+                            <th>Mã Hẹn</th>
+                            <th>Khách Hàng</th>
+                            <th>Dịch Vụ</th>
+                            <th>Khung Giờ Phục Vụ</th>
+                            <th>Trạng Thái</th>
+                            <th class="pe-4 text-end">Đối Soát Bác Sĩ Mới</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.AffectedAppointments)
+                        {
+                            <tr class="@(item.HasConflict ? "table-warning" : "")">
+                                <td class="ps-4">
+                                    <input type="checkbox" name="SelectedAppointmentIds" value="@item.Id" 
+                                           class="form-check-input appointment-checkbox" 
+                                           data-conflict="@(item.HasConflict ? "true" : "false")"
+                                           onchange="updateSelectedCount()" />
+                                </td>
+                                <td>
+                                    <span class="font-monospace fw-bold text-primary">#APX-@item.ShortId</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">@item.CustomerName</div>
+                                    <div class="text-secondary small">
+                                        <i class="bi bi-telephone text-muted me-1"></i>@item.CustomerPhone
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong class="text-dark">@item.ServiceName</strong>
+                                    <div class="text-secondary small">Thời lượng: @item.ServiceDuration phút</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-2 py-1">
+                                        <i class="bi bi-clock me-1 text-muted"></i>@item.TimeSlot
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (item.Status == "Confirmed")
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Đã xác nhận</span>
+                                    }
+                                    else if (item.Status == "In-Progress")
+                                    {
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Đang thực hiện</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">Chờ xác nhận</span>
+                                    }
+                                </td>
+                                <td class="pe-4 text-end">
+                                    @if (item.HasConflict)
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" title="@item.ConflictDetail">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Trùng Lịch
+                                        </span>
+                                        <div class="text-danger small mt-1" style="font-size: 0.72rem;">@item.ConflictDetail</div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Khả dụng (Không trùng)
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Thanh thực hiện xác nhận -->
+            <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold text-dark">Đã chọn: <span id="selectedCountBadge" class="badge bg-primary px-2 py-1">0</span> cuộc hẹn</span>
+                    <span id="conflictWarningText" class="text-danger small ms-2" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Có lịch bị trùng sẽ tự động được bỏ qua khi dời.
+                    </span>
+                </div>
+                <button type="submit" id="btnSubmitReschedule" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2" disabled>
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Xác Nhận Dời Lịch & Gửi Thông Báo</span>
+                </button>
+            </div>
+        }
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function applyQuickReason(val) {
+            const reasonInput = document.getElementById('reasonInput');
+            if (val !== 'other') {
+                reasonInput.value = val;
+            } else {
+                reasonInput.value = '';
+                reasonInput.focus();
+            }
+        }
+
+        function updateConflictPreview() {
+            const form = document.querySelector('form[method="get"]');
+            const targetSelect = document.getElementById('targetProviderSelect');
+            const targetDate = document.getElementById('targetDateInput');
+
+            // Cập nhật lại đường dẫn để preview tình trạng trùng lịch
+            const url = new URL(window.location.href);
+            url.searchParams.set('targetProviderId', targetSelect.value);
+            url.searchParams.set('targetDate', targetDate.value);
+            window.location.href = url.toString();
+        }
+
+        function handleSelectAllChange(master) {
+            const checkboxes = document.querySelectorAll('.appointment-checkbox');
+            checkboxes.forEach(cb => cb.checked = master.checked);
+            updateSelectedCount();
+        }
+
+        function toggleSelectAll(btn) {
+            const master = document.getElementById('selectAllCheckbox');
+            master.checked = !master.checked;
+            handleSelectAllChange(master);
+        }
+
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.appointment-checkbox:checked');
+            const count = checkboxes.length;
+            document.getElementById('selectedCountBadge').innerText = count;
+
+            const submitBtn = document.getElementById('btnSubmitReschedule');
+            submitBtn.disabled = (count === 0);
+
+            let hasAnyConflict = false;
+            checkboxes.forEach(cb => {
+                if (cb.getAttribute('data-conflict') === 'true') {
+                    hasAnyConflict = true;
+                }
+            });
+
+            const conflictText = document.getElementById('conflictWarningText');
+            if (conflictText) {
+                conflictText.style.display = hasAnyConflict ? 'inline-block' : 'none';
+            }
+        }
+    </script>
+}

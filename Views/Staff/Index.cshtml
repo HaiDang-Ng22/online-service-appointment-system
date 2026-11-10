@@ -10,7 +10,11 @@
         </h3>
         <p class="text-secondary small mb-0">Tiếp nhận khách hàng, điều phối lịch hẹn, hỗ trợ bác sĩ và in phiếu dịch vụ tại quầy</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="EmergencyReschedule" class="btn btn-outline-warning rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-1">
+            <i class="bi bi-shield-exclamation"></i>
+            <span>Dời Lịch Sự Cố</span>
+        </a>
         <a asp-action="ScanQR" class="btn btn-outline-primary rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-2">
             <i class="bi bi-qr-code-scan"></i>
             <span>Quét QR Check-in</span>
