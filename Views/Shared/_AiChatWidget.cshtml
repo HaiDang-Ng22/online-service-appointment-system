@@ -1,0 +1,500 @@
+<!-- ========================================================
+     AppointX AI Chatbot Floating Widget
+     ======================================================== -->
+<div id="appointx-ai-widget" class="ai-widget-container">
+    <!-- Trigger Floating Bubble Button -->
+    <button id="aiChatToggleBtn" class="ai-launcher-btn shadow-lg" type="button" aria-label="Mở Trợ lý AI AppointX">
+        <span class="ai-launcher-icon">
+            <i class="bi bi-stars"></i>
+        </span>
+        <span class="ai-launcher-label d-none d-sm-inline">Trợ lý AI</span>
+        <span class="ai-status-dot"></span>
+    </button>
+
+    <!-- Chat Window Container -->
+    <div id="aiChatWindow" class="ai-chat-window shadow-lg d-none">
+        <!-- Header -->
+        <div class="ai-chat-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <div class="ai-avatar-badge">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div>
+                    <div class="ai-header-title">AppointX AI Assistant</div>
+                    <div class="ai-header-sub">
+                        <span class="ai-online-indicator"></span> Trực tuyến &bull; Dữ liệu đóng hệ thống
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" id="aiClearChatBtn" class="btn btn-sm btn-icon-ai" title="Xóa lịch sử chat">
+                    <i class="bi bi-trash3"></i>
+                </button>
+                <button type="button" id="aiCloseChatBtn" class="btn btn-sm btn-icon-ai" title="Thu nhỏ">
+                    <i class="bi bi-dash-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages Body -->
+        <div id="aiChatMessages" class="ai-chat-body">
+            <!-- Welcome Bot Message -->
+            <div class="ai-msg bot-msg">
+                <div class="ai-msg-avatar"><i class="bi bi-stars"></i></div>
+                <div class="ai-msg-bubble">
+                    <p class="mb-1">Xin chào Quý khách! 👋 Tôi là <strong>Trợ lý AI của AppointX</strong>.</p>
+                    <p class="mb-2">Tôi có thể giúp bạn tra cứu dịch vụ, bảng giá, tìm kiếm bác sĩ chuyên khoa và hướng dẫn chính sách đặt cọc / hủy lịch.</p>
+                    <div class="ai-suggestion-title">Gợi ý câu hỏi nhanh:</div>
+                    <div class="ai-quick-tags d-flex flex-wrap gap-1 mt-1">
+                        <button type="button" class="ai-tag-chip" data-query="Khám sức khỏe tổng quát có giá bao nhiêu?">🏥 Khám sức khỏe</button>
+                        <button type="button" class="ai-tag-chip" data-query="Có dịch vụ spa chăm sóc da mặt nào tốt?">💇 Chăm sóc da mặt</button>
+                        <button type="button" class="ai-tag-chip" data-query="Chính sách đặt cọc và thanh toán thế nào?">💳 Quy định đặt cọc</button>
+                        <button type="button" class="ai-tag-chip" data-query="Quy định hủy lịch và hoàn tiền ra sao?">⏰ Hủy lịch hoàn tiền</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing Indicator (Hidden by default) -->
+        <div id="aiTypingIndicator" class="ai-typing-indicator px-3 py-2 d-none">
+            <span class="ai-typing-dot"></span>
+            <span class="ai-typing-dot"></span>
+            <span class="ai-typing-dot"></span>
+            <small class="ms-2 text-secondary">AI đang tra cứu dữ liệu hệ thống...</small>
+        </div>
+
+        <!-- Footer / Input Form -->
+        <div class="ai-chat-footer">
+            <form id="aiChatForm" class="d-flex align-items-center gap-2">
+                <input type="text" id="aiChatInput" class="form-control ai-input-field" placeholder="Hỏi về dịch vụ, bác sĩ, bảng giá, quy định..." autocomplete="off" maxlength="500" required />
+                <button type="submit" id="aiSendBtn" class="btn btn-primary ai-send-btn" aria-label="Gửi câu hỏi">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </form>
+            <div class="ai-disclaimer-text">
+                <i class="bi bi-shield-check text-success me-1"></i>Chỉ tư vấn dữ liệu trong AppointX. Không thay thế chẩn đoán y khoa.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ========================================================
+   AI Chatbot Widget Styles
+   ======================================================== */
+.ai-widget-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1060;
+    font-family: inherit;
+}
+
+/* Floating Launcher Button */
+.ai-launcher-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.25rem;
+    background: #0f172a;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 100px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+}
+
+.ai-launcher-btn:hover {
+    background: #1e293b;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -4px rgba(37, 99, 235, 0.35);
+    border-color: #38bdf8;
+}
+
+.ai-launcher-icon {
+    font-size: 1.2rem;
+    color: #38bdf8;
+}
+
+.ai-status-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #10b981;
+}
+
+/* Chat Window */
+.ai-chat-window {
+    width: 380px;
+    height: 520px;
+    max-height: calc(100vh - 100px);
+    background: #ffffff;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--slate-200);
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    animation: aiPopUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@@keyframes aiPopUp {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@@media (max-width: 576px) {
+    .ai-chat-window {
+        width: calc(100vw - 32px);
+        height: 80vh;
+        right: -8px;
+    }
+}
+
+/* Header */
+.ai-chat-header {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-avatar-badge {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #2563eb, #38bdf8);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+}
+
+.ai-header-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ai-header-sub {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ai-online-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #10b981;
+    border-radius: 50%;
+}
+
+.btn-icon-ai {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 0.25rem 0.45rem;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.btn-icon-ai:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Body Messages */
+.ai-chat-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    background: #f8fafc;
+}
+
+.ai-msg {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 90%;
+}
+
+.ai-msg.bot-msg {
+    align-self: flex-start;
+}
+
+.ai-msg.user-msg {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.ai-msg-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.ai-msg-bubble {
+    padding: 0.75rem 0.95rem;
+    border-radius: 14px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.bot-msg .ai-msg-bubble {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid var(--slate-200);
+    border-top-left-radius: 2px;
+}
+
+.user-msg .ai-msg-bubble {
+    background: #2563eb;
+    color: #ffffff;
+    border-top-right-radius: 2px;
+}
+
+.ai-suggestion-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.ai-tag-chip {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    border-radius: 100px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ai-tag-chip:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+/* Typing Indicator */
+.ai-typing-indicator {
+    background: #f1f5f9;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+}
+
+.ai-typing-dot {
+    width: 6px;
+    height: 6px;
+    background: #2563eb;
+    border-radius: 50%;
+    margin-right: 3px;
+    animation: aiDotPulse 1.4s infinite ease-in-out both;
+}
+.ai-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.ai-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@@keyframes aiDotPulse {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* Footer */
+.ai-chat-footer {
+    padding: 0.75rem 0.85rem 0.5rem;
+    background: #ffffff;
+    border-top: 1px solid var(--slate-200);
+}
+
+.ai-input-field {
+    border-radius: 12px;
+    font-size: 0.85rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--slate-200);
+}
+
+.ai-input-field:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ai-send-btn {
+    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ai-disclaimer-text {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 0.4rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn = document.getElementById('aiChatToggleBtn');
+    const closeBtn = document.getElementById('aiCloseChatBtn');
+    const clearBtn = document.getElementById('aiClearChatBtn');
+    const chatWindow = document.getElementById('aiChatWindow');
+    const chatForm = document.getElementById('aiChatForm');
+    const chatInput = document.getElementById('aiChatInput');
+    const messagesBox = document.getElementById('aiChatMessages');
+    const typingIndicator = document.getElementById('aiTypingIndicator');
+
+    let conversationHistory = [];
+
+    // Toggle Chat Window
+    if (toggleBtn && chatWindow) {
+        toggleBtn.addEventListener('click', function () {
+            chatWindow.classList.toggle('d-none');
+            if (!chatWindow.classList.contains('d-none')) {
+                chatInput.focus();
+                messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+        });
+    }
+
+    if (closeBtn && chatWindow) {
+        closeBtn.addEventListener('click', function () {
+            chatWindow.classList.add('d-none');
+        });
+    }
+
+    // Quick tag chips click
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.classList.contains('ai-tag-chip')) {
+            const query = e.target.getAttribute('data-query');
+            if (query) {
+                chatInput.value = query;
+                sendMessage(query);
+            }
+        }
+    });
+
+    // Clear history
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            conversationHistory = [];
+            messagesBox.innerHTML = `
+                <div class="ai-msg bot-msg">
+                    <div class="ai-msg-avatar"><i class="bi bi-stars"></i></div>
+                    <div class="ai-msg-bubble">
+                        <p class="mb-1">Lịch sử hội thoại đã được làm mới. Tôi có thể giúp gì cho bạn hôm nay?</p>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Submit handler
+    if (chatForm) {
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+            sendMessage(message);
+        });
+    }
+
+    function formatMarkdown(text) {
+        if (!text) return '';
+        // Escape HTML tags to prevent XSS
+        let clean = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        // Markdown bold: **text**
+        clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        // Markdown links: [Title](URL)
+        clean = clean.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="fw-bold text-primary text-decoration-underline" target="_self">$1</a>');
+
+        // Line breaks
+        clean = clean.replace(/\n/g, '<br/>');
+
+        return clean;
+    }
+
+    function appendUserMessage(text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-msg user-msg';
+        msgDiv.innerHTML = `
+            <div class="ai-msg-bubble">${formatMarkdown(text)}</div>
+        `;
+        messagesBox.appendChild(msgDiv);
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    function appendBotMessage(text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-msg bot-msg';
+        msgDiv.innerHTML = `
+            <div class="ai-msg-avatar"><i class="bi bi-stars"></i></div>
+            <div class="ai-msg-bubble">${formatMarkdown(text)}</div>
+        `;
+        messagesBox.appendChild(msgDiv);
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    function sendMessage(message) {
+        appendUserMessage(message);
+        chatInput.value = '';
+        typingIndicator.classList.remove('d-none');
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+
+        const historyString = conversationHistory.slice(-6).map(h => `${h.role}: ${h.text}`).join('\n');
+
+        fetch('/Ai/Chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message,
+                history: historyString
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            typingIndicator.classList.add('d-none');
+            if (data && data.success) {
+                appendBotMessage(data.reply);
+                conversationHistory.push({ role: 'Khách', text: message });
+                conversationHistory.push({ role: 'AI', text: data.reply });
+            } else {
+                appendBotMessage(data.reply || 'Xin lỗi, tôi chưa thể trả lời câu hỏi này lúc này.');
+            }
+        })
+        .catch(err => {
+            typingIndicator.classList.add('d-none');
+            appendBotMessage('⚠️ Đã có sự cố kết nối tới dịch vụ AI. Vui lòng thử lại sau.');
+            console.error(err);
+        });
+    }
+});
+</script>

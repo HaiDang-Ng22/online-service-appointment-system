@@ -1,6 +1,8 @@
 ## Ignore Visual Studio & .NET build artifacts
 bin/
 obj/
+# Office temporary lock files
+~$*
 .vs/
 *.user
 *.suo

@@ -77,6 +77,33 @@
     </div>
 </div>
 
+<!-- US-AI-05: AI Thống Kê & Phân Tích Hiệu Suất Provider -->
+<div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-2">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary-subtle text-primary rounded-3 p-2.5 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="bi bi-graph-up-arrow fs-5"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">AI Phân Tích Hiệu Suất Khám & Dự Báo Tải Lịch</h6>
+                <small class="text-secondary">Trích xuất tỷ lệ hoàn thành, khung giờ cao điểm và gợi ý tối ưu lịch hẹn</small>
+            </div>
+        </div>
+        <button id="btnAiStatsProvider" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 text-nowrap">
+            <i class="bi bi-stars"></i>
+            <span>Phân Tích AI</span>
+        </button>
+    </div>
+
+    <div id="aiStatsProviderLoading" class="text-center py-3 d-none">
+        <div class="spinner-border text-primary spinner-border-sm mb-1" role="status"></div>
+        <div class="text-secondary small">AI đang xử lý các chỉ số lịch hẹn...</div>
+    </div>
+
+    <div id="aiStatsProviderResult" class="p-3 bg-light rounded-3 text-dark small d-none mt-2" style="white-space: pre-wrap; line-height: 1.6;">
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
     <div class="card-header bg-slate-50 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
         <div class="d-flex align-items-center gap-2">
@@ -355,5 +382,39 @@
             const modal = new bootstrap.Modal(document.getElementById('medicalModal'));
             modal.show();
         }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const btn = document.getElementById("btnAiStatsProvider");
+            const loading = document.getElementById("aiStatsProviderLoading");
+            const result = document.getElementById("aiStatsProviderResult");
+
+            if (btn) {
+                btn.addEventListener("click", function () {
+                    loading.classList.remove("d-none");
+                    result.classList.add("d-none");
+                    btn.disabled = true;
+
+                    fetch('/Ai/AnalyzeStats')
+                        .then(res => res.json())
+                        .then(data => {
+                            loading.classList.add("d-none");
+                            btn.disabled = false;
+                            if (data && data.success) {
+                                result.innerHTML = data.analysis;
+                                result.classList.remove("d-none");
+                            } else {
+                                result.innerHTML = `<span class="text-danger">${data.message || 'Không thể tạo báo cáo lúc này.'}</span>`;
+                                result.classList.remove("d-none");
+                            }
+                        })
+                        .catch(err => {
+                            loading.classList.add("d-none");
+                            btn.disabled = false;
+                            result.innerHTML = `<span class="text-danger">Lỗi kết nối khi gửi yêu cầu phân tích.</span>`;
+                            result.classList.remove("d-none");
+                        });
+                });
+            }
+        });
     </script>
 }

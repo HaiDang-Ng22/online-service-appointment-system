@@ -251,6 +251,31 @@
 </section>
 
 <!-- ========================================================
+     US-AI-02: AI Gợi Ý Dịch Vụ Thông Minh
+     ======================================================== -->
+<section id="ai-recommendations-section" class="my-5 d-none">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+        <div>
+            <div class="d-inline-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-white rounded-pill px-3 py-1 small">
+                    <i class="bi bi-stars"></i> AppointX Smart Match
+                </span>
+            </div>
+            <h3 class="section-header-title">Gợi Ý Riêng Dành Cho Bạn</h3>
+            <p class="section-header-desc">Được tổng hợp từ lịch sử quan tâm và các dịch vụ được đánh giá hài lòng nhất</p>
+        </div>
+        <a asp-controller="Services" asp-action="Index" class="btn-pill-view">
+            <span>Tất cả dịch vụ</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="row g-4" id="ai-recommendations-container">
+        <!-- Rendered via JS from /Ai/Recommend -->
+    </div>
+</section>
+
+<!-- ========================================================
      Quy Trình Đặt Lịch (How it works)
      ======================================================== -->
 <section id="how-it-works" class="how-it-works-section">
@@ -374,3 +399,59 @@
         </div>
     </div>
 </section>
+
+@section Scripts {
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch('/Ai/Recommend')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+                    const section = document.getElementById('ai-recommendations-section');
+                    const container = document.getElementById('ai-recommendations-container');
+                    if (!section || !container) return;
+
+                    container.innerHTML = data.recommendations.map(item => {
+                        const price = (item.price || 0).toLocaleString('vi-VN');
+                        const reason = item.aiReason || 'Dịch vụ được nhiều khách hàng tin dùng';
+                        return `
+                        <div class="col-lg-4 col-md-6">
+                            <div class="service-card h-100 d-flex flex-column border-0 shadow-sm rounded-4 position-relative overflow-hidden">
+                                <div class="px-3 pt-3">
+                                    <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 small fw-semibold">
+                                        <i class="bi bi-tag me-1 text-primary"></i> ${item.category || 'Dịch vụ'}
+                                    </span>
+                                </div>
+                                <div class="service-card-body flex-grow-1 p-3">
+                                    <h5 class="fw-bold text-dark mb-1">${item.serviceName}</h5>
+                                    <div class="alert alert-info py-1 px-2.5 rounded-3 mb-2 small d-flex align-items-center gap-1.5 border-0" style="background-color: #eff6ff; color: #1e40af;">
+                                        <i class="bi bi-stars text-primary"></i>
+                                        <span>${reason}</span>
+                                    </div>
+                                    <p class="text-secondary small mb-3 text-truncate-2">${item.description || ''}</p>
+                                    <div class="small text-muted mb-1">
+                                        <i class="bi bi-person-badge me-1"></i> ${item.provider || 'Chuyên gia'}
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="bi bi-clock me-1"></i> ${item.durationMinutes || 30} phút
+                                    </div>
+                                    <div class="fw-bold text-primary fs-5 mt-auto">
+                                        ${price} VNĐ
+                                    </div>
+                                </div>
+                                <div class="p-3 pt-0">
+                                    <a href="/Services/Details/${item.id}" class="btn btn-outline-primary w-100 rounded-3 fw-semibold">
+                                        <i class="bi bi-calendar2-plus me-1"></i> Xem chi tiết & Đặt hẹn
+                                    </a>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    section.classList.remove('d-none');
+                }
+            })
+            .catch(err => console.warn('AI Recommendation load error:', err));
+    });
+</script>
+}

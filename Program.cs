@@ -55,6 +55,9 @@ builder.Services.AddSingleton<IPaymentGateway, SandboxPaymentGateway>();
 // US-37: tác vụ nền tự động hủy lịch hẹn chưa xác nhận quá hạn
 builder.Services.AddHostedService<AppointmentAutoCancelService>();
 
+// US-AI-04: tác vụ nền tự động soạn thảo & gửi email nhắc lịch hẹn bằng AI
+builder.Services.AddHostedService<AppointmentReminderService>();
+
 var app = builder.Build();
 
 // Auto initialize database tables & seed data
