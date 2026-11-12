@@ -11,12 +11,44 @@
     </div>
     @if (Model.Any())
     {
-        <div class="card border-0 shadow-sm rounded-4 px-4 py-2 bg-white text-center">
-            <div class="fs-3 fw-extrabold text-dark">@avg.ToString("0.0") <small class="fs-6 text-muted">/ 5</small></div>
-            <partial name="_RatingStars" model="avg" />
-            <div class="small text-muted">@Model.Count đánh giá</div>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button id="btnAiAnalyze" class="btn btn-primary rounded-pill px-3 py-2 fw-semibold shadow-sm d-flex align-items-center gap-2">
+                <i class="bi bi-robot fs-5"></i>
+                <span>AI Phân Tích Đánh Giá</span>
+            </button>
+            <div class="card border-0 shadow-sm rounded-4 px-4 py-2 bg-white text-center">
+                <div class="fs-3 fw-extrabold text-dark">@avg.ToString("0.0") <small class="fs-6 text-muted">/ 5</small></div>
+                <partial name="_RatingStars" model="avg" />
+                <div class="small text-muted">@Model.Count đánh giá</div>
+            </div>
         </div>
     }
+</div>
+
+<!-- US-AI-03: AI Phân Tích Đánh Giá Khách Hàng -->
+<div id="aiAnalysisCard" class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4 d-none">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <div class="bg-primary-subtle text-primary p-2 rounded-3">
+                <i class="bi bi-stars fs-4"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Báo Cáo Phân Tích AI & Đề Xuất Cải Thiện</h5>
+                <small class="text-secondary">Trích xuất tự động từ toàn bộ nhận xét thực tế của khách hàng</small>
+            </div>
+        </div>
+        <button id="btnCloseAiAnalysis" class="btn btn-sm btn-light rounded-circle text-muted" title="Đóng">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    
+    <div id="aiAnalysisLoading" class="text-center py-4 d-none">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <div class="text-secondary small">AI đang tổng hợp dữ liệu phản hồi...</div>
+    </div>
+    
+    <div id="aiAnalysisContent" class="p-3 bg-light rounded-3 text-dark small" style="white-space: pre-wrap; line-height: 1.6;">
+    </div>
 </div>
 
 @if (!Model.Any())
@@ -50,4 +82,46 @@ else
             </table>
         </div>
     </div>
+}
+
+@section Scripts {
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const btn = document.getElementById("btnAiAnalyze");
+        const card = document.getElementById("aiAnalysisCard");
+        const loading = document.getElementById("aiAnalysisLoading");
+        const content = document.getElementById("aiAnalysisContent");
+        const btnClose = document.getElementById("btnCloseAiAnalysis");
+
+        if (btnClose && card) {
+            btnClose.addEventListener("click", () => card.classList.add("d-none"));
+        }
+
+        if (btn) {
+            btn.addEventListener("click", function () {
+                card.classList.remove("d-none");
+                loading.classList.remove("d-none");
+                content.innerHTML = "";
+                btn.disabled = true;
+
+                fetch('/Ai/AnalyzeReviews')
+                    .then(res => res.json())
+                    .then(data => {
+                        loading.classList.add("d-none");
+                        btn.disabled = false;
+                        if (data && data.success) {
+                            content.innerHTML = data.analysis;
+                        } else {
+                            content.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>${data.message || 'Không thể lấy phân tích lúc này.'}</span>`;
+                        }
+                    })
+                    .catch(err => {
+                        loading.classList.add("d-none");
+                        btn.disabled = false;
+                        content.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Lỗi kết nối máy chủ.</span>`;
+                    });
+            });
+        }
+    });
+</script>
 }

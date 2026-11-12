@@ -59,5 +59,8 @@ namespace Appointment.Models
         public string? CancelReason { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Thời điểm đã gửi email nhắc lịch hẹn AI (null = chưa gửi).</summary>
+        public DateTime? ReminderSentAt { get; set; }
     }
 }

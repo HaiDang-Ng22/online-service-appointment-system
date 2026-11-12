@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Sơ Đồ Use Case AppointX - Chuẩn StarUML</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #f1f3f5; color: #212529; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    header { background: #1e293b; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+    .toolbar { display: flex; gap: 8px; align-items: center; }
+    .tab-btn { background: #334155; color: #cbd5e1; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+    .tab-btn:hover { background: #475569; color: white; }
+    .tab-btn.active { background: #2563eb; color: white; }
+    .tool-btn { background: #0f766e; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .tool-btn:hover { background: #0d9488; }
+    main { flex: 1; position: relative; overflow: hidden; background: #ffffff; }
+    .canvas-container { width: 100%; height: 100%; overflow: auto; display: flex; justify-content: center; padding: 30px; }
+    svg { background: #ffffff; box-shadow: 0 0 16px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+    .hint { position: absolute; bottom: 12px; left: 24px; background: rgba(15, 23, 42, 0.75); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>
+      <span>📐 Sơ Đồ Use Case AppointX</span>
+      <span class="badge">StarUML View</span>
+    </h1>
+    <div class="toolbar">
+      <button class="tab-btn active" onclick="switchTab('all')">00. Tổng Quát</button>
+      <button class="tab-btn" onclick="switchTab('cust')">01. Khách Hàng & Vãng Lai</button>
+      <button class="tab-btn" onclick="switchTab('prov')">02. Nhà Cung Cấp</button>
+      <button class="tab-btn" onclick="switchTab('staff')">03. Nhân Viên</button>
+      <button class="tab-btn" onclick="switchTab('admin')">04. Quản Trị Viên</button>
+      <button class="tool-btn" onclick="window.print()">🖨️ In / Xuất PDF</button>
+    </div>
+  </header>
+  <main>
+    <div class="canvas-container" id="svgContainer"></div>
+    <div class="hint">💡 Tệp gốc <b>AppointX_UseCase.mdj</b> đã được lưu vào thư mục đồ án. Bạn có thể mở trực tiếp bằng StarUML.</div>
+  </main>
+
+  <script>
+    // SVG Templates for each diagram
+    
+    const diagrams = {
+      all: ``, // filled below
+      cust: `<svg width="980" height="1060" viewBox="0 0 980 1060" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/></filter>
+        </defs>
+        <rect x="220" y="30" width="720" height="990" fill="#fcfcfc" stroke="#334155" stroke-width="2" rx="4"/>
+        <text x="240" y="65" font-family="Arial" font-size="15" font-weight="bold" fill="#0f172a">PHÂN HỆ KHÁCH HÀNG &amp; VÃNG LAI (GUEST &amp; CUSTOMER)</text>
+        
+        <!-- Guest Actor -->
+        <g transform="translate(60, 220)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Khách vãng lai</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Guest)</text>
+        </g>
+
+        <!-- Customer Actor -->
+        <g transform="translate(60, 640)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Khách hàng</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Customer)</text>
+        </g>
+
+        <!-- Generalization -->
+        <path d="M 95 630 L 95 380" stroke="#0f172a" stroke-width="1.8" fill="none"/>
+        <polygon points="95,365 88,382 102,382" fill="#ffffff" stroke="#0f172a" stroke-width="1.8"/>
+        <text x="105" y="500" font-family="Arial" font-size="11" fill="#475569">kế thừa</text>
+
+        <!-- Col 1: Guest Use Cases -->
+        ${[
+          {name: 'US-01: Xem trang chủ & Dịch vụ nổi bật', y: 100},
+          {name: 'US-02: Tìm kiếm & Lọc dịch vụ', y: 180},
+          {name: 'US-03: Xem chi tiết dịch vụ', y: 260},
+          {name: 'US-04: Xem thông tin nhà cung cấp', y: 340},
+          {name: 'US-05: Đăng ký tài khoản', y: 420},
+          {name: 'US-06: Đăng nhập', y: 500},
+          {name: 'US-26: Quên / Đặt lại mật khẩu', y: 580}
+        ].map((u, i) => `
+          <ellipse cx="380" cy="${u.y + 24}" rx="135" ry="25" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="380" y="${u.y + 28}" font-family="Arial" font-size="11.5" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+          <line x1="135" y1="270" x2="245" y2="${u.y + 24}" stroke="#64748b" stroke-width="1.2"/>
+        `).join('')}
+
+        <!-- Col 2: Customer Use Cases -->
+        ${[
+          {name: 'US-07: Quản lý hồ sơ & Đổi MK', y: 100},
+          {name: 'US-08: Tra cứu khung giờ còn trống', y: 180},
+          {name: 'US-09: Đặt lịch hẹn trực tuyến', y: 260},
+          {name: 'US-28: Thanh toán đặt cọc / toàn bộ', y: 340},
+          {name: 'US-10: Xem danh sách & Chi tiết lịch hẹn', y: 440},
+          {name: 'In hóa đơn / Phiếu hẹn', y: 530},
+          {name: 'US-11: Hủy lịch hẹn trước giờ phục vụ', y: 620},
+          {name: 'US-30: Đánh giá & Nhận xét dịch vụ', y: 710},
+          {name: 'US-12: Đăng xuất', y: 800}
+        ].map(u => `
+          <ellipse cx="740" cy="${u.y + 24}" rx="145" ry="25" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="740" y="${u.y + 28}" font-family="Arial" font-size="11.5" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+          <line x1="135" y1="690" x2="595" y2="${u.y + 24}" stroke="#0284c7" stroke-width="1.2"/>
+        `).join('')}
+
+        <!-- Include: US-09 include US-08 -->
+        <path d="M 740 260 L 740 210" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <polygon points="740,205 735,217 745,217" fill="#b91c1c"/>
+        <text x="748" y="238" font-family="Arial" font-size="10.5" fill="#b91c1c">&lt;&lt;include&gt;&gt;</text>
+
+        <!-- Extend: US-28 extend US-09 -->
+        <path d="M 740 340 L 740 290" stroke="#047857" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <polygon points="740,285 735,297 745,297" fill="#047857"/>
+        <text x="748" y="318" font-family="Arial" font-size="10.5" fill="#047857">&lt;&lt;extend&gt;&gt;</text>
+
+        <!-- Extend: In hóa đơn extend US-10 -->
+        <path d="M 740 530 L 740 470" stroke="#047857" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <polygon points="740,465 735,477 745,477" fill="#047857"/>
+        <text x="748" y="502" font-family="Arial" font-size="10.5" fill="#047857">&lt;&lt;extend&gt;&gt;</text>
+
+        <!-- Extend: US-30 Review extend US-10 -->
+        <path d="M 740 710 L 740 470" stroke="#047857" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <polygon points="740,465 735,477 745,477" fill="#047857"/>
+        <text x="748" y="660" font-family="Arial" font-size="10.5" fill="#047857">&lt;&lt;extend&gt;&gt;</text>
+      </svg>`,
+
+      prov: `<svg width="860" height="880" viewBox="0 0 860 880" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/></filter>
+        </defs>
+        <rect x="230" y="30" width="580" height="820" fill="#fcfcfc" stroke="#334155" stroke-width="2" rx="4"/>
+        <text x="250" y="65" font-family="Arial" font-size="15" font-weight="bold" fill="#0f172a">PHÂN HỆ NHÀ CUNG CẤP DỊCH VỤ (PROVIDER)</text>
+        
+        <!-- Provider Actor -->
+        <g transform="translate(60, 360)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Nhà cung cấp</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Provider)</text>
+        </g>
+
+        ${[
+          {name: 'US-13: Quản lý dịch vụ cung cấp', y: 100},
+          {name: 'US-14: Cấu hình giờ làm việc theo tuần', y: 180},
+          {name: 'US-15: Quản lý ngày nghỉ đột xuất', y: 260},
+          {name: 'US-16: Xem danh sách lịch hẹn đặt với mình', y: 340},
+          {name: 'US-17: Cập nhật trạng thái lịch hẹn', y: 420},
+          {name: 'Cập nhật chẩn đoán & Đơn thuốc / Hồ sơ', y: 500},
+          {name: 'Xem phản hồi & Đánh giá từ khách hàng', y: 580},
+          {name: 'US-07: Quản lý hồ sơ cá nhân & Đổi MK', y: 660},
+          {name: 'US-12: Đăng xuất', y: 740}
+        ].map(u => `
+          <ellipse cx="520" cy="${u.y + 24}" rx="180" ry="25" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="520" y="${u.y + 28}" font-family="Arial" font-size="12" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+          <line x1="135" y1="410" x2="340" y2="${u.y + 24}" stroke="#059669" stroke-width="1.3"/>
+        `).join('')}
+      </svg>`,
+
+      staff: `<svg width="860" height="560" viewBox="0 0 860 560" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/></filter>
+        </defs>
+        <rect x="230" y="30" width="580" height="500" fill="#fcfcfc" stroke="#334155" stroke-width="2" rx="4"/>
+        <text x="250" y="65" font-family="Arial" font-size="15" font-weight="bold" fill="#0f172a">PHÂN HỆ NHÂN VIÊN HỖ TRỢ &amp; ĐIỀU PHỐI (STAFF)</text>
+        
+        <!-- Staff Actor -->
+        <g transform="translate(60, 210)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Nhân viên hỗ trợ</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Staff)</text>
+        </g>
+
+        ${[
+          {name: 'US-18: Xem toàn bộ lịch hẹn trong hệ thống', y: 100},
+          {name: 'US-19: Phân công nhân viên tiếp nhận lịch hẹn', y: 180},
+          {name: 'US-20: Cập nhật tiến độ & Hỗ trợ khách hàng', y: 260},
+          {name: 'US-07: Quản lý hồ sơ cá nhân & Đổi MK', y: 340},
+          {name: 'US-12: Đăng xuất', y: 420}
+        ].map(u => `
+          <ellipse cx="520" cy="${u.y + 24}" rx="180" ry="25" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="520" y="${u.y + 28}" font-family="Arial" font-size="12" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+          <line x1="135" y1="260" x2="340" y2="${u.y + 24}" stroke="#d97706" stroke-width="1.3"/>
+        `).join('')}
+      </svg>`,
+
+      admin: `<svg width="860" height="640" viewBox="0 0 860 640" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/></filter>
+        </defs>
+        <rect x="230" y="30" width="580" height="580" fill="#fcfcfc" stroke="#334155" stroke-width="2" rx="4"/>
+        <text x="250" y="65" font-family="Arial" font-size="15" font-weight="bold" fill="#0f172a">PHÂN HỆ QUẢN TRỊ HỆ THỐNG (ADMIN)</text>
+        
+        <!-- Admin Actor -->
+        <g transform="translate(60, 250)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Quản trị viên</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Admin)</text>
+        </g>
+
+        ${[
+          {name: 'US-21: Quản lý danh mục dịch vụ (CRUD)', y: 100},
+          {name: 'US-22: Quản lý người dùng & Phân quyền', y: 180},
+          {name: 'US-23: Khóa / Kích hoạt lại tài khoản người dùng', y: 260},
+          {name: 'US-24: Báo cáo thống kê Dashboard toàn hệ thống', y: 340},
+          {name: 'US-07: Quản lý hồ sơ cá nhân & Đổi MK', y: 420},
+          {name: 'US-12: Đăng xuất', y: 500}
+        ].map(u => `
+          <ellipse cx="520" cy="${u.y + 24}" rx="180" ry="25" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="520" y="${u.y + 28}" font-family="Arial" font-size="12" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+          <line x1="135" y1="300" x2="340" y2="${u.y + 24}" stroke="#7c3aed" stroke-width="1.3"/>
+        `).join('')}
+      </svg>`
+    };
+
+diagrams.all = 
+      all: `<svg width="1280" height="1620" viewBox="0 0 1280 1620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.12"/>
+          </filter>
+        </defs>
+        <!-- System Boundary -->
+        <rect x="250" y="40" width="760" height="1540" fill="#fcfcfc" stroke="#334155" stroke-width="2" rx="4"/>
+        <text x="270" y="70" font-family="Arial" font-size="16" font-weight="bold" fill="#0f172a">HỆ THỐNG QUẢN LÝ ĐẶT LỊCH APPOINTX</text>
+
+        <!-- Subgroup Labels inside Boundary -->
+        <rect x="270" y="90" width="350" height="1470" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="4 4" rx="4"/>
+        <text x="280" y="112" font-family="Arial" font-size="12" font-weight="bold" fill="#64748b">CỘT 1: PHÂN HỆ KHÁCH HÀNG &amp; VÃNG LAI</text>
+
+        <rect x="640" y="90" width="350" height="1470" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="4 4" rx="4"/>
+        <text x="650" y="112" font-family="Arial" font-size="12" font-weight="bold" fill="#64748b">CỘT 2: PROVIDER, STAFF &amp; ADMIN</text>
+
+        <!-- ACTORS LEFT -->
+        <!-- Guest -->
+        <g id="act_guest" transform="translate(60, 240)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Khách vãng lai</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Guest)</text>
+        </g>
+
+        <!-- Customer -->
+        <g id="act_cust" transform="translate(60, 780)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Khách hàng</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Customer)</text>
+        </g>
+
+        <!-- Generalization Line: Customer -> Guest -->
+        <path d="M 95 770 L 95 400" stroke="#0f172a" stroke-width="1.8" fill="none"/>
+        <polygon points="95,385 88,402 102,402" fill="#ffffff" stroke="#0f172a" stroke-width="1.8"/>
+        <text x="105" y="580" font-family="Arial" font-size="11" fill="#475569">kế thừa</text>
+
+        <!-- ACTORS RIGHT -->
+        <!-- Provider -->
+        <g id="act_prov" transform="translate(1080, 260)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Nhà cung cấp</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Provider)</text>
+        </g>
+
+        <!-- Staff -->
+        <g id="act_staff" transform="translate(1080, 840)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Nhân viên</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Staff)</text>
+        </g>
+
+        <!-- Admin -->
+        <g id="act_admin" transform="translate(1080, 1260)">
+          <circle cx="35" cy="20" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="34" x2="35" y2="70" stroke="#1e293b" stroke-width="2"/>
+          <line x1="12" y1="48" x2="58" y2="48" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="16" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <line x1="35" y1="70" x2="54" y2="105" stroke="#1e293b" stroke-width="2"/>
+          <text x="35" y="125" font-family="Arial" font-size="13" font-weight="bold" fill="#0f172a" text-anchor="middle">Quản trị viên</text>
+          <text x="35" y="140" font-family="Arial" font-size="11" fill="#64748b" text-anchor="middle">(Admin)</text>
+        </g>
+
+        <!-- USE CASES: COLUMN 1 -->
+        ${renderCol1()}
+
+        <!-- USE CASES: COLUMN 2 -->
+        ${renderCol2()}
+
+        <!-- ASSOCIATION LINES -->
+        ${renderAssocLines()}
+      </svg>`
+    };
+
+    function renderCol1() {
+      const ucs = [
+        { id: 'uc_home', name: 'US-01: Xem trang chủ & Dịch vụ nổi bật', y: 130 },
+        { id: 'uc_search', name: 'US-02: Tìm kiếm & Lọc dịch vụ', y: 220 },
+        { id: 'uc_detail', name: 'US-03: Xem chi tiết dịch vụ', y: 310 },
+        { id: 'uc_prov_info', name: 'US-04: Xem thông tin nhà cung cấp', y: 400 },
+        { id: 'uc_reg', name: 'US-05: Đăng ký tài khoản', y: 490 },
+        { id: 'uc_login', name: 'US-06: Đăng nhập', y: 580 },
+        { id: 'uc_forgot', name: 'US-26: Quên / Đặt lại mật khẩu', y: 670 },
+        { id: 'uc_profile', name: 'US-07: Quản lý hồ sơ & Đổi MK', y: 760 },
+        { id: 'uc_slots', name: 'US-08: Tra cứu khung giờ còn trống', y: 850 },
+        { id: 'uc_book', name: 'US-09: Đặt lịch hẹn trực tuyến', y: 940 },
+        { id: 'uc_my_appts', name: 'US-10: Xem danh sách & Chi tiết lịch hẹn', y: 1030 },
+        { id: 'uc_cancel_cust', name: 'US-11: Hủy lịch hẹn trước giờ phục vụ', y: 1120 },
+        { id: 'uc_print', name: 'In hóa đơn / Phiếu hẹn', y: 1210 },
+        { id: 'uc_pay', name: 'US-28: Thanh toán đặt cọc / toàn bộ', y: 1300 },
+        { id: 'uc_review', name: 'US-30: Đánh giá & Nhận xét dịch vụ', y: 1390 },
+        { id: 'uc_logout', name: 'US-12: Đăng xuất', y: 1480 }
+      ];
+
+      return ucs.map(u => `
+        <g id="${u.id}">
+          <ellipse cx="445" cy="${u.y + 25}" rx="140" ry="26" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="445" y="${u.y + 29}" font-family="Arial" font-size="11.5" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+        </g>
+      `).join('');
+    }
+
+    function renderCol2() {
+      const ucs = [
+        { id: 'uc_manage_srv', name: 'US-13: Quản lý dịch vụ cung cấp', y: 130 },
+        { id: 'uc_work_hours', name: 'US-14: Cấu hình giờ làm việc theo tuần', y: 220 },
+        { id: 'uc_off_days', name: 'US-15: Quản lý ngày nghỉ đột xuất', y: 310 },
+        { id: 'uc_prov_appts', name: 'US-16: Xem lịch hẹn đặt với mình', y: 400 },
+        { id: 'uc_update_status', name: 'US-17: Cập nhật trạng thái lịch hẹn', y: 490 },
+        { id: 'uc_medical_rec', name: 'Cập nhật chẩn đoán & Đơn thuốc', y: 580 },
+        { id: 'uc_prov_reviews', name: 'Xem phản hồi từ khách hàng', y: 670 },
+        { id: 'uc_staff_all', name: 'US-18: Xem toàn bộ lịch hẹn hệ thống', y: 800 },
+        { id: 'uc_staff_assign', name: 'US-19: Phân công nhân viên tiếp nhận', y: 890 },
+        { id: 'uc_staff_progress', name: 'US-20: Cập nhật tiến độ & Hỗ trợ', y: 980 },
+        { id: 'uc_categories', name: 'US-21: Quản lý danh mục dịch vụ', y: 1110 },
+        { id: 'uc_user_mgmt', name: 'US-22: Quản lý người dùng & Phân quyền', y: 1200 },
+        { id: 'uc_user_toggle', name: 'US-23: Khóa / Mở khóa tài khoản', y: 1290 },
+        { id: 'uc_dashboard', name: 'US-24: Báo cáo thống kê Dashboard', y: 1380 }
+      ];
+
+      return ucs.map(u => `
+        <g id="${u.id}">
+          <ellipse cx="815" cy="${u.y + 25}" rx="145" ry="26" fill="#fef9c3" stroke="#854d0e" stroke-width="1.4" filter="url(#shadow)"/>
+          <text x="815" y="${u.y + 29}" font-family="Arial" font-size="11.5" fill="#422006" font-weight="500" text-anchor="middle">${u.name}</text>
+        </g>
+      `).join('');
+    }
+
+    function renderAssocLines() {
+      // Connect Guest (60, 240) -> (95, 290)
+      const gX = 135, gY = 290;
+      const guestLines = [155, 245, 335, 425, 515, 605, 695].map(y => 
+        `<line x1="${gX}" y1="${gY}" x2="305" y2="${y}" stroke="#64748b" stroke-width="1.2"/>`
+      ).join('');
+
+      // Connect Customer (60, 780) -> (95, 830)
+      const cX = 135, cY = 830;
+      const custLines = [785, 875, 965, 1055, 1145, 1235, 1325, 1415, 1505].map(y =>
+        `<line x1="${cX}" y1="${cY}" x2="305" y2="${y}" stroke="#0284c7" stroke-width="1.2"/>`
+      ).join('');
+
+      // Connect Provider (1080, 260) -> (1080, 310)
+      const pX = 1070, pY = 310;
+      const provLines = [155, 245, 335, 425, 515, 605, 695].map(y =>
+        `<line x1="${pX}" y1="${pY}" x2="960" y2="${y}" stroke="#059669" stroke-width="1.2"/>`
+      ).join('');
+
+      // Connect Staff (1080, 840) -> (1080, 890)
+      const sX = 1070, sY = 890;
+      const staffLines = [825, 915, 1005].map(y =>
+        `<line x1="${sX}" y1="${sY}" x2="960" y2="${y}" stroke="#d97706" stroke-width="1.2"/>`
+      ).join('');
+
+      // Connect Admin (1080, 1260) -> (1080, 1310)
+      const aX = 1070, aY = 1310;
+      const adminLines = [1135, 1225, 1315, 1405].map(y =>
+        `<line x1="${aX}" y1="${aY}" x2="960" y2="${y}" stroke="#7c3aed" stroke-width="1.2"/>`
+      ).join('');
+
+      return guestLines + custLines + provLines + staffLines + adminLines;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      const container = document.getElementById('svgContainer');
+      container.innerHTML = diagrams[tab] || diagrams.all;
+    }
+
+    // Init
+    document.getElementById('svgContainer').innerHTML = diagrams.all;
+  </script>
+</body>
+</html>

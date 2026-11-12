@@ -62,6 +62,33 @@
     </div>
 </div>
 
+<!-- US-AI-05: AI Business Insights & Dự báo xu hướng -->
+<div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary text-white rounded-3 p-2.5 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                <i class="bi bi-lightbulb-fill fs-5"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">AI Business Insights & Dự Báo Vận Hành</h5>
+                <small class="text-secondary">Phân tích chuyên sâu từ dữ liệu lịch hẹn và tình trạng dịch vụ thời gian thực</small>
+            </div>
+        </div>
+        <button id="btnAiStatsAdmin" class="btn btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 text-nowrap">
+            <i class="bi bi-magic"></i>
+            <span>Tạo Báo Cáo AI</span>
+        </button>
+    </div>
+
+    <div id="aiStatsAdminLoading" class="text-center py-4 d-none">
+        <div class="spinner-border text-primary spinner-border-sm mb-2" role="status"></div>
+        <div class="text-secondary small">AI đang phân tích các chỉ số vận hành hệ thống...</div>
+    </div>
+
+    <div id="aiStatsAdminResult" class="p-3 bg-light rounded-3 text-dark small d-none" style="white-space: pre-wrap; line-height: 1.6;">
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="card-header bg-white py-3">
         <h5 class="fw-bold mb-0">Lịch Hẹn Mới Nhất</h5>
@@ -94,3 +121,41 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const btn = document.getElementById("btnAiStatsAdmin");
+        const loading = document.getElementById("aiStatsAdminLoading");
+        const result = document.getElementById("aiStatsAdminResult");
+
+        if (btn) {
+            btn.addEventListener("click", function () {
+                loading.classList.remove("d-none");
+                result.classList.add("d-none");
+                btn.disabled = true;
+
+                fetch('/Ai/AnalyzeStats')
+                    .then(res => res.json())
+                    .then(data => {
+                        loading.classList.add("d-none");
+                        btn.disabled = false;
+                        if (data && data.success) {
+                            result.innerHTML = data.analysis;
+                            result.classList.remove("d-none");
+                        } else {
+                            result.innerHTML = `<span class="text-danger">${data.message || 'Không thể tạo báo cáo lúc này.'}</span>`;
+                            result.classList.remove("d-none");
+                        }
+                    })
+                    .catch(err => {
+                        loading.classList.add("d-none");
+                        btn.disabled = false;
+                        result.innerHTML = `<span class="text-danger">Lỗi kết nối khi gửi yêu cầu phân tích.</span>`;
+                        result.classList.remove("d-none");
+                    });
+            });
+        }
+    });
+</script>
+}

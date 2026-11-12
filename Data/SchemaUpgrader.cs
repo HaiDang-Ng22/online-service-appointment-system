@@ -104,6 +104,18 @@ namespace Appointment.Data
             {
                 // Cột đã tồn tại -> bỏ qua
             }
+
+            // US-AI-04: Cột thời điểm gửi email nhắc lịch hẹn AI
+            try
+            {
+                context.Database.ExecuteSqlRaw(isPostgres
+                    ? @"ALTER TABLE ""Appointments"" ADD COLUMN IF NOT EXISTS ""ReminderSentAt"" timestamp with time zone NULL"
+                    : @"ALTER TABLE ""Appointments"" ADD COLUMN ""ReminderSentAt"" TEXT NULL");
+            }
+            catch
+            {
+                // Cột đã tồn tại -> bỏ qua
+            }
         }
     }
 }
