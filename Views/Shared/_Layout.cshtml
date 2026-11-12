@@ -14,259 +14,438 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="d-flex flex-column min-vh-100">
-    <header class="sticky-top">
-        <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center gap-2 fw-bold fs-4 text-white" asp-area="" asp-controller="@(User.IsInRole("Admin") ? "Admin" : User.IsInRole("Provider") ? "Provider" : User.IsInRole("Staff") ? "Staff" : "Home")" asp-action="Index">
-                    <span class="brand-badge">
+<body class="app-body">
+@{
+    var ctrl = ViewContext.RouteData.Values["Controller"]?.ToString() ?? "";
+    var act = ViewContext.RouteData.Values["Action"]?.ToString() ?? "";
+    var roleClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+
+    bool IsActive(string c, string? a = null)
+    {
+        if (string.IsNullOrEmpty(a))
+            return string.Equals(ctrl, c, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(ctrl, c, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(act, a, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+<div class="app-layout">
+    <!-- ========================================================
+         SIDEBAR BÊN TRÁI (LEFT NAVIGATION MENU)
+         ======================================================== -->
+    <aside class="app-sidebar" id="appSidebar">
+        <!-- Sidebar Header: Brand & Mobile Close -->
+        <div class="sidebar-header">
+            <a class="sidebar-brand" asp-controller="@(User.IsInRole("Admin") ? "Admin" : User.IsInRole("Provider") ? "Provider" : User.IsInRole("Staff") ? "Staff" : "Home")" asp-action="Index">
+                <span class="brand-badge">
+                    <i class="bi bi-calendar2-check-fill"></i>
+                </span>
+                <span class="brand-text">Appoint<span class="brand-highlight">X</span></span>
+            </a>
+            <button class="btn btn-sm btn-icon-sidebar d-lg-none" id="sidebarCloseBtn" type="button" aria-label="Đóng menu">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Role Badge Display in Sidebar -->
+        <div class="sidebar-role-badge">
+            @if (User.IsInRole("Admin"))
+            {
+                <div class="role-pill role-admin">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <div class="role-text-wrap">
+                        <span class="role-title">Quản trị viên</span>
+                        <span class="role-sub">Hệ thống & Tài khoản</span>
+                    </div>
+                </div>
+            }
+            else if (User.IsInRole("Provider"))
+            {
+                <div class="role-pill role-provider">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <div class="role-text-wrap">
+                        <span class="role-title">Đối tác dịch vụ</span>
+                        <span class="role-sub">Lịch hẹn & Dịch vụ</span>
+                    </div>
+                </div>
+            }
+            else if (User.IsInRole("Staff"))
+            {
+                <div class="role-pill role-staff">
+                    <i class="bi bi-person-badge-fill"></i>
+                    <div class="role-text-wrap">
+                        <span class="role-title">Nhân viên tiếp nhận</span>
+                        <span class="role-sub">Điều phối & Bàn làm việc</span>
+                    </div>
+                </div>
+            }
+            else if (User.IsInRole("Customer"))
+            {
+                <div class="role-pill role-customer">
+                    <i class="bi bi-person-check-fill"></i>
+                    <div class="role-text-wrap">
+                        <span class="role-title">Khách hàng</span>
+                        <span class="role-sub">Đặt lịch trực tuyến</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="role-pill role-guest">
+                    <i class="bi bi-compass-fill"></i>
+                    <div class="role-text-wrap">
+                        <span class="role-title">Khách vãng lai</span>
+                        <span class="role-sub">Khám phá & Đặt hẹn</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Navigation Links Container -->
+        <div class="sidebar-nav-container">
+            <nav class="sidebar-nav">
+                @if (User.IsInRole("Admin"))
+                {
+                    <!-- Admin Navigation Links -->
+                    <div class="sidebar-section-title">Tổng quan hệ thống</div>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "Index") ? "active" : "")" asp-controller="Admin" asp-action="Index" title="Bảng điều khiển">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Bảng điều khiển</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Quản trị nghiệp vụ</div>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "Users") ? "active" : "")" asp-controller="Admin" asp-action="Users" title="Quản lý tài khoản">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Quản lý tài khoản</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "CreateUser") ? "active" : "")" asp-controller="Admin" asp-action="CreateUser" title="Tạo tài khoản mới">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Tạo tài khoản mới</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "Categories") || IsActive("Admin", "EditCategory") ? "active" : "")" asp-controller="Admin" asp-action="Categories" title="Quản lý danh mục">
+                        <i class="bi bi-tags-fill"></i>
+                        <span>Danh mục dịch vụ</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Khám phá & Cổng ngoài</div>
+                    <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Cổng Dịch vụ">
+                        <i class="bi bi-grid-fill"></i>
+                        <span>Cổng Dịch vụ</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Home", "Index") ? "active" : "")" asp-controller="Home" asp-action="Index" title="Trang chủ">
+                        <i class="bi bi-house-door-fill"></i>
+                        <span>Trang chủ người dùng</span>
+                    </a>
+                }
+                else if (User.IsInRole("Provider"))
+                {
+                    <!-- Provider Navigation Links -->
+                    <div class="sidebar-section-title">Kênh điều hành</div>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "Index") ? "active" : "")" asp-controller="Provider" asp-action="Index" title="Kênh Đối tác">
                         <i class="bi bi-calendar2-check-fill"></i>
-                    </span>
-                    <span>Appoint<span style="color: #38bdf8;">X</span></span>
-                </a>
-                
-                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
+                        <span>Tổng quan & Lịch hẹn</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Quản lý dịch vụ</div>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "Services") ? "active" : "")" asp-controller="Provider" asp-action="Services" title="Dịch vụ của tôi">
+                        <i class="bi bi-card-checklist"></i>
+                        <span>Dịch vụ của tôi</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "CreateService") ? "active" : "")" asp-controller="Provider" asp-action="CreateService" title="Thêm dịch vụ mới">
+                        <i class="bi bi-plus-circle-fill"></i>
+                        <span>Thêm dịch vụ mới</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Lịch trình & Đánh giá</div>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "WorkingHours") ? "active" : "")" asp-controller="Provider" asp-action="WorkingHours" title="Giờ làm việc">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Cấu hình giờ làm</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "OffDays") ? "active" : "")" asp-controller="Provider" asp-action="OffDays" title="Quản lý ngày nghỉ">
+                        <i class="bi bi-calendar-x-fill"></i>
+                        <span>Quản lý ngày nghỉ</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "Reviews") ? "active" : "")" asp-controller="Provider" asp-action="Reviews" title="Đánh giá từ khách">
+                        <i class="bi bi-star-fill"></i>
+                        <span>Đánh giá & Phản hồi</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Khám phá</div>
+                    <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Xem Cổng dịch vụ">
+                        <i class="bi bi-shop-window"></i>
+                        <span>Xem cổng Dịch vụ</span>
+                    </a>
+                }
+                else if (User.IsInRole("Staff"))
+                {
+                    <!-- Staff Navigation Links -->
+                    <div class="sidebar-section-title">Không gian làm việc</div>
+                    <a class="sidebar-nav-link @(IsActive("Staff", "Index") ? "active" : "")" asp-controller="Staff" asp-action="Index" title="Bàn làm việc">
+                        <i class="bi bi-person-badge-fill"></i>
+                        <span>Bàn làm việc & Lịch hẹn</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Tiện ích tra cứu</div>
+                    <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Dịch vụ & Đặt lịch">
+                        <i class="bi bi-grid-fill"></i>
+                        <span>Dịch vụ & Đặt lịch</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Home", "Index") ? "active" : "")" asp-controller="Home" asp-action="Index" title="Trang chủ">
+                        <i class="bi bi-house-door-fill"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                }
+                else if (User.IsInRole("Customer"))
+                {
+                    <!-- Customer Navigation Links -->
+                    <div class="sidebar-section-title">Khám phá & Đặt hẹn</div>
+                    <a class="sidebar-nav-link @(IsActive("Home", "Index") ? "active" : "")" asp-controller="Home" asp-action="Index" title="Trang chủ">
+                        <i class="bi bi-house-door-fill"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Dịch vụ & Đặt lịch">
+                        <i class="bi bi-grid-fill"></i>
+                        <span>Dịch vụ & Đặt lịch</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Lịch hẹn cá nhân</div>
+                    <a class="sidebar-nav-link @(IsActive("Appointments") ? "active" : "")" asp-controller="Appointments" asp-action="Index" title="Lịch hẹn của tôi">
+                        <i class="bi bi-calendar2-heart-fill"></i>
+                        <span>Lịch hẹn của tôi</span>
+                    </a>
+                }
+                else
+                {
+                    <!-- Guest Navigation Links -->
+                    <div class="sidebar-section-title">Khám phá hệ thống</div>
+                    <a class="sidebar-nav-link @(IsActive("Home", "Index") ? "active" : "")" asp-controller="Home" asp-action="Index" title="Trang chủ">
+                        <i class="bi bi-house-door-fill"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Dịch vụ & Đặt lịch">
+                        <i class="bi bi-grid-fill"></i>
+                        <span>Dịch vụ & Đặt lịch</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Tài khoản & Truy cập</div>
+                    <a class="sidebar-nav-link @(IsActive("Account", "Login") ? "active" : "")" asp-controller="Account" asp-action="Login" title="Đăng nhập">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Đăng nhập</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Account", "Register") ? "active" : "")" asp-controller="Account" asp-action="Register" title="Đăng ký tài khoản">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Đăng ký thành viên</span>
+                    </a>
+                }
+
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="sidebar-section-title">Tài khoản cá nhân</div>
+                    <a class="sidebar-nav-link @(IsActive("Account", "Profile") ? "active" : "")" asp-controller="Account" asp-action="Profile" title="Hồ sơ cá nhân">
+                        <i class="bi bi-person-gear"></i>
+                        <span>Hồ sơ cá nhân</span>
+                    </a>
+                }
+            </nav>
+        </div>
+
+        <!-- Sidebar Footer / User Profile section -->
+        <div class="sidebar-user-section">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <div class="sidebar-user-card">
+                    <div class="sidebar-user-avatar">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" title="@User.Identity.Name">@User.Identity.Name</div>
+                        <div class="sidebar-user-role">@roleClaim</div>
+                    </div>
+                    <div class="sidebar-user-actions">
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-sidebar-logout" title="Đăng xuất khỏi hệ thống">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="sidebar-guest-card">
+                    <div class="small text-white-50 mb-2">Trải nghiệm đặt lịch tốt nhất</div>
+                    <div class="d-grid gap-2">
+                        <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-sm rounded-pill fw-semibold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+                        </a>
+                        <a asp-controller="Account" asp-action="Register" class="btn btn-outline-light btn-sm rounded-pill fw-semibold">
+                            <i class="bi bi-person-plus me-1"></i> Đăng ký ngay
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </aside>
+
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- ========================================================
+         MAIN CONTENT WRAPPER (RIGHT SIDE)
+         ======================================================== -->
+    <div class="app-main-wrapper">
+        <!-- TOPBAR GỌN GÀNG -->
+        <header class="app-topbar">
+            <div class="d-flex align-items-center gap-3">
+                <!-- Hamburger Button toggle menu (Mobile & Desktop) -->
+                <button class="btn btn-icon-topbar" id="sidebarToggleBtn" type="button" aria-label="Toggle navigation menu">
+                    <i class="bi bi-list fs-4"></i>
                 </button>
 
-                <div class="collapse navbar-collapse" id="navbarMain">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3 gap-1">
-                        @if (!User.Identity?.IsAuthenticated == true)
-                        {
-                            <!-- Guest Links -->
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Home" asp-action="Index">
-                                    <i class="bi bi-house-door me-1"></i> Trang chủ
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Services" asp-action="Index">
-                                    <i class="bi bi-grid-fill me-1"></i> Dịch vụ & Đặt lịch
-                                </a>
-                            </li>
-                        }
-                        else if (User.IsInRole("Customer"))
-                        {
-                            <!-- Customer Links -->
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Home" asp-action="Index">
-                                    <i class="bi bi-house-door me-1"></i> Trang chủ
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Services" asp-action="Index">
-                                    <i class="bi bi-grid-fill me-1"></i> Dịch vụ & Đặt lịch
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Appointments" asp-action="Index">
-                                    <i class="bi bi-calendar-check me-1"></i> Lịch hẹn của tôi
-                                </a>
-                            </li>
-                        }
-                        else if (User.IsInRole("Provider"))
-                        {
-                            <!-- Provider Links Only -->
-                            <li class="nav-item">
-                                <a class="nav-link text-warning fw-bold" asp-controller="Provider" asp-action="Index">
-                                    <i class="bi bi-speedometer2 me-1"></i> Kênh Đối tác
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Provider" asp-action="Services">
-                                    <i class="bi bi-list-task me-1"></i> Quản lý Dịch vụ
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Provider" asp-action="OffDays">
-                                    <i class="bi bi-calendar-x me-1"></i> Quản lý Ngày nghỉ
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Provider" asp-action="WorkingHours">
-                                    <i class="bi bi-clock me-1"></i> Giờ làm việc
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Provider" asp-action="Reviews">
-                                    <i class="bi bi-star me-1"></i> Đánh giá
-                                </a>
-                            </li>
-                        }
-                        else if (User.IsInRole("Staff"))
-                        {
-                            <!-- Staff Links Only -->
-                            <li class="nav-item">
-                                <a class="nav-link text-info fw-bold" asp-controller="Staff" asp-action="Index">
-                                    <i class="bi bi-person-badge me-1"></i> Kênh Nhân viên
-                                </a>
-                            </li>
-                        }
-                        else if (User.IsInRole("Admin"))
-                        {
-                            <!-- Admin Links Only -->
-                            <li class="nav-item">
-                                <a class="nav-link text-warning fw-bold" asp-controller="Admin" asp-action="Index">
-                                    <i class="bi bi-shield-check me-1"></i> Quản trị
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Admin" asp-action="Users">
-                                    <i class="bi bi-people me-1"></i> Tài khoản
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Admin" asp-action="Categories">
-                                    <i class="bi bi-tags me-1"></i> Danh mục
-                                </a>
-                            </li>
-                        }
-                    </ul>
-
-                    <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white fw-bold d-flex align-items-center gap-2 px-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.85rem;">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
-                                    <span>@User.Identity.Name</span>
-                                    <span class="badge bg-secondary-subtle text-light border border-secondary" style="font-size: 0.7rem;">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2" aria-labelledby="userDropdown">
-                                    <li>
-                                        <a class="dropdown-item py-2" asp-controller="Account" asp-action="Profile">
-                                            <i class="bi bi-person-gear me-2 text-primary"></i> Thông tin cá nhân
-                                        </a>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                            <button type="submit" class="dropdown-item py-2 text-danger fw-semibold">
-                                                <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
-                                            </button>
-                                        </form>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="btn btn-outline-light btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Login">
-                                    <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Register">
-                                    <i class="bi bi-person-plus-fill me-1"></i> Đăng ký
-                                </a>
-                            </li>
-                        }
-                    </ul>
+                <!-- Topbar Portal Indicator & Title -->
+                <div class="topbar-title-wrap d-flex align-items-center gap-2">
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-semibold">Admin Portal</span>
+                    }
+                    else if (User.IsInRole("Provider"))
+                    {
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill small fw-semibold">Provider Hub</span>
+                    }
+                    else if (User.IsInRole("Staff"))
+                    {
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1 rounded-pill small fw-semibold">Staff Desk</span>
+                    }
+                    else if (User.IsInRole("Customer"))
+                    {
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small fw-semibold">Customer</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill small fw-semibold">AppointX</span>
+                    }
+                    <span class="topbar-page-name text-secondary small d-none d-md-inline">@ViewData["Title"]</span>
                 </div>
             </div>
-        </nav>
-    </header>
 
-    <div class="container my-4 flex-grow-1">
-        @if (TempData["SuccessMessage"] != null)
-        {
-            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2" role="alert">
-                <i class="bi bi-check-circle-fill fs-5 text-success"></i>
-                <div class="flex-grow-1">@TempData["SuccessMessage"]</div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
+            <!-- Topbar Right Actions -->
+            <div class="topbar-actions ms-auto d-flex align-items-center gap-2">
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Admin" asp-action="CreateUser" class="btn btn-outline-primary btn-sm rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
+                        <i class="bi bi-person-plus-fill"></i>
+                        <span>Thêm tài khoản</span>
+                    </a>
+                }
+                else if (User.IsInRole("Provider"))
+                {
+                    <a asp-controller="Provider" asp-action="CreateService" class="btn btn-outline-primary btn-sm rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
+                        <i class="bi bi-plus-lg"></i>
+                        <span>Thêm dịch vụ</span>
+                    </a>
+                }
+                else if (User.IsInRole("Customer"))
+                {
+                    <a asp-controller="Services" asp-action="Index" class="btn btn-primary btn-sm rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
+                        <i class="bi bi-search"></i>
+                        <span>Tìm dịch vụ</span>
+                    </a>
+                }
 
-        @if (TempData["ErrorMessage"] != null)
-        {
-            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2" role="alert">
-                <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
-                <div class="flex-grow-1">@TempData["ErrorMessage"]</div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
-
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="footer-custom py-5 mt-auto">
-        <div class="container">
-            <div class="row g-4 mb-4">
-                <div class="col-lg-4 col-md-6">
-                    <div class="d-flex align-items-center gap-2 fw-bold fs-4 text-white mb-3">
-                        <span class="brand-badge">
-                            <i class="bi bi-calendar2-check-fill"></i>
-                        </span>
-                        <span>Appoint<span style="color: #38bdf8;">X</span></span>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="dropdown">
+                        <button class="btn btn-topbar-profile dropdown-toggle d-flex align-items-center gap-2" type="button" id="topbarUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="topbar-avatar">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <span class="d-none d-sm-inline fw-semibold text-dark small">@User.Identity.Name</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2" aria-labelledby="topbarUserDropdown">
+                            <li class="px-3 py-2 border-bottom">
+                                <div class="fw-bold text-dark text-truncate" style="max-width: 180px;">@User.Identity.Name</div>
+                                <div class="badge bg-light text-secondary border mt-1">@roleClaim</div>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" asp-controller="Account" asp-action="Profile">
+                                    <i class="bi bi-person-gear me-2 text-primary"></i> Thông tin cá nhân
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                    <button type="submit" class="dropdown-item py-2 text-danger fw-semibold">
+                                        <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
-                    <p class="text-secondary small mb-3 pe-lg-4">
-                        Nền tảng đặt lịch dịch vụ trực tuyến thông minh. Kết nối người dùng nhanh chóng với mạng lưới bác sĩ, salon, chuyên gia tư vấn và huấn luyện viên uy tín hàng đầu.
-                    </p>
-                    <div class="d-flex align-items-center gap-3 text-secondary">
-                        <span class="d-flex align-items-center gap-1 small"><i class="bi bi-shield-lock-fill text-success"></i> Bảo mật 100%</span>
-                        <span class="d-flex align-items-center gap-1 small"><i class="bi bi-clock-history text-primary"></i> 24/7 Sẵn sàng</span>
+                }
+                else
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Login">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+                        </a>
+                        <a class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold" asp-controller="Account" asp-action="Register">
+                            <i class="bi bi-person-plus-fill me-1"></i> Đăng ký
+                        </a>
                     </div>
-                </div>
-
-                <div class="col-lg-2 col-md-6 col-6">
-                    <h6>Dịch vụ tiêu biểu</h6>
-                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
-                        <li><a asp-controller="Services" asp-action="Index">Khám sức khỏe</a></li>
-                        <li><a asp-controller="Services" asp-action="Index">Chăm sóc sắc đẹp</a></li>
-                        <li><a asp-controller="Services" asp-action="Index">Tư vấn tâm lý & luật</a></li>
-                        <li><a asp-controller="Services" asp-action="Index">Thể thao & Yoga</a></li>
-                        <li><a asp-controller="Services" asp-action="Index">Dịch vụ gia đình</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-lg-3 col-md-6 col-6">
-                    <h6>Quy trình & Hỗ trợ</h6>
-                    <ul class="list-unstyled small d-flex flex-column gap-2 mb-0">
-                        <li><a href="#how-it-works">Hướng dẫn đặt lịch</a></li>
-                        <li><a asp-controller="Account" asp-action="Register">Đăng ký trở thành đối tác</a></li>
-                        <li><a href="#">Chính sách bảo mật</a></li>
-                        <li><a href="#">Điều khoản sử dụng</a></li>
-                        <li><a href="#">Giải quyết khiếu nại</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <h6>Liên hệ & Hỗ trợ</h6>
-                    <div class="small d-flex flex-column gap-2 text-secondary">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi bi-geo-alt-fill text-primary mt-1"></i>
-                            <span>Hà Nội & TP. Hồ Chí Minh, Việt Nam</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-envelope-fill text-primary"></i>
-                            <span>support@appointx.com</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-telephone-fill text-primary"></i>
-                            <span>1900 6868 (8:00 - 21:00)</span>
-                        </div>
-                    </div>
-                </div>
+                }
             </div>
+        </header>
 
-            <hr class="footer-divider mb-4 mt-0" />
+        <!-- MAIN BODY CONTENT -->
+        <div class="app-content-body flex-grow-1">
+            <div class="container-fluid px-3 px-lg-4 py-4">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
+                        <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+                        <div class="flex-grow-1">@TempData["SuccessMessage"]</div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
 
-            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center small text-secondary gap-2">
-                <div>&copy; 2026 <strong>AppointX</strong>. Toàn bộ quyền được bảo lưu.</div>
-                <div>Hệ thống quản lý & Đặt lịch đa dịch vụ trực tuyến</div>
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+                        <div class="flex-grow-1">@TempData["ErrorMessage"]</div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
+                <main role="main">
+                    @RenderBody()
+                </main>
             </div>
         </div>
-    </footer>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
+        <!-- APP FOOTER -->
+        <footer class="app-footer py-4 mt-auto border-top bg-white">
+            <div class="container-fluid px-3 px-lg-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center small text-secondary gap-2">
+                    <div>
+                        &copy; 2026 <strong>AppointX</strong>. Hệ thống quản lý & Đặt lịch hẹn đa dịch vụ trực tuyến.
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <a asp-controller="Home" asp-action="Index" class="text-secondary text-decoration-none hover-primary">Trang chủ</a>
+                        <span>&bull;</span>
+                        <a asp-controller="Services" asp-action="Index" class="text-secondary text-decoration-none hover-primary">Dịch vụ</a>
+                        <span>&bull;</span>
+                        <a asp-controller="Home" asp-action="Privacy" class="text-secondary text-decoration-none hover-primary">Chính sách bảo mật</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
