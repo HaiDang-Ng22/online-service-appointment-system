@@ -346,7 +346,24 @@ RÀNG BUỘC: Bám sát các chỉ số có trong số liệu thống kê đư�
                        "4. **Tiếp nhận & Check-in:** Nhận mã lịch hẹn, đến quầy xuất trình hoặc quét mã QR để được phục vụ chu đáo.";
             }
 
-            // 5. Tìm kiếm dịch vụ khớp từ khóa trong hệ thống
+            // 5. Kiểm tra triệu chứng sức khỏe hoặc nhu cầu dịch vụ
+            bool isHealthQuery = q.Contains("đau đầu") || q.Contains("nhức đầu") || q.Contains("đau") ||
+                                 q.Contains("sốt") || q.Contains("mệt") || q.Contains("mỏi") ||
+                                 q.Contains("chóng mặt") || q.Contains("buồn nôn") || q.Contains("ốm") ||
+                                 q.Contains("bệnh") || q.Contains("khám") || q.Contains("bác sĩ") ||
+                                 q.Contains("y tế") || q.Contains("thuốc") || q.Contains("sức khỏe") ||
+                                 q.Contains("họng") || q.Contains("ho") || q.Contains("viêm") ||
+                                 q.Contains("bụng") || q.Contains("lưng") || q.Contains("tôii đau");
+
+            bool isSpaQuery = q.Contains("spa") || q.Contains("da mặt") || q.Contains("da") ||
+                              q.Contains("mặt") || q.Contains("mụn") || q.Contains("làm đẹp") ||
+                              q.Contains("massage") || q.Contains("tóc") || q.Contains("thư giãn") ||
+                              q.Contains("chăm sóc da") || q.Contains("tắm");
+
+            bool isFitnessQuery = q.Contains("gym") || q.Contains("yoga") || q.Contains("thể thao") ||
+                                  q.Contains("fitness") || q.Contains("huấn luyện") || q.Contains("tập");
+
+            // 6. Tìm kiếm dịch vụ khớp từ khóa trong hệ thống
             var lines = systemCatalogContext.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             var matchedServices = new List<string>();
 
@@ -354,28 +371,59 @@ RÀNG BUỘC: Bám sát các chỉ số có trong số liệu thống kê đư�
             {
                 if (line.StartsWith("- Dịch vụ:") || line.StartsWith("- [Dịch vụ]:") || line.Contains("VNĐ"))
                 {
-                    // Trích xuất từ khóa tìm kiếm
-                    if ((q.Contains("khám") || q.Contains("bác sĩ") || q.Contains("y tế") || q.Contains("bệnh")) && (line.Contains("Khám") || line.Contains("Bác sĩ") || line.Contains("Sức khỏe")))
+                    if (isHealthQuery && (line.Contains("Khám") || line.Contains("Bác sĩ") || line.Contains("Sức khỏe") || line.Contains("Tổng Quát")))
                         matchedServices.Add(line);
-                    else if ((q.Contains("spa") || q.Contains("da mặt") || q.Contains("làm đẹp") || q.Contains("massage") || q.Contains("tóc")) && (line.Contains("Spa") || line.Contains("Da Mặt") || line.Contains("Chăm Sóc") || line.Contains("Làm Đẹp")))
+                    else if (isSpaQuery && (line.Contains("Spa") || line.Contains("Da Mặt") || line.Contains("Chăm Sóc") || line.Contains("Làm Đẹp") || line.Contains("Salon")))
                         matchedServices.Add(line);
-                    else if ((q.Contains("gym") || q.Contains("yoga") || q.Contains("thể thao") || q.Contains("fitness")) && (line.Contains("Thể thao") || line.Contains("Gym") || line.Contains("Yoga")))
+                    else if (isFitnessQuery && (line.Contains("Thể thao") || line.Contains("Gym") || line.Contains("Yoga")))
                         matchedServices.Add(line);
                     else if ((q.Contains("tư vấn") || q.Contains("luật") || q.Contains("tâm lý")) && (line.Contains("Tư vấn") || line.Contains("Pháp lý")))
                         matchedServices.Add(line);
                 }
             }
 
+            // Nếu không tìm được chuyên khoa cụ thể nhưng có từ khóa chung, gợi ý các dịch vụ đầu tiên
+            if (!matchedServices.Any() && (isHealthQuery || isSpaQuery || isFitnessQuery))
+            {
+                foreach (var line in lines)
+                {
+                    if ((line.StartsWith("- Dịch vụ:") || line.StartsWith("- [Dịch vụ]:") || line.Contains("VNĐ")) && matchedServices.Count < 2)
+                    {
+                        matchedServices.Add(line);
+                    }
+                }
+            }
+
             if (matchedServices.Count > 0)
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("✨ **Dưới đây là các dịch vụ phù hợp trong hệ thống AppointX:**\n");
+                if (isHealthQuery)
+                {
+                    sb.AppendLine("🩺 **Tư vấn sức khỏe sơ bộ:**");
+                    sb.AppendLine("Tôi rất tiếc khi biết bạn đang gặp triệu chứng khó chịu. Để đảm bảo an toàn, bạn nên đặt lịch thăm khám trực tiếp để bác sĩ kiểm tra và đưa ra chẩn đoán chính xác.\n");
+                }
+                else if (isSpaQuery)
+                {
+                    sb.AppendLine("💆 **Gợi ý dịch vụ chăm sóc & làm đẹp tại AppointX:**\n");
+                }
+                else
+                {
+                    sb.AppendLine("✨ **Dưới đây là các dịch vụ phù hợp trong hệ thống AppointX:**\n");
+                }
+
                 foreach (var s in matchedServices.Take(3))
                 {
-                    sb.AppendLine(s);
+                    // Chuyển định dạng pipe '|' thành các dòng rõ ràng, không dồn thành 1 dòng dài
+                    var formatted = s.Replace(" | ", "\n  • ");
+                    sb.AppendLine(formatted);
+                    sb.AppendLine();
                 }
-                sb.AppendLine("\n👉 Quý khách có thể bấm trực tiếp vào dịch vụ trên để xem bảng giờ trống và đặt lịch ngay!");
-                sb.AppendLine("\n*(Lưu ý: Mọi dịch vụ y tế chỉ đóng vai trò hỗ trợ đặt hẹn với bác sĩ chuyên khoa, không thay thế chẩn đoán lâm sàng).*");
+
+                sb.AppendLine("👉 **Quý khách có thể bấm trực tiếp vào liên kết bên trên để chọn ngày, giờ và Đặt Lịch Ngay!**");
+                if (isHealthQuery)
+                {
+                    sb.AppendLine("\n*(Lưu ý: Mọi dịch vụ y tế chỉ đóng vai trò hỗ trợ đặt hẹn với bác sĩ chuyên khoa, không thay thế chẩn đoán lâm sàng).*");
+                }
                 return sb.ToString();
             }
 

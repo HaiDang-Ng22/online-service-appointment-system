@@ -49,10 +49,93 @@ namespace Appointment.Controllers
                 sanitizedMessage = sanitizedMessage.Substring(0, 1000);
             }
 
-            // 2. Thu thập danh mục & dịch vụ thực tế trong cơ sở dữ liệu làm Closed-world Grounding Context
+            var qLower = sanitizedMessage.ToLower();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // 2. Tra cứu lịch hẹn cá nhân trực tiếp nếu người dùng yêu cầu
+            if (qLower.Contains("lịch hẹn của tôi") || qLower.Contains("lịch của tôi") ||
+                qLower.Contains("lịch sử đặt") || qLower.Contains("tôi đã đặt") ||
+                qLower.Contains("xem lịch hẹn") || qLower.Contains("cuộc hẹn của tôi"))
+            {
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        reply = "🔒 **Tra cứu lịch hẹn cá nhân:**\n\nĐể bảo vệ thông tin riêng tư, Quý khách vui lòng [Đăng nhập vào tài khoản](/Account/Login?returnUrl=/) để tra cứu danh sách cuộc hẹn và trạng thái phiếu khám của mình."
+                    });
+                }
+
+                var myAppointments = await _context.Appointments
+                    .Include(a => a.Service)
+                    .Include(a => a.Provider)
+                    .Where(a => a.CustomerId == userId)
+                    .OrderByDescending(a => a.AppointmentDate)
+                    .Take(5)
+                    .ToListAsync();
+
+                if (!myAppointments.Any())
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        reply = "📅 **Lịch hẹn của bạn:**\n\nBạn hiện chưa có cuộc hẹn nào trong hệ thống AppointX. Bạn có thể xem các dịch vụ khám sức khỏe hoặc làm đẹp bên dưới để đặt lịch giữ chỗ ngay nhé!"
+                    });
+                }
+
+                var sbMy = new StringBuilder();
+                sbMy.AppendLine("📅 **Danh sách các cuộc hẹn gần đây của bạn tại AppointX:**\n");
+                foreach (var a in myAppointments)
+                {
+                    string statusBadge = a.Status switch
+                    {
+                        "Confirmed" => "🟢 Đã xác nhận",
+                        "Pending" => "🟡 Chờ duyệt",
+                        "Completed" => "🔵 Đã hoàn thành",
+                        "Cancelled" => "🔴 Đã hủy",
+                        _ => a.Status
+                    };
+
+                    sbMy.AppendLine($"- 📌 **{a.Service?.Name ?? "Dịch vụ"}**");
+                    sbMy.AppendLine($"  • Thời gian: **{a.AppointmentDate:dd/MM/yyyy} lúc {a.StartTime:hh\\:mm}**");
+                    sbMy.AppendLine($"  • Cơ sở / Chuyên gia: {a.Provider?.FullName ?? "Cơ sở uy tín"}");
+                    sbMy.AppendLine($"  • Trạng thái: **{statusBadge}**");
+                    sbMy.AppendLine($"  👉 [Xem chi tiết & Phiếu hẹn](/Appointments/PrintInvoice/{a.Id})\n");
+                }
+                sbMy.AppendLine("*(Lưu ý: Bạn có thể hủy lịch miễn phí trước giờ phục vụ tối thiểu 2 tiếng theo quy định).*");
+
+                return Json(new { success = true, reply = sbMy.ToString() });
+            }
+
+            // 3. Tra cứu đánh giá & phản hồi thực tế nếu người dùng hỏi
+            if (qLower.Contains("đánh giá") || qLower.Contains("review") || qLower.Contains("phản hồi khách hàng") || qLower.Contains("chất lượng dịch vụ"))
+            {
+                var recentReviews = await _context.Reviews
+                    .Include(r => r.Service)
+                    .Include(r => r.Customer)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Take(4)
+                    .ToListAsync();
+
+                if (recentReviews.Any())
+                {
+                    var sbRev = new StringBuilder();
+                    sbRev.AppendLine("⭐ **Đánh giá & Phản hồi gần đây từ khách hàng tại AppointX:**\n");
+                    foreach (var r in recentReviews)
+                    {
+                        sbRev.AppendLine($"- 🌟 **{r.Service?.Name ?? "Dịch vụ"}** ({r.Rating}/5 sao)");
+                        sbRev.AppendLine($"  • Nhận xét: *\"{r.Comment}\"*");
+                        sbRev.AppendLine($"  • Khách hàng: {r.Customer?.FullName ?? "Khách hàng"} - Ngày: {r.CreatedAt:dd/MM/yyyy}\n");
+                    }
+                    sbRev.AppendLine("👉 Quý khách có thể bấm trực tiếp vào dịch vụ mong muốn để xem thêm lịch trống và đặt hẹn.");
+                    return Json(new { success = true, reply = sbRev.ToString() });
+                }
+            }
+
+            // 4. Thu thập danh mục & dịch vụ thực tế trong cơ sở dữ liệu làm Closed-world Grounding Context
             var catalogContext = await BuildSystemCatalogContextAsync();
 
-            // 3. Gọi AI Service xử lý kèm Guardrails
+            // 5. Gọi AI Service xử lý kèm Guardrails & Symptom Mapping
             var reply = await _ai.ChatAsync(sanitizedMessage, catalogContext, request.History);
 
             return Json(new { success = true, reply });
@@ -316,11 +399,22 @@ Doanh thu hoàn tất: {totalRevenue:N0} VNĐ";
                 sb.AppendLine($"- Danh mục: {c.Name} ({c.Description})");
             }
 
-            sb.AppendLine("\n=== DANH SÁCH DỊCH VỤ HIỆN CÓ TẠI APPOINTX ===");
+            sb.AppendLine("\n=== DANH SÁCH DỊCH VỤ HIỆN CÓ TẠI APPOINTX (DÙNG ĐỂ GỢI Ý & ĐẶT LỊCH) ===");
             foreach (var s in services)
             {
-                sb.AppendLine($"- [Dịch vụ]: {s.Name} | Danh mục: {s.Category?.Name} | Đơn vị cung cấp: {s.Provider?.FullName} | Đơn giá: {s.Price:N0} VNĐ | Thời lượng: {s.DurationMinutes} phút | Địa điểm: {s.Location ?? s.Provider?.Address} | Link xem & đặt lịch: [Xem chi tiết & Đặt lịch](/Services/Details?id={s.Id})");
+                sb.AppendLine($"- [Dịch vụ]: {s.Name}");
+                sb.AppendLine($"  • Danh mục: {s.Category?.Name ?? "Chung"}");
+                sb.AppendLine($"  • Cơ sở / Chuyên gia: {s.Provider?.FullName ?? "Cơ sở uy tín"}");
+                sb.AppendLine($"  • Đơn giá: {s.Price:N0} VNĐ (Thời lượng: {s.DurationMinutes} phút)");
+                sb.AppendLine($"  • Địa điểm: {s.Location ?? s.Provider?.Address ?? "Tại cơ sở cung cấp"}");
+                sb.AppendLine($"  • Đường dẫn đặt lịch: [Đặt lịch ngay](/Services/Details?id={s.Id})");
             }
+
+            sb.AppendLine("\n=== HƯỚNG DẪN LIÊN KẾT TRIỆU CHỨNG SỨC KHỎE / NHU CẦU ===");
+            sb.AppendLine("- Người dùng bị: đau đầu, nhức đầu, chóng mặt, mệt mỏi, sốt, đau người, cảm cúm, ốm, bệnh... -> Hãy đồng cảm, khuyên đi khám sớm và gợi ý dịch vụ 'Khám Sức Khỏe Tổng Quát' hoặc các bác sĩ đa khoa trong hệ thống.");
+            sb.AppendLine("- Người dùng cần: làm đẹp, da mặt, mụn, nám, tàn nhang, massage, spa, thư giãn... -> Gợi ý dịch vụ 'Chăm Sóc Da Mặt Chuyên Sâu' hoặc cơ sở Salon/Spa.");
+            sb.AppendLine("- Người dùng cần: răng, đau răng, niềng răng, trám răng, nhổ răng -> Gợi ý chuyên khoa Nha khoa nếu có trong danh sách.");
+            sb.AppendLine("- Người dùng cần: cắt tóc, uốn, nhuộm -> Gợi ý Salon tóc.");
 
             sb.AppendLine("\n=== QUY ĐỊNH & CHÍNH SÁCH ĐẶT LỊCH HỆ THỐNG ===");
             sb.AppendLine("- Đặt cọc: 30% giá dịch vụ khi xác nhận lịch online, hỗ trợ hoàn cọc nếu hủy lịch đúng hạn.");

@@ -46,8 +46,10 @@
                     <p class="mb-2">Tôi có thể giúp bạn tra cứu dịch vụ, bảng giá, tìm kiếm bác sĩ chuyên khoa và hướng dẫn chính sách đặt cọc / hủy lịch.</p>
                     <div class="ai-suggestion-title">Gợi ý câu hỏi nhanh:</div>
                     <div class="ai-quick-tags d-flex flex-wrap gap-1 mt-1">
-                        <button type="button" class="ai-tag-chip" data-query="Khám sức khỏe tổng quát có giá bao nhiêu?">🏥 Khám sức khỏe</button>
-                        <button type="button" class="ai-tag-chip" data-query="Có dịch vụ spa chăm sóc da mặt nào tốt?">💇 Chăm sóc da mặt</button>
+                        <button type="button" class="ai-tag-chip" data-query="Tôi bị đau đầu, mệt mỏi">🩺 Tôi bị đau đầu</button>
+                        <button type="button" class="ai-tag-chip" data-query="Có dịch vụ spa chăm sóc da mặt nào tốt?">💆 Chăm sóc da mặt</button>
+                        <button type="button" class="ai-tag-chip" data-query="Lịch hẹn của tôi">📅 Lịch hẹn của tôi</button>
+                        <button type="button" class="ai-tag-chip" data-query="Đánh giá chất lượng dịch vụ">⭐ Đánh giá dịch vụ</button>
                         <button type="button" class="ai-tag-chip" data-query="Chính sách đặt cọc và thanh toán thế nào?">💳 Quy định đặt cọc</button>
                         <button type="button" class="ai-tag-chip" data-query="Quy định hủy lịch và hoàn tiền ra sao?">⏰ Hủy lịch hoàn tiền</button>
                     </div>
@@ -129,9 +131,9 @@
 
 /* Chat Window */
 .ai-chat-window {
-    width: 380px;
-    height: 520px;
-    max-height: calc(100vh - 100px);
+    width: 420px;
+    height: 570px;
+    max-height: calc(100vh - 90px);
     background: #ffffff;
     border-radius: 20px;
     display: flex;
@@ -141,6 +143,7 @@
     position: absolute;
     bottom: 70px;
     right: 0;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.25);
     animation: aiPopUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -226,7 +229,7 @@
 .ai-msg {
     display: flex;
     gap: 0.5rem;
-    max-width: 90%;
+    max-width: 95%;
 }
 
 .ai-msg.bot-msg {
@@ -256,6 +259,8 @@
     border-radius: 14px;
     font-size: 0.85rem;
     line-height: 1.5;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .bot-msg .ai-msg-bubble {
@@ -431,7 +436,16 @@ document.addEventListener('DOMContentLoaded', function () {
         // Markdown bold: **text**
         clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-        // Markdown links: [Title](URL)
+        // Chia nhỏ các dòng nối dài bằng dấu gạch đứng '|' thành các mục rõ ràng trên từng dòng
+        clean = clean.replace(/\s*\|\s*/g, '<br/>• ');
+
+        // Chuyển liên kết đặt lịch thành Nút Bấm Đặt Lịch nổi bật trực tiếp trong khung chat
+        clean = clean.replace(/\[(.*?Đặt lịch.*?)\]\((.*?)\)/gi, '<div class="mt-2 mb-1"><a href="$2" class="btn btn-sm btn-primary text-white text-decoration-none fw-bold px-3 py-1.5 rounded-pill shadow-sm d-inline-flex align-items-center gap-1.5" style="background:#2563eb; color:#ffffff !important;"><i class="bi bi-calendar2-check-fill"></i> $1</a></div>');
+
+        // Chuyển liên kết tra cứu phiếu hẹn / hóa đơn thành Nút Bấm xem chi tiết
+        clean = clean.replace(/\[(.*?Phiếu hẹn.*?)\]\((.*?)\)/gi, '<div class="mt-1 mb-1"><a href="$2" class="btn btn-sm btn-outline-primary fw-semibold px-2.5 py-1 rounded-pill d-inline-flex align-items-center gap-1 text-decoration-none"><i class="bi bi-receipt"></i> $1</a></div>');
+
+        // Markdown links thông thường: [Title](URL)
         clean = clean.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="fw-bold text-primary text-decoration-underline" target="_self">$1</a>');
 
         // Line breaks
