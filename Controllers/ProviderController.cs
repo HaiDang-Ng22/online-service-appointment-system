@@ -203,7 +203,7 @@ namespace Appointment.Controllers
         // POST: /Provider/UpdateMedicalRecord
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status)
+        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status, string? internalNote = null)
         {
             try
             {
@@ -223,6 +223,10 @@ namespace Appointment.Controllers
 
                 appointment.Diagnosis = diagnosis?.Trim();
                 appointment.Prescription = prescription?.Trim();
+                if (internalNote != null)
+                {
+                    appointment.InternalNote = string.IsNullOrWhiteSpace(internalNote) ? null : internalNote.Trim();
+                }
                 if (!string.IsNullOrEmpty(status))
                 {
                     if (status == AppointmentRules.Cancelled && appointment.Status != AppointmentRules.Cancelled)

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Appointment.Data
 {
     /// <summary>
-    /// Bổ sung các bảng / cột mới (US-26, US-28, US-30, US-37) cho cơ sở dữ liệu ĐÃ TỒN TẠI từ trước.
+    /// Bổ sung các bảng / cột mới (US-26, US-28, US-30, US-37, US-42) cho cơ sở dữ liệu ĐÃ TỒN TẠI từ trước.
     /// Với cơ sở dữ liệu mới, EF Core tự tạo đầy đủ từ model nên các lệnh ở đây sẽ không có tác dụng (IF NOT EXISTS).
     /// Chỉ thêm mới, không sửa / xóa dữ liệu hiện có.
     /// </summary>
@@ -87,6 +87,18 @@ namespace Appointment.Data
                 context.Database.ExecuteSqlRaw(isPostgres
                     ? @"ALTER TABLE ""Appointments"" ADD COLUMN IF NOT EXISTS ""CancelReason"" text NULL"
                     : @"ALTER TABLE ""Appointments"" ADD COLUMN ""CancelReason"" TEXT NULL");
+            }
+            catch
+            {
+                // Cột đã tồn tại -> bỏ qua
+            }
+
+            // US-42: Ghi chú nghiệp vụ nội bộ (bảng Appointments đã tồn tại từ trước)
+            try
+            {
+                context.Database.ExecuteSqlRaw(isPostgres
+                    ? @"ALTER TABLE ""Appointments"" ADD COLUMN IF NOT EXISTS ""InternalNote"" text NULL"
+                    : @"ALTER TABLE ""Appointments"" ADD COLUMN ""InternalNote"" TEXT NULL");
             }
             catch
             {
