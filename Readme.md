@@ -185,17 +185,124 @@ Ngày: 20/09/2026
 14:00  ❌ Đã đặt
 
 ---
+```
+---
 
-# 🆕 Chức năng bổ sung (US-26, US-28, US-30, US-37 + hoàn thiện US-14, US-19, US-21, US-24)
+## 2.5. Thanh toán và đặt cọc
 
-| Chức năng | Mô tả | Vị trí chính |
+Customer có thể:
+
+- Chọn đặt cọc (mặc định 30%) hoặc thanh toán toàn bộ khi đặt lịch.
+- Thực hiện thanh toán qua cổng thanh toán (hiện là **sandbox** thông qua `IPaymentGateway`).
+- Được hoàn tiền tự động khi lịch hẹn bị hủy.
+
+---
+
+## 2.6. Hủy lịch hẹn
+
+Customer có thể:
+
+- Tự hủy lịch hẹn nếu thời điểm hủy cách giờ hẹn tối thiểu `CancelBeforeHours`.
+- Nhận hoàn tiền khi hủy thành công.
+
+Customer sẽ bị chặn hủy nếu còn ít hơn `CancelBeforeHours` đến giờ hẹn.
+
+---
+
+## 2.7. Đánh giá dịch vụ
+
+Customer có thể:
+
+- Chấm điểm từ 1 đến 5 sao sau khi lịch hẹn hoàn thành.
+- Viết nhận xét về dịch vụ đã sử dụng.
+- Xem đánh giá của khách hàng khác tại danh sách và trang chi tiết dịch vụ.
+
+---
+
+## 2.8. Quên / đặt lại mật khẩu
+
+Customer có thể:
+
+- Nhập email tại trang `ForgotPassword` để yêu cầu đặt lại mật khẩu.
+- Nhận email chứa link đặt lại mật khẩu.
+- Mở link và nhập mật khẩu mới tại trang `ResetPassword`.
+
+Link có hiệu lực **30 phút**, chỉ dùng **1 lần**, và token được lưu dạng băm trong cơ sở dữ liệu.
+
+---
+
+## Customer KHÔNG được phép
+
+- Hủy lịch sát giờ hẹn (dưới `CancelBeforeHours`).
+- Đánh giá khi lịch hẹn chưa hoàn thành.
+- Cập nhật trạng thái lịch hẹn.
+- Truy cập trang Provider.
+
+---
+
+# 3. 🧑‍⚕️ Provider – Nhà cung cấp dịch vụ
+
+Provider là người cung cấp dịch vụ và xử lý các lịch hẹn của khách hàng.
+
+## 3.1. Cấu hình giờ làm việc theo tuần
+
+Provider có thể truy cập `/Provider/WorkingHours` để:
+
+- Bật/tắt từng ngày làm việc trong tuần.
+- Chỉnh giờ bắt đầu và kết thúc cho từng ngày.
+
+Lịch trống và việc đặt lịch của khách hàng sẽ tuân theo cấu hình này.
+
+---
+
+## 3.2. Cập nhật trạng thái lịch hẹn
+
+Provider có thể:
+
+- Xác nhận lịch hẹn (`Pending → Confirmed`).
+- Đánh dấu hoàn thành (`Confirmed → Completed`).
+- Hủy lịch hẹn ở các trạng thái cho phép.
+
+Hệ thống kiểm tra luồng trạng thái bằng `AppointmentRules.TryValidateTransition` và từ chối các chuyển đổi không hợp lệ, ví dụ từ `Pending` sang `Completed` trực tiếp.
+
+---
+
+## 3.3. Xem đánh giá
+
+Provider có thể:
+
+- Xem các đánh giá và nhận xét của khách hàng tại `/Provider/Reviews`.
+
+---
+
+## Provider KHÔNG được phép
+
+- Chuyển trạng thái lịch hẹn sai luồng.
+- Xem hoặc chỉnh sửa dữ liệu của Provider khác.
+
+---
+
+# ⚙️ Chức năng hệ thống tự động
+
+## Tự hủy lịch quá hạn
+
+Một tác vụ nền (`AppointmentAutoCancelService`) tự động:
+
+- Hủy các lịch `Pending` đã quá giờ hẹn.
+- Hủy các lịch `Pending` mà Provider không xác nhận trong `ConfirmationTimeoutHours`.
+- Hoàn tiền cho khách hàng.
+- Gửi email thông báo khi hủy.
+
+---
+
+# 🔄 Trạng thái lịch hẹn
+
+| Trạng thái | Ý nghĩa | Chuyển được sang |
 |---|---|---|
-| US-26 Quên/đặt lại mật khẩu | Gửi link đặt lại qua email (hiệu lực 30 phút, dùng 1 lần, token lưu dạng băm) | `AccountController`, `Views/Account/ForgotPassword*`, `ResetPassword` |
-| US-28 Thanh toán & đặt cọc | Đặt cọc (mặc định 30%) hoặc thanh toán toàn bộ; hoàn tiền khi lịch bị hủy. Cổng thanh toán hiện là **sandbox** (`IPaymentGateway`) | `PaymentsController`, `Infrastructure/PaymentService.cs` |
-| US-30 Đánh giá dịch vụ | Khách chấm 1-5 sao + nhận xét sau khi lịch hoàn thành; hiển thị ở danh sách/chi tiết dịch vụ; Provider xem tại `/Provider/Reviews` | `ReviewsController` |
-| US-37 Tự hủy lịch quá hạn | Tác vụ nền hủy lịch `Pending` quá giờ hẹn hoặc quá `ConfirmationTimeoutHours`, hoàn tiền & gửi email | `Infrastructure/AppointmentAutoCancelService.cs` |
-| US-14 Giờ làm việc theo tuần | Provider bật/tắt từng ngày & chỉnh giờ tại `/Provider/WorkingHours`; lịch trống & đặt lịch tuân theo cấu hình | `ProviderController.WorkingHours` |
-| US-19 Hủy lịch trước giờ phục vụ | Khách chỉ hủy được trước giờ hẹn ≥ `CancelBeforeHours` | `AppointmentRules.CanCustomerCancel` |
-| US-21/24 Cập nhật trạng thái | Kiểm tra luồng trạng thái hợp lệ (Pending→Confirmed→Completed, hủy...) | `AppointmentRules.TryValidateTransition` |
+| Pending | Khách vừa đặt, chờ xác nhận | Confirmed, Cancelled |
+| Confirmed | Provider đã xác nhận | Completed, Cancelled |
+| Completed | Dịch vụ đã thực hiện xong | Không |
+| Cancelled | Lịch đã bị hủy | Không |
+
 
 
