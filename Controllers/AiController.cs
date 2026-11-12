@@ -123,19 +123,113 @@ namespace Appointment.Controllers
                     sbRev.AppendLine("⭐ **Đánh giá & Phản hồi gần đây từ khách hàng tại AppointX:**\n");
                     foreach (var r in recentReviews)
                     {
-                        sbRev.AppendLine($"- 🌟 **{r.Service?.Name ?? "Dịch vụ"}** ({r.Rating}/5 sao)");
+                        sbRev.AppendLine($"- 🌟 **[{r.Service?.Name ?? "Dịch vụ"}](/Services/Details?id={r.ServiceId})** ({r.Rating}/5 sao)");
                         sbRev.AppendLine($"  • Nhận xét: *\"{r.Comment}\"*");
-                        sbRev.AppendLine($"  • Khách hàng: {r.Customer?.FullName ?? "Khách hàng"} - Ngày: {r.CreatedAt:dd/MM/yyyy}\n");
+                        sbRev.AppendLine($"  • Khách hàng: {r.Customer?.FullName ?? "Khách hàng"} - Ngày: {r.CreatedAt:dd/MM/yyyy}");
+                        sbRev.AppendLine($"  👉 [Đặt lịch dịch vụ này ngay](/Services/Details?id={r.ServiceId})\n");
                     }
-                    sbRev.AppendLine("👉 Quý khách có thể bấm trực tiếp vào dịch vụ mong muốn để xem thêm lịch trống và đặt hẹn.");
+                    sbRev.AppendLine("👉 Quý khách có thể bấm trực tiếp vào tên dịch vụ hoặc nút đặt lịch để chọn ngày giờ phù hợp!");
                     return Json(new { success = true, reply = sbRev.ToString() });
                 }
             }
 
-            // 4. Thu thập danh mục & dịch vụ thực tế trong cơ sở dữ liệu làm Closed-world Grounding Context
+            // 4. Nhận diện triệu chứng sức khỏe hoặc nhu cầu dịch vụ để đưa ra Card dịch vụ bấm trực tiếp được
+            bool isHealth = qLower.Contains("đau đầu") || qLower.Contains("nhức đầu") || qLower.Contains("đau") ||
+                            qLower.Contains("sốt") || qLower.Contains("mệt") || qLower.Contains("mỏi") ||
+                            qLower.Contains("chóng mặt") || qLower.Contains("buồn nôn") || qLower.Contains("ốm") ||
+                            qLower.Contains("bệnh") || qLower.Contains("khám") || qLower.Contains("bác sĩ") ||
+                            qLower.Contains("y tế") || qLower.Contains("sức khỏe") || qLower.Contains("tôii đau") ||
+                            qLower.Contains("họng") || qLower.Contains("ho") || qLower.Contains("bụng");
+
+            bool isSpa = qLower.Contains("spa") || qLower.Contains("da mặt") || qLower.Contains("da") ||
+                         qLower.Contains("mặt") || qLower.Contains("mụn") || qLower.Contains("làm đẹp") ||
+                         qLower.Contains("massage") || qLower.Contains("tóc") || qLower.Contains("thư giãn") ||
+                         qLower.Contains("chăm sóc da") || qLower.Contains("tắm");
+
+            bool isFitness = qLower.Contains("gym") || qLower.Contains("yoga") || qLower.Contains("thể thao") ||
+                             qLower.Contains("fitness") || qLower.Contains("tập");
+
+            if (isHealth || isSpa || isFitness)
+            {
+                var servicesQuery = _context.Services
+                    .Include(s => s.Category)
+                    .Include(s => s.Provider)
+                    .Where(s => s.IsActive);
+
+                List<Appointment.Models.Service> matched = new();
+
+                if (isHealth)
+                {
+                    matched = await servicesQuery
+                        .Where(s => (s.Category != null && s.Category.Name.Contains("Bác sĩ")) ||
+                                    s.Name.Contains("Khám") || s.Name.Contains("Sức khỏe"))
+                        .Take(3)
+                        .ToListAsync();
+                }
+                else if (isSpa)
+                {
+                    matched = await servicesQuery
+                        .Where(s => (s.Category != null && (s.Category.Name.Contains("Salon") || s.Category.Name.Contains("Spa"))) ||
+                                    s.Name.Contains("Da") || s.Name.Contains("Spa") || s.Name.Contains("Chăm Sóc") || s.Name.Contains("Massage"))
+                        .Take(3)
+                        .ToListAsync();
+                }
+                else if (isFitness)
+                {
+                    matched = await servicesQuery
+                        .Where(s => (s.Category != null && s.Category.Name.Contains("thể thao")) ||
+                                    s.Name.Contains("Gym") || s.Name.Contains("Yoga"))
+                        .Take(3)
+                        .ToListAsync();
+                }
+
+                if (!matched.Any())
+                {
+                    matched = await servicesQuery.Take(2).ToListAsync();
+                }
+
+                if (matched.Any())
+                {
+                    var sbMatch = new StringBuilder();
+                    if (isHealth)
+                    {
+                        sbMatch.AppendLine("🩺 **Tư vấn sức khỏe & Bác sĩ chuyên khoa:**");
+                        sbMatch.AppendLine("Tôi rất tiếc khi biết bạn đang gặp triệu chứng khó chịu. Để đảm bảo an toàn, bạn nên đặt lịch thăm khám trực tiếp để bác sĩ kiểm tra và đưa ra chẩn đoán chính xác.\n");
+                        sbMatch.AppendLine("Dưới đây là các dịch vụ khám sức khỏe phù hợp tại AppointX:\n");
+                    }
+                    else if (isSpa)
+                    {
+                        sbMatch.AppendLine("💆 **Gợi ý dịch vụ chăm sóc & làm đẹp tại AppointX:**\n");
+                    }
+                    else
+                    {
+                        sbMatch.AppendLine("✨ **Dưới đây là các dịch vụ phù compliance trong hệ thống AppointX:**\n");
+                    }
+
+                    foreach (var s in matched)
+                    {
+                        sbMatch.AppendLine($"- 🎯 **[{s.Name}](/Services/Details?id={s.Id})**");
+                        sbMatch.AppendLine($"  • Danh mục: {s.Category?.Name ?? "Chung"}");
+                        sbMatch.AppendLine($"  • Cơ sở / Chuyên gia: **{s.Provider?.FullName ?? "Cơ sở uy tín"}**");
+                        sbMatch.AppendLine($"  • Đơn giá: **{s.Price:N0} VNĐ** (Thời lượng: {s.DurationMinutes} phút)");
+                        sbMatch.AppendLine($"  • Địa điểm: {s.Location ?? s.Provider?.Address ?? "Tại cơ sở cung cấp"}");
+                        sbMatch.AppendLine($"  👉 [Đặt lịch dịch vụ này ngay](/Services/Details?id={s.Id})\n");
+                    }
+
+                    sbMatch.AppendLine("👉 **Quý khách có thể bấm trực tiếp vào tên dịch vụ hoặc nút đặt lịch bên trên để chọn ngày giờ nhé!**");
+                    if (isHealth)
+                    {
+                        sbMatch.AppendLine("\n*(Lưu ý: Mọi dịch vụ y tế chỉ đóng vai trò hỗ trợ đặt hẹn với bác sĩ chuyên khoa, không thay thế chẩn đoán lâm sàng).*");
+                    }
+
+                    return Json(new { success = true, reply = sbMatch.ToString() });
+                }
+            }
+
+            // 5. Thu thập danh mục & dịch vụ thực tế trong cơ sở dữ liệu làm Closed-world Grounding Context
             var catalogContext = await BuildSystemCatalogContextAsync();
 
-            // 5. Gọi AI Service xử lý kèm Guardrails & Symptom Mapping
+            // 6. Gọi AI Service xử lý kèm Guardrails & Symptom Mapping
             var reply = await _ai.ChatAsync(sanitizedMessage, catalogContext, request.History);
 
             return Json(new { success = true, reply });
