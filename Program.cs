@@ -46,6 +46,8 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.Configure<BookingRulesOptions>(builder.Configuration.GetSection("BookingRules"));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
 
+builder.Services.AddHttpClient("GeminiApi");
+builder.Services.AddScoped<IAiService, GeminiAiService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddSingleton<IPaymentGateway, SandboxPaymentGateway>();

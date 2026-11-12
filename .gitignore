@@ -16,3 +16,4 @@ obj/
 
 ## App Settings Secrets if any
 appsettings.Development.json
+temp_build/
