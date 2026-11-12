@@ -198,4 +198,39 @@ Ngày: 20/09/2026
 | US-19 Hủy lịch trước giờ phục vụ | Khách chỉ hủy được trước giờ hẹn ≥ `CancelBeforeHours` | `AppointmentRules.CanCustomerCancel` |
 | US-21/24 Cập nhật trạng thái | Kiểm tra luồng trạng thái hợp lệ (Pending→Confirmed→Completed, hủy...) | `AppointmentRules.TryValidateTransition` |
 
+---
+
+# 🤖 Bộ Chức Năng AI & Quản Lý API Key (Sprint 5)
+
+| Mã US | Tên Chức Năng | Mô Tả & Điểm Chạm UI |
+|---|---|---|
+| **US-AI-01** | **Chatbot AI Tư Vấn Đặt Lịch** | Widget nổi `_AiChatWidget.cshtml` (góc phải dưới màn hình) trả lời câu hỏi, tra cứu dịch vụ, tư vấn khung giờ dựa trên Closed-World Grounding. |
+| **US-AI-02** | **AI Gợi Ý Dịch Vụ Thông Minh** | Hiển thị tại Trang chủ (`Home/Index`) & Trang chi tiết (`Services/Details`) dựa trên lịch sử đặt hẹn và chuyên mục. |
+| **US-AI-03** | **AI Phân Tích & Tóm Tắt Đánh Giá** | Nút bấm tại Kênh Đối Tác (`/Provider/Reviews`) tự động phân tích điểm mạnh, điểm yếu và gợi ý cải thiện. |
+| **US-AI-04** | **AI Tự Động Nhắc Lịch Hẹn** | Background Service (`AppointmentReminderService`) định kỳ quét lịch hẹn sắp diễn ra trong 24h, soạn email AI và gửi tự động. |
+| **US-AI-05** | **AI Dashboard Insights** | Dashboard Admin (`/Admin`) & Provider (`/Provider`) phân tích xu hướng tải lịch, tỷ lệ hoàn thành/hủy và dự báo vận hành. |
+
+### 🔐 Hướng dẫn cấu hình Gemini API Key an toàn cho thành viên nhóm (Không lộ Key lên GitHub)
+
+Hệ thống hỗ trợ 2 cách thiết lập API Key bảo mật trên máy cá nhân:
+
+#### Cách 1: Sử dụng .NET User Secrets (Khuyến nghị chuẩn ASP.NET Core)
+Chạy lệnh sau tại thư mục gốc dự án trên máy của bạn (Key được lưu tại `%APPDATA%\Microsoft\UserSecrets\`, hoàn toàn nằm ngoài Git):
+```bash
+dotnet user-secrets set "Gemini:ApiKey" "AIzaSy_YOUR_API_KEY_HERE"
+```
+
+#### Cách 2: Sử dụng file `appsettings.Development.json`
+Tạo file `appsettings.Development.json` tại thư mục gốc (file này đã được cấu hình trong `.gitignore`, không bao giờ bị Git đẩy lên):
+```json
+{
+  "Gemini": {
+    "ApiKey": "AIzaSy_YOUR_API_KEY_HERE"
+  }
+}
+```
+
+> **Lưu ý Fallback:** Nếu chưa cấu hình API Key, hệ thống vẫn hoạt động bình thường nhờ **Local In-Domain Fallback Engine**, không bị gián đoạn khi demo hoặc chạy thử nghiệm.
+
+
 
