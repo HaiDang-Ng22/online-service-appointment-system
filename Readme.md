@@ -231,7 +231,7 @@ Link có hiệu lực **30 phút**, chỉ dùng **1 lần**, và token được 
 
 ---
 
-## Customer KHÔNG được phép
+Customer KHÔNG được phép:
 
 - Hủy lịch sát giờ hẹn (dưới `CancelBeforeHours`).
 - Đánh giá khi lịch hẹn chưa hoàn thành.
