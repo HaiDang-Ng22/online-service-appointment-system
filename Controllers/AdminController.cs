@@ -236,10 +236,14 @@ namespace Appointment.Controllers
                 query = query.Where(a => a.Status == status);
             }
 
-            var list = await query
+            var dbList = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+
+            var list = dbList
                 .OrderByDescending(a => a.AppointmentDate)
                 .ThenBy(a => a.StartTime)
-                .ToListAsync();
+                .ToList();
 
             string title = "BÁO CÁO HỆ THỐNG - DANH SÁCH LỊCH HẸN VÀ DOANH THU";
             if (fromDate.HasValue && toDate.HasValue)
