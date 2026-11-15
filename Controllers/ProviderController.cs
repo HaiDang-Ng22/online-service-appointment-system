@@ -528,10 +528,14 @@ namespace Appointment.Controllers
                 query = query.Where(a => a.Status == status);
             }
 
-            var list = await query
+            var dbList = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+
+            var list = dbList
                 .OrderByDescending(a => a.AppointmentDate)
                 .ThenBy(a => a.StartTime)
-                .ToListAsync();
+                .ToList();
 
             var providerUser = await _context.Users.FindAsync(providerId);
             string title = $"BÁO CÁO LỊCH HẸN & DOANH THU - {providerUser?.FullName?.ToUpper() ?? "NHÀ CUNG CẤP"}";
