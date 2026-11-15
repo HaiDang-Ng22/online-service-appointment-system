@@ -208,5 +208,60 @@ namespace Appointment.Controllers
             TempData["SuccessMessage"] = "Đã xóa danh mục thành công.";
             return RedirectToAction(nameof(Categories));
         }
+
+        // ========================================================
+        // US-46: Xuất báo cáo dữ liệu định dạng Excel (.xlsx)
+        // ========================================================
+        [HttpGet]
+        public async Task<IActionResult> ExportAppointmentsExcel(DateTime? fromDate, DateTime? toDate, string? status)
+        {
+            var query = _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service).ThenInclude(s => s!.Category)
+                .Include(a => a.Provider)
+                .AsQueryable();
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(a => a.AppointmentDate.Date >= fromDate.Value.Date);
+            }
+
+            if (toDate.HasValue)
+            {
+                query = query.Where(a => a.AppointmentDate.Date <= toDate.Value.Date);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(a => a.Status == status);
+            }
+
+            var dbList = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToListAsync();
+
+            var list = dbList
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.StartTime)
+                .ToList();
+
+            string title = "BÁO CÁO HỆ THỐNG - DANH SÁCH LỊCH HẸN VÀ DOANH THU";
+            if (fromDate.HasValue && toDate.HasValue)
+            {
+                title += $" ({fromDate.Value:dd/MM/yyyy} - {toDate.Value:dd/MM/yyyy})";
+            }
+            else if (fromDate.HasValue)
+            {
+                title += $" (Từ ngày {fromDate.Value:dd/MM/yyyy})";
+            }
+            else if (toDate.HasValue)
+            {
+                title += $" (Đến ngày {toDate.Value:dd/MM/yyyy})";
+            }
+
+            var fileBytes = ExcelExportHelper.ExportAppointmentsToExcel(list, title);
+            string fileName = $"BaoCao_LichHen_Admin_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
     }
 }
