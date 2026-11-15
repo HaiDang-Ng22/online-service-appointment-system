@@ -1,4 +1,5 @@
 using Appointment.Data;
+using Appointment.Infrastructure;
 using Appointment.Models;
 using Appointment.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -60,6 +61,29 @@ namespace Appointment.Controllers
             ViewBag.Location = location;
 
             var services = await query.OrderByDescending(s => s.CreatedAt).ToListAsync();
+
+            // US-27: Top 5 dịch vụ được đặt nhiều nhất trong 30 ngày qua
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            var topBookedServiceIds = await _context.Appointments
+                .Where(a => a.CreatedAt >= thirtyDaysAgo && a.Status != AppointmentRules.Cancelled)
+                .GroupBy(a => a.ServiceId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(5)
+                .ToListAsync();
+
+            if (topBookedServiceIds.Count < 5)
+            {
+                var additionalIds = await _context.Appointments
+                    .Where(a => a.Status != AppointmentRules.Cancelled && !topBookedServiceIds.Contains(a.ServiceId))
+                    .GroupBy(a => a.ServiceId)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .Take(5 - topBookedServiceIds.Count)
+                    .ToListAsync();
+                topBookedServiceIds.AddRange(additionalIds);
+            }
+            ViewBag.TopBookedServiceIds = new HashSet<string>(topBookedServiceIds);
 
             // US-30: điểm đánh giá trung bình của từng dịch vụ
             var serviceIds = services.Select(s => s.Id).ToList();
@@ -168,6 +192,16 @@ namespace Appointment.Controllers
                 Average = reviews.Any() ? reviews.Average(r => r.Rating) : 0,
                 Count = reviews.Count
             };
+
+            // US-27: Khối "Có thể bạn cũng quan tâm" - Dịch vụ cùng danh mục liên quan
+            var relatedServices = await _context.Services
+                .Include(s => s.Category)
+                .Include(s => s.Provider)
+                .Where(s => s.CategoryId == service.CategoryId && s.Id != service.Id && s.IsActive)
+                .OrderByDescending(s => s.CreatedAt)
+                .Take(4)
+                .ToListAsync();
+            ViewBag.RelatedServices = relatedServices;
 
             ViewBag.Service = service;
             return View(model);

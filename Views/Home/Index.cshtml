@@ -4,6 +4,7 @@
     var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
     var featuredServices = ViewBag.FeaturedServices as List<Appointment.Models.Service> ?? new();
     var topProviders = ViewBag.TopProviders as List<Appointment.Models.User> ?? new();
+    var topBookedIds = ViewBag.TopBookedServiceIds as HashSet<string>;
 }
 
 @functions {
@@ -212,10 +213,18 @@
             var theme = GetCategoryTheme(categoryName);
             <div class="col-lg-4 col-md-6">
                 <div class="service-card">
-                    <div class="service-card-header">
-                        <span class="service-badge" style="background-color: @theme.Bg; color: @theme.Color; border: 1px solid @theme.Border;">
-                            <i class="bi @theme.Icon me-1"></i> @categoryName
-                        </span>
+                    <div class="service-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="service-badge" style="background-color: @theme.Bg; color: @theme.Color; border: 1px solid @theme.Border;">
+                                <i class="bi @theme.Icon me-1"></i> @categoryName
+                            </span>
+                            @if (topBookedIds != null && topBookedIds.Contains(service.Id))
+                            {
+                                <span class="badge bg-danger text-white rounded-pill px-2 py-1 small fw-semibold" title="Top 5 dịch vụ được đặt nhiều nhất 30 ngày qua">
+                                    <i class="bi bi-fire me-1"></i>Được ưa chuộng nhất
+                                </span>
+                            }
+                        </div>
                         <span class="service-price-tag">@service.Price.ToString("N0") VNĐ</span>
                     </div>
 
