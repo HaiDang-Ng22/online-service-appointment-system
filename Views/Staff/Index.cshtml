@@ -11,6 +11,13 @@
         <p class="text-secondary small mb-0">Tiếp nhận khách hàng, điều phối lịch hẹn, hỗ trợ bác sĩ và in phiếu dịch vụ tại quầy</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <form asp-action="TriggerAllReminders" method="post" class="d-inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-info rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-1" title="Quét & tự động gửi email nhắc nhở cho tất cả cuộc hẹn trong 24h tới (US-45)">
+                <i class="bi bi-bell-fill"></i>
+                <span>Gửi Nhắc Lịch Hôm Nay</span>
+            </button>
+        </form>
         <a asp-action="EmergencyReschedule" class="btn btn-outline-warning rounded-pill px-3 fw-bold shadow-sm d-flex align-items-center gap-1">
             <i class="bi bi-shield-exclamation"></i>
             <span>Dời Lịch Sự Cố</span>
@@ -111,6 +118,12 @@
                                 <span class="badge bg-light text-dark border">
                                     <i class="bi bi-clock me-1 text-muted"></i>@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
                                 </span>
+                                @if (item.ReminderSentAt.HasValue)
+                                {
+                                    <div class="small text-success mt-1" style="font-size: 0.75rem;" title="Đã gửi email nhắc nhở lúc @item.ReminderSentAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")">
+                                        <i class="bi bi-bell-fill me-1 text-success"></i>Đã nhắc hẹn
+                                    </div>
+                                }
                             </td>
                             <td>
                                 @if (item.Staff != null)
@@ -171,6 +184,18 @@
                                     <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
                                         <i class="bi bi-printer-fill"></i>
                                     </a>
+
+                                    <!-- Nút Gửi nhắc lịch (US-45) -->
+                                    @if (item.Status == "Confirmed" || item.Status == "Pending")
+                                    {
+                                        <form asp-action="SendReminder" asp-route-id="@item.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm @(item.ReminderSentAt.HasValue ? "btn-outline-info" : "btn-info text-white") rounded-pill px-2"
+                                                    title="@(item.ReminderSentAt.HasValue ? $"Đã gửi nhắc lúc {item.ReminderSentAt.Value.ToLocalTime():dd/MM HH:mm}. Bấm để gửi lại." : "Gửi email nhắc nhở lịch hẹn cho khách (US-45)")">
+                                                <i class="bi @(item.ReminderSentAt.HasValue ? "bi-bell-fill" : "bi-bell")"></i>
+                                            </button>
+                                        </form>
+                                    }
 
                                     @if (item.Status == "Confirmed")
                                     {
