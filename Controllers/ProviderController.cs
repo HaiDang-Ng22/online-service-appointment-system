@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Appointment.Data;
+using Appointment.Helpers;
 using Appointment.Infrastructure;
 using Appointment.Models;
 using Appointment.Models.ViewModels;
@@ -495,6 +496,61 @@ namespace Appointment.Controllers
                 .ToListAsync();
 
             return View(reviews.OrderByDescending(r => r.CreatedAt).ToList());
+        }
+
+        // ========================================================
+        // US-46: Xuất báo cáo dữ liệu định dạng Excel (.xlsx)
+        // ========================================================
+        [HttpGet]
+        public async Task<IActionResult> ExportAppointmentsExcel(DateTime? fromDate, DateTime? toDate, string? status)
+        {
+            string providerId = GetCurrentUserId();
+            if (string.IsNullOrEmpty(providerId)) return Unauthorized();
+
+            var query = _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service).ThenInclude(s => s!.Category)
+                .Include(a => a.Provider)
+                .Where(a => a.ProviderId == providerId);
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(a => a.AppointmentDate.Date >= fromDate.Value.Date);
+            }
+
+            if (toDate.HasValue)
+            {
+                query = query.Where(a => a.AppointmentDate.Date <= toDate.Value.Date);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(a => a.Status == status);
+            }
+
+            var list = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ThenBy(a => a.StartTime)
+                .ToListAsync();
+
+            var providerUser = await _context.Users.FindAsync(providerId);
+            string title = $"BÁO CÁO LỊCH HẸN & DOANH THU - {providerUser?.FullName?.ToUpper() ?? "NHÀ CUNG CẤP"}";
+            if (fromDate.HasValue && toDate.HasValue)
+            {
+                title += $" ({fromDate.Value:dd/MM/yyyy} - {toDate.Value:dd/MM/yyyy})";
+            }
+            else if (fromDate.HasValue)
+            {
+                title += $" (Từ ngày {fromDate.Value:dd/MM/yyyy})";
+            }
+            else if (toDate.HasValue)
+            {
+                title += $" (Đến ngày {toDate.Value:dd/MM/yyyy})";
+            }
+
+            var fileBytes = ExcelExportHelper.ExportAppointmentsToExcel(list, title);
+            string fileName = $"BaoCao_LichHen_BacSi_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         private string GetCurrentUserId()
