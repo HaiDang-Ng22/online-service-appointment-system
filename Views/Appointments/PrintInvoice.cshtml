@@ -147,7 +147,7 @@
                 </div>
                 <!-- Mã QR Check-in điểm danh (US-39) -->
                 <div class="mt-3 text-end">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=@Model.Id" 
+                    <img src="@Url.Action("QrCode", "Appointments", new { id = Model.Id })" 
                          alt="QR Check-in" 
                          class="border p-1 bg-white rounded-2 shadow-sm" 
                          style="width: 85px; height: 85px;" />

@@ -127,6 +127,12 @@
                         <span>Danh mục dịch vụ</span>
                     </a>
 
+                    <div class="sidebar-section-title">Bảo mật & Kiểm toán</div>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "AuditLogs") ? "active" : "")" asp-controller="Admin" asp-action="AuditLogs" title="Nhật ký kiểm toán & bảo mật">
+                        <i class="bi bi-shield-lock-fill"></i>
+                        <span>Nhật ký kiểm toán</span>
+                    </a>
+
                     <div class="sidebar-section-title">Khám phá & Cổng ngoài</div>
                     <a class="sidebar-nav-link @(IsActive("Services") ? "active" : "")" asp-controller="Services" asp-action="Index" title="Cổng Dịch vụ">
                         <i class="bi bi-grid-fill"></i>
@@ -144,6 +150,10 @@
                     <a class="sidebar-nav-link @(IsActive("Provider", "Index") ? "active" : "")" asp-controller="Provider" asp-action="Index" title="Kênh Đối tác">
                         <i class="bi bi-calendar2-check-fill"></i>
                         <span>Tổng quan & Lịch hẹn</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "Statistics") ? "active" : "")" asp-controller="Provider" asp-action="Statistics" title="Thống kê doanh thu & hiệu suất">
+                        <i class="bi bi-bar-chart-line-fill"></i>
+                        <span>Thống kê doanh thu</span>
                     </a>
 
                     <div class="sidebar-section-title">Quản lý dịch vụ</div>
