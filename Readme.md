@@ -183,36 +183,202 @@ Ngày: 20/09/2026
 11:00  ❌ Đã đặt
 13:00  ✅ Còn trống
 14:00  ❌ Đã đặt
+```
 
 ---
 
-# 🆕 Chức năng bổ sung (US-26, US-28, US-30, US-37 + hoàn thiện US-14, US-19, US-21, US-24)
+## 2.5. Thanh toán và đặt cọc (US-28)
 
-| Chức năng | Mô tả | Vị trí chính |
-|---|---|---|
-| US-26 Quên/đặt lại mật khẩu | Gửi link đặt lại qua email (hiệu lực 30 phút, dùng 1 lần, token lưu dạng băm) | `AccountController`, `Views/Account/ForgotPassword*`, `ResetPassword` |
-| US-28 Thanh toán & đặt cọc | Đặt cọc (mặc định 30%) hoặc thanh toán toàn bộ; hoàn tiền khi lịch bị hủy. Cổng thanh toán hiện là **sandbox** (`IPaymentGateway`) | `PaymentsController`, `Infrastructure/PaymentService.cs` |
-| US-30 Đánh giá dịch vụ | Khách chấm 1-5 sao + nhận xét sau khi lịch hoàn thành; hiển thị ở danh sách/chi tiết dịch vụ; Provider xem tại `/Provider/Reviews` | `ReviewsController` |
-| US-37 Tự hủy lịch quá hạn | Tác vụ nền hủy lịch `Pending` quá giờ hẹn hoặc quá `ConfirmationTimeoutHours`, hoàn tiền & gửi email | `Infrastructure/AppointmentAutoCancelService.cs` |
-| US-14 Giờ làm việc theo tuần | Provider bật/tắt từng ngày & chỉnh giờ tại `/Provider/WorkingHours`; lịch trống & đặt lịch tuân theo cấu hình | `ProviderController.WorkingHours` |
-| US-19 Hủy lịch trước giờ phục vụ | Khách chỉ hủy được trước giờ hẹn ≥ `CancelBeforeHours` | `AppointmentRules.CanCustomerCancel` |
-| US-21/24 Cập nhật trạng thái | Kiểm tra luồng trạng thái hợp lệ (Pending→Confirmed→Completed, hủy...) | `AppointmentRules.TryValidateTransition` |
+Customer có thể:
+
+- Chọn **đặt cọc** (mặc định 30%, cấu hình `Payment:DepositPercent`) hoặc **thanh toán toàn bộ** ngay sau khi đặt lịch.
+- Chọn phương thức: thẻ ngân hàng, ví điện tử hoặc chuyển khoản.
+- Chọn "thanh toán sau" và quay lại thanh toán nốt phần còn lại ở trang *Lịch hẹn của tôi* / *Chi tiết lịch hẹn*.
+- Xem lịch sử giao dịch và tình trạng thanh toán (Chưa thanh toán / Đã đặt cọc / Đã thanh toán / Đã hoàn tiền).
+- Được **hoàn tiền tự động** khi lịch hẹn bị hủy.
+
+> Cổng thanh toán hiện là **sandbox** (`IPaymentGateway`), chưa trừ tiền thật.
+
+Vị trí: `PaymentsController`, `Infrastructure/PaymentService.cs`, `Views/Payments/Checkout.cshtml`.
 
 ---
 
-# 🆕 Chức năng bổ sung đợt 2 (US-32, US-38, US-43)
+## 2.6. Hủy lịch hẹn (US-19)
 
-| Chức năng | Mô tả | Vị trí chính |
+Customer có thể:
+
+- Tự hủy lịch hẹn ở trạng thái Pending / Confirmed nếu thời điểm hủy cách giờ hẹn tối thiểu `CancelBeforeHours` (mặc định 2 giờ).
+- Nhận hoàn tiền cho các khoản đã thanh toán / đặt cọc khi hủy thành công.
+
+Customer sẽ **bị chặn hủy** khi: còn ít hơn `CancelBeforeHours` đến giờ hẹn, dịch vụ đang thực hiện, hoặc lịch đã hoàn thành / đã hủy.
+
+Vị trí: `AppointmentRules.CanCustomerCancel`, `AppointmentsController.Cancel`.
+
+---
+
+## 2.7. Đánh giá dịch vụ (US-30)
+
+Customer có thể:
+
+- Chấm điểm từ **1 đến 5 sao** và viết nhận xét sau khi lịch hẹn **hoàn thành** (mỗi lịch hẹn một đánh giá, có thể sửa hoặc xóa).
+- Xem đánh giá của khách hàng khác tại danh sách và trang chi tiết dịch vụ.
+
+Vị trí: `ReviewsController`, `Views/Reviews/Create.cshtml`.
+
+---
+
+## 2.8. Quên / đặt lại mật khẩu (US-26)
+
+Customer có thể:
+
+- Nhập email tại trang **ForgotPassword** để yêu cầu đặt lại mật khẩu.
+- Nhận email chứa liên kết đặt lại mật khẩu.
+- Mở liên kết và nhập mật khẩu mới tại trang **ResetPassword**.
+
+Bảo mật: liên kết có hiệu lực **30 phút**, **chỉ dùng 1 lần**, token lưu dạng băm trong CSDL, giới hạn 1 email / 60 giây cho mỗi tài khoản và luôn trả cùng một thông báo để không lộ email có tồn tại hay không.
+
+Vị trí: `AccountController`, `Views/Account/ForgotPassword*`, `Views/Account/ResetPassword.cshtml`.
+
+---
+
+## 2.9. Mã QR check-in và phiếu hẹn PDF (US-32)
+
+Customer có thể:
+
+- Xem **mã QR check-in** ở trang *Chi tiết lịch hẹn* và trên phiếu in (lịch đã hủy không có mã QR).
+- Bấm **Tải PDF** để tải phiếu hẹn khổ A5 gồm thông tin khách, dịch vụ, ngày giờ, tình trạng thanh toán và mã QR.
+- Xuất trình mã QR cho nhân viên để check-in nhanh khi đến cơ sở.
+
+Bảo mật: nội dung QR dạng `APX:{id}:{chữ ký}` được ký **HMAC-SHA256** (khóa `CheckIn:SecretKey`), ảnh QR tạo ngay trên máy chủ (không gửi mã lịch hẹn cho dịch vụ bên ngoài); Customer chỉ tải được phiếu của chính mình.
+
+Vị trí: `AppointmentsController.QrCode / DownloadSlip`, `Infrastructure/CheckInCodeService.cs`, `QrCodeService.cs`, `AppointmentSlipPdfService.cs`, thư mục `Fonts/`.
+
+---
+
+Customer KHÔNG được phép
+
+- Hủy lịch sát giờ hẹn (dưới `CancelBeforeHours`).
+- Đánh giá khi lịch hẹn chưa hoàn thành.
+- Cập nhật trạng thái lịch hẹn.
+- Xem / tải phiếu hẹn của khách khác.
+- Truy cập trang Provider.
+
+---
+
+# 3. 🧑‍⚕️ Provider – Nhà cung cấp dịch vụ
+
+Provider là người cung cấp dịch vụ và xử lý các lịch hẹn của khách hàng.
+
+## 3.1. Cấu hình giờ làm việc theo tuần (US-14)
+
+Provider truy cập `/Provider/WorkingHours` để:
+
+- Bật / tắt từng ngày làm việc trong tuần.
+- Chỉnh giờ bắt đầu và kết thúc cho từng ngày (tối thiểu 30 phút).
+- Lịch trống và việc đặt lịch của khách hàng tuân theo cấu hình này.
+- Được cảnh báo nếu có lịch đã đặt nằm ngoài khung giờ mới.
+
+---
+
+## 3.2. Cập nhật trạng thái lịch hẹn (US-21, US-24)
+
+Provider có thể:
+
+- Xác nhận lịch hẹn (Pending → Confirmed).
+- Chuyển sang đang thực hiện (In-Progress) và đánh dấu hoàn thành (Completed).
+- Hủy lịch hẹn ở các trạng thái cho phép (tự động hoàn tiền cho khách).
+
+Hệ thống kiểm tra luồng trạng thái bằng `AppointmentRules.TryValidateTransition` và từ chối chuyển đổi không hợp lệ (ví dụ từ Completed / Cancelled về trạng thái khác, hoặc hoàn thành lịch của ngày chưa tới).
+
+---
+
+## 3.3. Xem đánh giá (US-30)
+
+Provider có thể xem các đánh giá và nhận xét của khách hàng tại `/Provider/Reviews`.
+
+---
+
+## 3.4. Thống kê doanh thu và hiệu suất kinh doanh (US-38)
+
+Tại `/Provider/Statistics`, Provider có thể:
+
+- Lọc theo kỳ (hôm nay, 7 ngày, 30 ngày, tháng này / trước, quý, năm, tùy chọn) và theo dịch vụ.
+- Xem **doanh thu ghi nhận** (lịch hoàn thành), **đã thu online** (ròng sau hoàn tiền), **doanh thu dự kiến** và **thất thoát do hủy lịch**, kèm % tăng / giảm so với kỳ trước.
+- Xem tỷ lệ hoàn thành / hủy, giá trị trung bình mỗi lịch, khách mới và khách quay lại, đánh giá trung bình.
+- Xem top dịch vụ, top khách hàng; biểu đồ doanh thu theo ngày / tháng, lịch theo thứ, theo khung giờ, theo phương thức thanh toán.
+- Xuất báo cáo chi tiết ra **CSV** (mở được bằng Excel) hoặc in báo cáo.
+
+Admin xem được số liệu của từng Provider hoặc toàn hệ thống. Vị trí: `ProviderController.Statistics / ExportStatistics`, `Views/Provider/Statistics.cshtml`.
+
+---
+
+Provider KHÔNG được phép
+
+- Chuyển trạng thái lịch hẹn sai luồng.
+- Xem hoặc chỉnh sửa dữ liệu (lịch hẹn, phiếu hẹn, thống kê) của Provider khác.
+
+---
+
+# 4. 🧾 Staff – Nhân viên
+
+## 4.1. Quét mã QR check-in (US-32)
+
+Staff truy cập `/Staff/ScanQR` để:
+
+- Quét mã QR bằng camera hoặc nhập tay mã `APX-XXXXXXXX` (tối thiểu 8 ký tự, phải khớp duy nhất một lịch hẹn).
+- Xác nhận khách đã đến; lịch chuyển sang **Đang thực hiện (In-Progress)**.
+- Mã QR giả mạo / sai chữ ký bị từ chối và được ghi vào nhật ký kiểm toán.
+
+---
+
+# 5. 🛡️ Admin – Quản trị viên
+
+## 5.1. Nhật ký kiểm toán và bảo mật (US-43)
+
+Tại `/Admin/AuditLogs`, Admin có thể:
+
+- Xem nhật ký đăng nhập / đăng xuất, đổi mật khẩu, đặt / hủy / đổi trạng thái lịch, check-in, thanh toán và hoàn tiền, đánh giá, thay đổi dịch vụ, phân quyền, truy cập bị từ chối...
+- Lọc theo từ khóa, nhóm, hành động, mức độ, kết quả, vai trò, khoảng ngày; phân trang; xuất CSV.
+- Bấm **Kiểm tra toàn vẹn** để phát hiện dòng nhật ký bị sửa / xóa trực tiếp trong CSDL (chuỗi mã băm SHA-256).
+
+Nhật ký **chỉ ghi thêm**, không có chức năng sửa hoặc xóa. Biện pháp bảo mật đi kèm: khóa tạm thời khi đăng nhập sai nhiều lần, giới hạn theo IP, HTTP security headers, cookie HttpOnly / SameSite.
+
+Vị trí: `Infrastructure/AuditService.cs`, `Models/AuditLog.cs`, `AdminController.AuditLogs`, `Views/Admin/AuditLogs.cshtml`.
+
+---
+
+# ⚙️ Chức năng hệ thống tự động
+
+## Tự hủy lịch quá hạn (US-37)
+
+Tác vụ nền `AppointmentAutoCancelService` tự động:
+
+- Hủy các lịch **Pending** đã quá giờ hẹn.
+- Hủy các lịch **Pending** mà Provider không xác nhận trong `ConfirmationTimeoutHours` (mặc định 24 giờ).
+- Hoàn tiền cho khách hàng.
+- Gửi email thông báo khi hủy (nếu SMTP đã cấu hình) và ghi nhật ký kiểm toán.
+
+---
+
+# 🔄 Trạng thái lịch hẹn
+
+| Trạng thái | Ý nghĩa | Chuyển được sang |
 |---|---|---|
-| US-32 QR Check-in & phiếu hẹn PDF | Mã QR **có chữ ký HMAC** (`APX:{id}:{chữ ký}`) tạo ngay trên máy chủ (không gọi dịch vụ ngoài); tải phiếu hẹn PDF A5 (có QR, thanh toán, tiếng Việt đầy đủ); Staff quét ở `/Staff/ScanQR` – mã giả mạo bị từ chối và ghi log | `AppointmentsController.QrCode/DownloadSlip`, `Infrastructure/CheckInCodeService.cs`, `QrCodeService.cs`, `AppointmentSlipPdfService.cs`, thư mục `Fonts/` |
-| US-38 Thống kê doanh thu Provider | `/Provider/Statistics`: lọc theo kỳ (hôm nay → năm nay, tùy chọn) & dịch vụ; doanh thu ghi nhận / đã thu online / dự kiến / thất thoát, so sánh kỳ trước, tỷ lệ hoàn thành & hủy, khách mới – quay lại, top dịch vụ, top khách, biểu đồ theo ngày/tháng, thứ, giờ, phương thức thanh toán; xuất CSV. Admin xem được từng Provider hoặc toàn hệ thống | `ProviderController.Statistics/ExportStatistics`, `Views/Provider/Statistics.cshtml` |
-| US-43 Nhật ký kiểm toán & bảo mật | `/Admin/AuditLogs`: ghi đăng nhập/đăng xuất, đổi mật khẩu, đặt/hủy/đổi trạng thái lịch, check-in, thanh toán/hoàn tiền, đánh giá, dịch vụ, phân quyền, truy cập bị từ chối…; lọc, phân trang, xuất CSV; **chỉ ghi thêm** + nối chuỗi SHA-256 và nút *Kiểm tra toàn vẹn*; khóa tạm thời khi đăng nhập sai nhiều lần; HTTP security headers; cookie HttpOnly/SameSite | `Infrastructure/AuditService.cs`, `Models/AuditLog.cs`, `AdminController.AuditLogs` |
+| Pending | Khách vừa đặt, chờ xác nhận | Confirmed, In-Progress, Completed, Cancelled |
+| Confirmed | Provider / Staff đã xác nhận | In-Progress, Completed, Cancelled |
+| In-Progress | Khách đã check-in, đang thực hiện dịch vụ | Completed, Cancelled |
+| Completed | Dịch vụ đã thực hiện xong | Không |
+| Cancelled | Lịch đã bị hủy | Không |
 
-Cấu hình mới trong `appsettings.json`:
+---
+
+Cấu hình trong `appsettings.json`:
 
 ```json
-"Security": { "MaxFailedLogins": 5, "LockoutMinutes": 15, "MaxFailedLoginsPerIp": 30 },
-"CheckIn":  { "SecretKey": "đổi-thành-chuỗi-bí-mật-của-bạn" }
+"BookingRules": { "CancelBeforeHours": 2, "AutoCancelEnabled": true, "ConfirmationTimeoutHours": 24, "AutoCancelIntervalMinutes": 5 },
+"Payment":      { "DepositPercent": 30 },
+"Security":     { "MaxFailedLogins": 5, "LockoutMinutes": 15, "MaxFailedLoginsPerIp": 30 },
+"CheckIn":      { "SecretKey": "đổi-thành-chuỗi-bí-mật-của-bạn" }
 ```
 
 > Bảng `AuditLogs` được tạo tự động khi chạy ứng dụng (cả CSDL mới lẫn CSDL cũ). Thư viện mới: `QRCoder`, `QuestPDF` (Community License – miễn phí cho dự án học tập / doanh thu < 1 triệu USD/năm).
@@ -250,6 +416,3 @@ Tạo file `appsettings.Development.json` tại thư mục gốc (file này đã
 ```
 
 > **Lưu ý Fallback:** Nếu chưa cấu hình API Key, hệ thống vẫn hoạt động bình thường nhờ **Local In-Domain Fallback Engine**, không bị gián đoạn khi demo hoặc chạy thử nghiệm.
-
-
-
