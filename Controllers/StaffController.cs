@@ -936,5 +936,106 @@ namespace Appointment.Controllers
                 targetDate = model.TargetDate.ToString("yyyy-MM-dd")
             });
         }
+
+        // ========================================================
+        // US-45: Tự động & Thủ công gửi email nhắc nhở lịch hẹn
+        // ========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendReminder(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return NotFound();
+
+            var appointment = await _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service)
+                .Include(a => a.Provider)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (appointment == null)
+            {
+                TempData["ErrorMessage"] = "Không tìm thấy lịch hẹn.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (appointment.Customer == null || string.IsNullOrWhiteSpace(appointment.Customer.Email))
+            {
+                TempData["ErrorMessage"] = "Khách hàng không có email để gửi thông báo nhắc lịch.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            string emailBody = AppointmentReminderService.BuildReminderEmail(appointment);
+            string subject = $"[AppointX] Nhắc nhở lịch hẹn: {appointment.Service?.Name ?? "Dịch vụ"} vào {appointment.AppointmentDate:dd/MM/yyyy}";
+
+            bool sent = await _emailSender.SendAsync(appointment.Customer.Email, subject, emailBody);
+            if (sent)
+            {
+                appointment.ReminderSentAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"Đã gửi email nhắc nhở thành công tới khách hàng {appointment.Customer.FullName} ({appointment.Customer.Email})!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Không thể gửi email nhắc nhở. Vui lòng kiểm tra lại cấu hình email hệ thống.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TriggerAllReminders()
+        {
+            var now = DateTime.Now;
+            var windowEnd = now.AddHours(24);
+
+            var candidates = await _context.Appointments
+                .Include(a => a.Customer)
+                .Include(a => a.Service)
+                .Include(a => a.Provider)
+                .Where(a => a.Status == AppointmentRules.Confirmed && a.ReminderSentAt == null)
+                .ToListAsync();
+
+            var toRemind = candidates
+                .Where(a => {
+                    var startAt = AppointmentRules.StartAt(a);
+                    return startAt > now && startAt <= windowEnd;
+                })
+                .ToList();
+
+            if (!toRemind.Any())
+            {
+                TempData["InfoMessage"] = "Không có cuộc hẹn nào trong 24 giờ tới cần gửi nhắc nhở (hoặc tất cả đã được gửi).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            int count = 0;
+            foreach (var a in toRemind)
+            {
+                if (a.Customer != null && !string.IsNullOrWhiteSpace(a.Customer.Email))
+                {
+                    try
+                    {
+                        string body = AppointmentReminderService.BuildReminderEmail(a);
+                        string subj = $"[AppointX] Nhắc nhở lịch hẹn: {a.Service?.Name ?? "Dịch vụ"} vào {a.AppointmentDate:dd/MM/yyyy}";
+                        bool sent = await _emailSender.SendAsync(a.Customer.Email, subj, body);
+                        if (sent)
+                        {
+                            a.ReminderSentAt = DateTime.UtcNow;
+                            count++;
+                        }
+                    }
+                    catch
+                    {
+                        a.ReminderSentAt = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Đã quét và gửi email nhắc nhở thành công cho {count} cuộc hẹn sắp diễn ra trong 24 giờ tới!";
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

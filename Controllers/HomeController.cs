@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Appointment.Data;
+using Appointment.Infrastructure;
 using Appointment.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,29 @@ namespace Appointment.Controllers
                 .Take(4)
                 .ToListAsync();
 
+            // US-27: Top 5 dịch vụ được đặt nhiều nhất trong 30 ngày qua
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            var topBookedServiceIds = await _context.Appointments
+                .Where(a => a.CreatedAt >= thirtyDaysAgo && a.Status != AppointmentRules.Cancelled)
+                .GroupBy(a => a.ServiceId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(5)
+                .ToListAsync();
+
+            if (topBookedServiceIds.Count < 5)
+            {
+                var additionalIds = await _context.Appointments
+                    .Where(a => a.Status != AppointmentRules.Cancelled && !topBookedServiceIds.Contains(a.ServiceId))
+                    .GroupBy(a => a.ServiceId)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .Take(5 - topBookedServiceIds.Count)
+                    .ToListAsync();
+                topBookedServiceIds.AddRange(additionalIds);
+            }
+
+            ViewBag.TopBookedServiceIds = new HashSet<string>(topBookedServiceIds);
             ViewBag.Categories = categories;
             ViewBag.FeaturedServices = featuredServices;
             ViewBag.TopProviders = topProviders;
