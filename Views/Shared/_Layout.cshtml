@@ -245,6 +245,10 @@
                         <i class="bi bi-person-gear"></i>
                         <span>Hồ sơ cá nhân</span>
                     </a>
+                    <a class="sidebar-nav-link @(IsActive("Account", "ChangePassword") ? "active" : "")" asp-controller="Account" asp-action="ChangePassword" title="Đổi mật khẩu">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Đổi mật khẩu</span>
+                    </a>
                 }
             </nav>
         </div>
@@ -369,6 +373,11 @@
                             <li>
                                 <a class="dropdown-item py-2" asp-controller="Account" asp-action="Profile">
                                     <i class="bi bi-person-gear me-2 text-primary"></i> Thông tin cá nhân
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" asp-controller="Account" asp-action="ChangePassword">
+                                    <i class="bi bi-shield-lock me-2 text-warning"></i> Đổi mật khẩu
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider my-1"></li>

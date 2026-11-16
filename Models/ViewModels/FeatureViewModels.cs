@@ -83,4 +83,19 @@ namespace Appointment.Models.ViewModels
         public bool IsSandbox { get; set; }
         public List<Payment> History { get; set; } = new List<Payment>();
     }
+
+    // ---------- US-34: Tìm kiếm dịch vụ và nhà cung cấp ----------
+    public class ProviderSummaryViewModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
+        public string? AvatarUrl { get; set; }
+        public double RatingAverage { get; set; }
+        public int ReviewCount { get; set; }
+        public int ServiceCount { get; set; }
+        public List<string> CategoryNames { get; set; } = new List<string>();
+    }
 }
