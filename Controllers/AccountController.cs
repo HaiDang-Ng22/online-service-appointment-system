@@ -190,7 +190,9 @@ namespace Appointment.Controllers
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 Address = user.Address,
-                Role = user.Role
+                Role = user.Role,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt
             };
 
             return View(model);
@@ -210,32 +212,115 @@ namespace Appointment.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound();
 
-            user.FullName = model.FullName;
-            user.PhoneNumber = model.PhoneNumber;
-            user.Address = model.Address;
-
-            if (!string.IsNullOrWhiteSpace(model.NewPassword))
+            if (!ModelState.IsValid)
             {
-                if (string.IsNullOrWhiteSpace(model.CurrentPassword))
-                {
-                    ModelState.AddModelError("CurrentPassword", "Vui lòng nhập mật khẩu hiện tại để thay đổi mật khẩu.");
-                    return View(model);
-                }
-
-                if (!PasswordHasher.VerifyPassword(model.CurrentPassword, user.PasswordHash))
-                {
-                    ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không chính xác.");
-                    return View(model);
-                }
-
-                user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
+                model.Email = user.Email;
+                model.Role = user.Role;
+                model.AvatarUrl = user.AvatarUrl;
+                model.CreatedAt = user.CreatedAt;
+                return View(model);
             }
+
+            // Handle avatar upload if provided
+            if (model.AvatarFile != null && model.AvatarFile.Length > 0)
+            {
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                var ext = Path.GetExtension(model.AvatarFile.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(ext))
+                {
+                    ModelState.AddModelError("AvatarFile", "Định dạng ảnh không hợp lệ. Vui lòng chọn file .jpg, .jpeg, .png, .webp hoặc .gif.");
+                    model.Email = user.Email;
+                    model.Role = user.Role;
+                    model.AvatarUrl = user.AvatarUrl;
+                    model.CreatedAt = user.CreatedAt;
+                    return View(model);
+                }
+
+                if (model.AvatarFile.Length > 5 * 1024 * 1024)
+                {
+                    ModelState.AddModelError("AvatarFile", "Dung lượng ảnh tối đa là 5MB.");
+                    model.Email = user.Email;
+                    model.Role = user.Role;
+                    model.AvatarUrl = user.AvatarUrl;
+                    model.CreatedAt = user.CreatedAt;
+                    return View(model);
+                }
+
+                var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "avatars");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var safeFileName = $"{Guid.NewGuid():N}{ext}";
+                var filePath = Path.Combine(uploadsFolder, safeFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await model.AvatarFile.CopyToAsync(stream);
+                }
+
+                user.AvatarUrl = $"/uploads/avatars/{safeFileName}";
+            }
+
+            user.FullName = model.FullName.Trim();
+            user.PhoneNumber = model.PhoneNumber?.Trim();
+            user.Address = model.Address?.Trim();
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Cập nhật thông tin cá nhân thành công!";
             return RedirectToAction(nameof(Profile));
+        }
+
+        [HttpGet]
+        [Authorize]
+        public IActionResult ChangePassword()
+        {
+            return View(new ChangePasswordViewModel());
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            if (!PasswordHasher.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            {
+                ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không chính xác.");
+                return View(model);
+            }
+
+            if (model.NewPassword == model.CurrentPassword)
+            {
+                ModelState.AddModelError("NewPassword", "Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+                return View(model);
+            }
+
+            user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Đổi mật khẩu thành công!";
+            return RedirectToAction(nameof(ChangePassword));
         }
 
         [HttpGet]
