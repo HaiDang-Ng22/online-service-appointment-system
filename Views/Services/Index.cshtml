@@ -1,63 +1,167 @@
 @model List<Appointment.Models.Service>
 @{
-    ViewData["Title"] = "Dịch vụ & Tìm kiếm";
+    ViewData["Title"] = "Tìm kiếm Dịch vụ & Nhà cung cấp";
     var categories = ViewBag.Categories as List<Appointment.Models.Category> ?? new();
+    var providers = ViewBag.Providers as List<Appointment.Models.User> ?? new();
     var topBookedIds = ViewBag.TopBookedServiceIds as HashSet<string>;
+    var ratingMap = ViewBag.Ratings as Dictionary<string, Appointment.Models.ViewModels.RatingInfo> ?? new();
+    var distanceMap = ViewBag.Distances as Dictionary<string, double> ?? new();
+    var selectedProvider = ViewBag.SelectedProvider as Appointment.Models.ViewModels.ProviderSummaryViewModel;
+    var matchedProviders = ViewBag.MatchedProviders as List<Appointment.Models.ViewModels.ProviderSummaryViewModel> ?? new();
+
+    string? currentSearch = ViewBag.SearchTerm;
+    string? currentProviderId = ViewBag.SelectedProviderId;
+    string? currentCategoryId = ViewBag.SelectedCategoryId;
+    decimal? currentMinPrice = ViewBag.MinPrice;
+    decimal? currentMaxPrice = ViewBag.MaxPrice;
+    string? currentLocation = ViewBag.Location;
+    int? currentMinRating = ViewBag.MinRating;
+    double? currentMaxDistance = ViewBag.MaxDistance;
+    string? currentSortBy = ViewBag.SortBy;
+    double? currentUserLat = ViewBag.UserLat;
+    double? currentUserLng = ViewBag.UserLng;
+
+    bool hasActiveFilter = !string.IsNullOrWhiteSpace(currentSearch)
+        || !string.IsNullOrWhiteSpace(currentProviderId)
+        || !string.IsNullOrWhiteSpace(currentCategoryId)
+        || currentMinPrice.HasValue
+        || currentMaxPrice.HasValue
+        || !string.IsNullOrWhiteSpace(currentLocation)
+        || currentMinRating.HasValue
+        || currentMaxDistance.HasValue
+        || !string.IsNullOrWhiteSpace(currentSortBy);
 }
 
-<div class="row g-4">
-    <!-- Filter sidebar -->
+<div class="row g-4 my-1">
+    <!-- Cột bộ lọc bên trái (Filter sidebar) -->
     <div class="col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-4 sticky-lg-top" style="top: 80px;">
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <i class="bi bi-funnel-fill text-primary fs-5"></i>
-                <h5 class="fw-bold mb-0 text-dark">Bộ Lọc Tìm Kiếm</h5>
+        <div class="card border-0 shadow-sm rounded-4 p-4 sticky-lg-top bg-white" style="top: 80px;">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-funnel-fill text-primary fs-5"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Bộ Lọc Tìm Kiếm</h5>
+                </div>
+                @if (hasActiveFilter)
+                {
+                    <a asp-action="Index" class="text-danger small text-decoration-none fw-semibold" title="Xóa tất cả lọc">
+                        <i class="bi bi-x-circle"></i> Đặt lại
+                    </a>
+                }
             </div>
-            
-            <form asp-action="Index" method="get">
+
+            <form asp-action="Index" method="get" id="filterForm">
+                <input type="hidden" name="userLat" id="userLatInput" value="@currentUserLat" />
+                <input type="hidden" name="userLng" id="userLngInput" value="@currentUserLng" />
+
+                <!-- 1. Từ khóa tìm kiếm -->
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-secondary">
-                        <i class="bi bi-search me-1"></i>Từ khóa
+                        <i class="bi bi-search me-1 text-primary"></i>Từ khóa tìm kiếm
                     </label>
-                    <input type="text" name="search" class="form-control rounded-3" placeholder="Tên dịch vụ, nhà cung cấp..." value="@ViewBag.SearchTerm" />
+                    <input type="text" name="search" class="form-control rounded-3" placeholder="Tên dịch vụ, nhà cung cấp, phòng khám..." value="@currentSearch" />
                 </div>
 
+                <!-- 2. Lọc theo nhà cung cấp / cơ sở -->
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-secondary">
-                        <i class="bi bi-tags me-1"></i>Danh mục dịch vụ
+                        <i class="bi bi-building-check me-1 text-primary"></i>Nhà cung cấp / Cơ sở
+                    </label>
+                    <select name="providerId" class="form-select rounded-3">
+                        <option value="">-- Tất cả nhà cung cấp --</option>
+                        @foreach (var prov in providers)
+                        {
+                            <option value="@prov.Id" selected="@(currentProviderId == prov.Id ? "selected" : null)">@prov.FullName</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- 3. Danh mục dịch vụ -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">
+                        <i class="bi bi-tags me-1 text-primary"></i>Danh mục dịch vụ
                     </label>
                     <select name="categoryId" class="form-select rounded-3">
                         <option value="">-- Tất cả danh mục --</option>
                         @foreach (var cat in categories)
                         {
-                            <option value="@cat.Id" selected="@(ViewBag.SelectedCategoryId == cat.Id ? "selected" : null)">@cat.Name</option>
+                            <option value="@cat.Id" selected="@(currentCategoryId == cat.Id ? "selected" : null)">@cat.Name</option>
                         }
                     </select>
                 </div>
 
+                <!-- 4. Khoảng giá -->
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-secondary">
-                        <i class="bi bi-cash-stack me-1"></i>Khoảng giá (VNĐ)
+                        <i class="bi bi-cash-stack me-1 text-primary"></i>Khoảng giá (VNĐ)
                     </label>
                     <div class="row g-2">
                         <div class="col-6">
-                            <input type="number" name="minPrice" class="form-control rounded-3" placeholder="Từ" value="@ViewBag.MinPrice" />
+                            <input type="number" name="minPrice" class="form-control rounded-3" placeholder="Từ" value="@currentMinPrice" min="0" step="10000" />
                         </div>
                         <div class="col-6">
-                            <input type="number" name="maxPrice" class="form-control rounded-3" placeholder="Đến" value="@ViewBag.MaxPrice" />
+                            <input type="number" name="maxPrice" class="form-control rounded-3" placeholder="Đến" value="@currentMaxPrice" min="0" step="10000" />
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary">
-                        <i class="bi bi-geo-alt me-1"></i>Địa điểm
-                    </label>
-                    <input type="text" name="location" class="form-control rounded-3" placeholder="Hà Nội, TP.HCM..." value="@ViewBag.Location" />
+                <!-- 5. Địa điểm & Vị trí -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-bold text-secondary mb-0">
+                            <i class="bi bi-geo-alt me-1 text-danger"></i>Địa điểm
+                        </label>
+                        <button type="button" class="btn btn-link p-0 text-primary small text-decoration-none" onclick="detectUserLocation()" title="Lấy vị trí GPS hiện tại">
+                            <i class="bi bi-crosshair"></i> Vị trí của tôi
+                        </button>
+                    </div>
+                    <input type="text" name="location" class="form-control rounded-3" placeholder="Hà Nội, TP.HCM, Quận 1..." value="@currentLocation" />
+                    <div id="locationStatus" class="small text-muted mt-1" style="display:none;"></div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 fw-bold rounded-3 py-2 shadow-sm">
-                    <i class="bi bi-search me-1"></i> Áp Dụng Lọc
+                <!-- 6. Lọc theo đánh giá tối thiểu -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">
+                        <i class="bi bi-star-fill me-1 text-warning"></i>Đánh giá khách hàng
+                    </label>
+                    <select name="minRating" class="form-select rounded-3">
+                        <option value="">-- Tất cả đánh giá --</option>
+                        <option value="5" selected="@(currentMinRating == 5 ? "selected" : null)">⭐⭐⭐⭐⭐ 5 sao</option>
+                        <option value="4" selected="@(currentMinRating == 4 ? "selected" : null)">⭐⭐⭐⭐ Từ 4 sao trở lên</option>
+                        <option value="3" selected="@(currentMinRating == 3 ? "selected" : null)">⭐⭐⭐ Từ 3 sao trở lên</option>
+                    </select>
+                </div>
+
+                <!-- 7. Lọc theo khoảng cách -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">
+                        <i class="bi bi-pin-map me-1 text-info"></i>Khoảng cách tối đa
+                    </label>
+                    <select name="maxDistance" class="form-select rounded-3">
+                        <option value="">-- Tất cả khoảng cách --</option>
+                        <option value="3" selected="@(currentMaxDistance == 3 ? "selected" : null)">Dưới 3 km</option>
+                        <option value="5" selected="@(currentMaxDistance == 5 ? "selected" : null)">Dưới 5 km</option>
+                        <option value="10" selected="@(currentMaxDistance == 10 ? "selected" : null)">Dưới 10 km</option>
+                        <option value="20" selected="@(currentMaxDistance == 20 ? "selected" : null)">Dưới 20 km</option>
+                    </select>
+                </div>
+
+                <!-- 8. Sắp xếp kết quả -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-secondary">
+                        <i class="bi bi-arrow-down-up me-1 text-primary"></i>Sắp xếp theo
+                    </label>
+                    <select name="sortBy" class="form-select rounded-3">
+                        <option value="" selected="@(string.IsNullOrEmpty(currentSortBy) ? "selected" : null)">Mới nhất</option>
+                        <option value="price_asc" selected="@(currentSortBy == "price_asc" ? "selected" : null)">Giá: Thấp đến cao</option>
+                        <option value="price_desc" selected="@(currentSortBy == "price_desc" ? "selected" : null)">Giá: Cao đến thấp</option>
+                        <option value="rating_desc" selected="@(currentSortBy == "rating_desc" ? "selected" : null)">Đánh giá cao nhất</option>
+                        <option value="distance" selected="@(currentSortBy == "distance" ? "selected" : null)">Khoảng cách gần nhất</option>
+                        <option value="name_asc" selected="@(currentSortBy == "name_asc" ? "selected" : null)">Tên dịch vụ: A - Z</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 fw-bold rounded-3 py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-search"></i> Áp Dụng Lọc
                 </button>
                 <a asp-action="Index" class="btn btn-outline-secondary w-100 rounded-3 mt-2 btn-sm">
                     <i class="bi bi-arrow-counterclockwise me-1"></i> Xóa bộ lọc
@@ -66,26 +170,211 @@
         </div>
     </div>
 
-    <!-- Service listing -->
+    <!-- Cột hiển thị kết quả tìm kiếm (Service & Provider listings) -->
     <div class="col-lg-9">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <!-- 1. THẺ THÔNG TIN NHÀ CUNG CẤP ĐƯỢC CHỌN (Nghiệm thu: hiển thị thông tin và danh sách dịch vụ của nhà cung cấp đó) -->
+        @if (selectedProvider != null)
+        {
+            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white overflow-hidden border-start border-primary border-4">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle overflow-hidden border border-2 border-primary d-flex align-items-center justify-content-center bg-light flex-shrink-0" style="width: 70px; height: 70px;">
+                                @if (!string.IsNullOrEmpty(selectedProvider.AvatarUrl))
+                                {
+                                    <img src="@selectedProvider.AvatarUrl" alt="@selectedProvider.FullName" class="w-100 h-100 object-fit-cover" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-building fs-2 text-primary"></i>
+                                }
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <h4 class="fw-bold mb-0 text-dark">@selectedProvider.FullName</h4>
+                                    <span class="badge bg-primary-subtle text-primary rounded-pill small">
+                                        <i class="bi bi-patch-check-fill me-1"></i>Nhà cung cấp đã xác thực
+                                    </span>
+                                </div>
+                                <div class="text-secondary small mt-1 d-flex flex-wrap align-items-center gap-3">
+                                    @if (!string.IsNullOrEmpty(selectedProvider.Address))
+                                    {
+                                        <span><i class="bi bi-geo-alt-fill text-danger me-1"></i>@selectedProvider.Address</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(selectedProvider.PhoneNumber))
+                                    {
+                                        <span><i class="bi bi-telephone-fill text-success me-1"></i>@selectedProvider.PhoneNumber</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3 bg-light rounded-3 px-3 py-2">
+                            <div class="text-center">
+                                <div class="fw-bold text-dark fs-5">
+                                    <i class="bi bi-star-fill text-warning"></i> @(selectedProvider.RatingAverage > 0 ? selectedProvider.RatingAverage.ToString("0.0") : "Chưa có")
+                                </div>
+                                <div class="text-muted small">@selectedProvider.ReviewCount đánh giá</div>
+                            </div>
+                            <div class="vr"></div>
+                            <div class="text-center">
+                                <div class="fw-bold text-primary fs-5">@selectedProvider.ServiceCount</div>
+                                <div class="text-muted small">Dịch vụ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mt-3 pt-3 border-top flex-wrap gap-2">
+                        <div class="small text-secondary">
+                            Đang xem toàn bộ dịch vụ của <strong>@selectedProvider.FullName</strong>
+                        </div>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                            <i class="bi bi-grid me-1"></i> Xem tất cả nhà cung cấp khác
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- 2. THẺ GỢI Ý NHÀ CUNG CẤP TRÙNG KHỚP TỪ KHÓA (Khi tìm thấy nhà cung cấp khớp với từ khóa) -->
+        @if (selectedProvider == null && matchedProviders.Any())
+        {
+            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 border-start border-info border-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-bold text-secondary text-uppercase">
+                        <i class="bi bi-building me-1 text-info"></i>Nhà cung cấp phù hợp với từ khóa "@currentSearch" (@matchedProviders.Count)
+                    </span>
+                </div>
+                <div class="row g-2">
+                    @foreach (var mp in matchedProviders)
+                    {
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border">
+                                <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                    <div class="rounded-circle bg-white border p-1 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                        <i class="bi bi-hospital"></i>
+                                    </div>
+                                    <div class="text-truncate">
+                                        <div class="fw-bold text-dark small text-truncate">@mp.FullName</div>
+                                        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">
+                                            <i class="bi bi-geo-alt text-danger"></i> @(mp.Address ?? "Toàn quốc") • @mp.ServiceCount dịch vụ
+                                        </div>
+                                    </div>
+                                </div>
+                                <a asp-action="Index" asp-route-providerId="@mp.Id" class="btn btn-outline-primary btn-sm rounded-pill flex-shrink-0" style="font-size: 0.75rem;">
+                                    Xem dịch vụ
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tiêu đề kết quả & Bộ sắp xếp nhanh -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
             <div>
-                <h4 class="fw-bold mb-1 text-dark">Danh Sách Dịch Vụ</h4>
-                <p class="text-secondary small mb-0">Tìm thấy <strong>@Model.Count</strong> dịch vụ phù hợp</p>
+                <h4 class="fw-bold mb-1 text-dark">
+                    @(selectedProvider != null ? $"Dịch vụ của {selectedProvider.FullName}" : "Danh Sách Dịch Vụ")
+                </h4>
+                <p class="text-secondary small mb-0">
+                    Tìm thấy <strong>@Model.Count</strong> dịch vụ phù hợp
+                    @if (!string.IsNullOrWhiteSpace(currentSearch))
+                    {
+                        <span>cho từ khóa "<strong>@currentSearch</strong>"</span>
+                    }
+                </p>
+            </div>
+
+            <!-- Sắp xếp nhanh -->
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary small d-none d-sm-inline">Sắp xếp:</span>
+                <select class="form-select form-select-sm rounded-3 shadow-sm" style="width: auto;" onchange="updateSort(this.value)">
+                    <option value="" selected="@(string.IsNullOrEmpty(currentSortBy) ? "selected" : null)">Mới nhất</option>
+                    <option value="price_asc" selected="@(currentSortBy == "price_asc" ? "selected" : null)">Giá tăng dần</option>
+                    <option value="price_desc" selected="@(currentSortBy == "price_desc" ? "selected" : null)">Giá giảm dần</option>
+                    <option value="rating_desc" selected="@(currentSortBy == "rating_desc" ? "selected" : null)">Đánh giá cao</option>
+                    <option value="distance" selected="@(currentSortBy == "distance" ? "selected" : null)">Khoảng cách gần</option>
+                    <option value="name_asc" selected="@(currentSortBy == "name_asc" ? "selected" : null)">Tên A - Z</option>
+                </select>
             </div>
         </div>
 
+        <!-- Các thẻ lọc đang hoạt động (Active Filter Chips) -->
+        @if (hasActiveFilter)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                <span class="small text-muted">Đang lọc theo:</span>
+                @if (!string.IsNullOrWhiteSpace(currentSearch))
+                {
+                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                        Từ khóa: "@currentSearch"
+                        <a asp-action="Index" asp-route-search="" asp-route-providerId="@currentProviderId" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="@currentLocation" asp-route-minRating="@currentMinRating" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (selectedProvider != null)
+                {
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small">
+                        Nhà cung cấp: @selectedProvider.FullName
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="@currentLocation" asp-route-minRating="@currentMinRating" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (!string.IsNullOrWhiteSpace(currentCategoryId))
+                {
+                    var catName = categories.FirstOrDefault(c => c.Id == currentCategoryId)?.Name ?? "Danh mục";
+                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                        @catName
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="@currentProviderId" asp-route-categoryId="" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="@currentLocation" asp-route-minRating="@currentMinRating" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (currentMinPrice.HasValue || currentMaxPrice.HasValue)
+                {
+                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                        Giá: @(currentMinPrice.HasValue ? currentMinPrice.Value.ToString("N0") : "0") - @(currentMaxPrice.HasValue ? currentMaxPrice.Value.ToString("N0") : "∞") VNĐ
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="@currentProviderId" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="" asp-route-maxPrice="" asp-route-location="@currentLocation" asp-route-minRating="@currentMinRating" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (!string.IsNullOrWhiteSpace(currentLocation))
+                {
+                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                        Địa điểm: @currentLocation
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="@currentProviderId" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="" asp-route-minRating="@currentMinRating" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (currentMinRating.HasValue)
+                {
+                    <span class="badge bg-warning-subtle text-dark border px-2 py-1 rounded-pill small">
+                        ≥ @currentMinRating sao
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="@currentProviderId" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="@currentLocation" asp-route-minRating="" asp-route-maxDistance="@currentMaxDistance" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                @if (currentMaxDistance.HasValue)
+                {
+                    <span class="badge bg-info-subtle text-dark border px-2 py-1 rounded-pill small">
+                        ≤ @currentMaxDistance km
+                        <a asp-action="Index" asp-route-search="@currentSearch" asp-route-providerId="@currentProviderId" asp-route-categoryId="@currentCategoryId" asp-route-minPrice="@currentMinPrice" asp-route-maxPrice="@currentMaxPrice" asp-route-location="@currentLocation" asp-route-minRating="@currentMinRating" asp-route-maxDistance="" asp-route-sortBy="@currentSortBy" class="text-danger ms-1 text-decoration-none">✕</a>
+                    </span>
+                }
+                <a asp-action="Index" class="btn btn-outline-danger btn-sm py-0 px-2 rounded-pill small" style="font-size: 0.75rem;">
+                    Xóa tất cả
+                </a>
+            </div>
+        }
+
+        <!-- 3. DANH SÁCH DỊCH VỤ HOẶC THÔNG BÁO KHÔNG CÓ KẾT QUẢ -->
         @if (!Model.Any())
         {
             <div class="card border-0 shadow-sm rounded-4 text-center py-5 px-4 bg-white">
-                <div class="text-muted mb-3" style="font-size: 3rem;">
-                    <i class="bi bi-search-heart"></i>
+                <div class="text-muted mb-3" style="font-size: 3.5rem;">
+                    <i class="bi bi-search-heart text-secondary"></i>
                 </div>
-                <h5 class="fw-bold text-dark">Không tìm thấy dịch vụ phù hợp</h5>
-                <p class="text-secondary small mb-3">Vui lòng thử điều chỉnh lại từ khóa hoặc xóa bớt tiêu chí lọc.</p>
+                <h5 class="fw-bold text-dark mb-2">Không tìm thấy dịch vụ hoặc nhà cung cấp nào phù hợp</h5>
+                <p class="text-secondary small mb-4" style="max-width: 500px; margin: 0 auto;">
+                    Không có kết quả nào thỏa mãn các điều kiện tìm kiếm và lọc bạn đã chọn. Vui lòng thử tìm với từ khóa khác hoặc điều chỉnh lại các tiêu chí lọc.
+                </p>
                 <div>
-                    <a asp-action="Index" class="btn btn-primary btn-sm rounded-pill px-4">
-                        Xem tất cả dịch vụ
+                    <a asp-action="Index" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Xóa Bộ Lọc & Xem Tất Cả Dịch Vụ
                     </a>
                 </div>
             </div>
@@ -96,62 +385,81 @@
                 @foreach (var item in Model)
                 {
                     <div class="col-md-6">
-                        <div class="service-card">
-                            <div class="service-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="service-card h-100 d-flex flex-column bg-white rounded-4 border-0 shadow-sm p-4 position-relative">
+                            <div class="service-card-header d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1 rounded-2">
                                         <i class="bi bi-tag-fill me-1"></i>@item.Category?.Name
                                     </span>
                                     @if (topBookedIds != null && topBookedIds.Contains(item.Id))
                                     {
-                                        <span class="badge bg-danger text-white rounded-pill px-2 py-1 small fw-semibold" title="Top 5 dịch vụ được đặt nhiều nhất 30 ngày qua">
-                                            <i class="bi bi-fire me-1"></i>Được ưa chuộng nhất
+                                        <span class="badge bg-danger text-white rounded-pill px-2 py-1 small fw-semibold" title="Top dịch vụ được đặt nhiều nhất">
+                                            <i class="bi bi-fire me-1"></i>Ưa chuộng
                                         </span>
                                     }
                                 </div>
-                                <span class="service-price-tag">@item.Price.ToString("N0") VNĐ</span>
+                                <span class="service-price-tag text-success fw-bold fs-5">@item.Price.ToString("N0") VNĐ</span>
                             </div>
 
-                            <div class="service-card-body">
-                                <h5 class="service-name">@item.Name</h5>
+                            <div class="service-card-body flex-grow-1">
+                                <h5 class="service-name fw-bold text-dark mb-2">@item.Name</h5>
+
                                 @{
-                                    var ratingMap = ViewBag.Ratings as Dictionary<string, Appointment.Models.ViewModels.RatingInfo>;
                                     Appointment.Models.ViewModels.RatingInfo? itemRating = null;
-                                    ratingMap?.TryGetValue(item.Id, out itemRating);
+                                    ratingMap.TryGetValue(item.Id, out itemRating);
+                                    double estDistance = 0;
+                                    distanceMap.TryGetValue(item.Id, out estDistance);
                                 }
-                                <div class="small mb-2">
+                                <div class="small mb-3 d-flex align-items-center gap-2">
                                     @if (itemRating != null && itemRating.Count > 0)
                                     {
                                         <partial name="_RatingStars" model="itemRating.Average" />
-                                        <strong class="ms-1">@itemRating.Average.ToString("0.0")</strong>
+                                        <strong class="text-dark">@itemRating.Average.ToString("0.0")</strong>
                                         <span class="text-muted">(@itemRating.Count đánh giá)</span>
                                     }
                                     else
                                     {
                                         <span class="text-muted"><i class="bi bi-star me-1"></i>Chưa có đánh giá</span>
                                     }
+                                    @if (estDistance > 0)
+                                    {
+                                        <span class="badge bg-light text-secondary border rounded-pill ms-auto">
+                                            <i class="bi bi-pin-map text-danger me-1"></i>~@estDistance.ToString("0.0") km
+                                        </span>
+                                    }
                                 </div>
-                                <p class="service-desc">@item.Description</p>
 
-                                <div class="service-meta-box">
-                                    <div class="service-meta-row">
-                                        <i class="bi bi-building-check"></i>
-                                        <span>Nhà cung cấp: <strong>@item.Provider?.FullName</strong></span>
+                                <p class="service-desc text-secondary small line-clamp-2 mb-3">@item.Description</p>
+
+                                <div class="service-meta-box p-3 bg-light rounded-3 mb-3 small">
+                                    <div class="service-meta-row d-flex align-items-center justify-content-between mb-2">
+                                        <span class="text-secondary">
+                                            <i class="bi bi-building me-1 text-primary"></i>Nhà cung cấp:
+                                        </span>
+                                        <a asp-action="Index" asp-route-providerId="@item.ProviderId" class="fw-bold text-primary text-decoration-none" title="Xem tất cả dịch vụ của nhà cung cấp này">
+                                            @item.Provider?.FullName <i class="bi bi-arrow-right-short"></i>
+                                        </a>
                                     </div>
-                                    <div class="service-meta-row">
-                                        <i class="bi bi-clock-history"></i>
-                                        <span>Thời lượng: <strong>@item.DurationMinutes phút</strong></span>
+                                    <div class="service-meta-row d-flex align-items-center justify-content-between mb-2">
+                                        <span class="text-secondary">
+                                            <i class="bi bi-clock-history me-1 text-secondary"></i>Thời lượng:
+                                        </span>
+                                        <span class="fw-semibold text-dark">@item.DurationMinutes phút</span>
                                     </div>
-                                    <div class="service-meta-row">
-                                        <i class="bi bi-geo-alt-fill text-danger"></i>
-                                        <span class="text-truncate">Địa điểm: <strong>@item.Location</strong></span>
+                                    <div class="service-meta-row d-flex align-items-center justify-content-between">
+                                        <span class="text-secondary">
+                                            <i class="bi bi-geo-alt-fill me-1 text-danger"></i>Địa điểm:
+                                        </span>
+                                        <span class="fw-semibold text-dark text-truncate text-end ms-2" style="max-width: 170px;" title="@item.Location">
+                                            @item.Location
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="service-card-footer">
-                                <a asp-action="Details" asp-route-id="@item.Id" class="btn-book-service">
-                                    <i class="bi bi-calendar2-check"></i> Xem Lịch Trống & Đặt
+                            <div class="service-card-footer mt-auto pt-2">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                                    <i class="bi bi-calendar2-check"></i> Xem Lịch Trống & Đặt Hẹn
                                 </a>
                             </div>
                         </div>
@@ -161,3 +469,40 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function updateSort(val) {
+            const form = document.getElementById('filterForm');
+            const sortInput = form.querySelector('select[name="sortBy"]');
+            if (sortInput) {
+                sortInput.value = val;
+            }
+            form.submit();
+        }
+
+        function detectUserLocation() {
+            const statusDiv = document.getElementById('locationStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-1 text-primary"></span> Đang xác định vị trí...';
+
+            if (!navigator.geolocation) {
+                statusDiv.innerHTML = '<span class="text-danger">Trình duyệt không hỗ trợ Geolocation.</span>';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    document.getElementById('userLatInput').value = position.coords.latitude;
+                    document.getElementById('userLngInput').value = position.coords.longitude;
+                    statusDiv.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Đã nhận diện tọa độ! Đang tải lại...</span>';
+                    document.getElementById('filterForm').submit();
+                },
+                function (error) {
+                    statusDiv.innerHTML = '<span class="text-warning">Không thể lấy tọa độ. Vui lòng nhập tay địa điểm.</span>';
+                },
+                { timeout: 8000 }
+            );
+        }
+    </script>
+}
