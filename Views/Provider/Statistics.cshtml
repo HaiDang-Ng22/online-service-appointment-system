@@ -1,0 +1,475 @@
+@using System.Text.Json
+@model Appointment.Models.ViewModels.ProviderStatsViewModel
+@{
+    ViewData["Title"] = "Thống kê doanh thu & hiệu suất";
+
+    string Money(decimal v) => v.ToString("N0") + " ₫";
+
+    // Chuyển đổi bộ lọc hiện tại thành route-data để giữ nguyên khi bấm nút / xuất CSV
+    Dictionary<string, string> FilterRoute()
+    {
+        var d = new Dictionary<string, string> { ["range"] = Model.RangeKey };
+        if (Model.RangeKey == "custom")
+        {
+            d["from"] = Model.From.ToString("yyyy-MM-dd");
+            d["to"] = Model.To.ToString("yyyy-MM-dd");
+        }
+        if (!string.IsNullOrEmpty(Model.ServiceId)) d["serviceId"] = Model.ServiceId!;
+        if (Model.IsAdmin && !string.IsNullOrEmpty(Model.ProviderId)) d["providerId"] = Model.ProviderId!;
+        return d;
+    }
+
+    var ranges = new (string Key, string Label)[]
+    {
+        ("today", "Hôm nay"),
+        ("7d", "7 ngày qua"),
+        ("30d", "30 ngày qua"),
+        ("month", "Tháng này"),
+        ("lastmonth", "Tháng trước"),
+        ("quarter", "Quý này"),
+        ("year", "Năm nay"),
+        ("custom", "Tùy chọn...")
+    };
+
+    // Dữ liệu cho biểu đồ (System.Text.Json tự escape ký tự HTML nên an toàn khi nhúng vào <script>)
+    var chartData = new
+    {
+        labels = Model.Series.Select(p => p.Label).ToArray(),
+        revenue = Model.Series.Select(p => p.Revenue).ToArray(),
+        completed = Model.Series.Select(p => p.Completed).ToArray(),
+        statusLabels = new[] { "Hoàn thành", "Đã xác nhận", "Đang thực hiện", "Chờ xác nhận", "Đã hủy" },
+        statusValues = new[] { Model.CompletedCount, Model.ConfirmedCount, Model.InProgressCount, Model.PendingCount, Model.CancelledCount },
+        weekdayLabels = new[] { "T2", "T3", "T4", "T5", "T6", "T7", "CN" },
+        weekdayValues = Model.ByWeekday,
+        hourLabels = Model.HourLabels.ToArray(),
+        hourValues = Model.HourCounts.ToArray(),
+        methodLabels = Model.PaymentByMethod.Keys.ToArray(),
+        methodValues = Model.PaymentByMethod.Values.ToArray()
+    };
+    string chartJson = JsonSerializer.Serialize(chartData);
+
+    void GrowthBadge(double? g)
+    {
+        if (g == null)
+        {
+            <span class="badge bg-light text-secondary border fw-semibold">Chưa có kỳ trước để so sánh</span>
+        }
+        else if (g >= 0)
+        {
+            <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold"><i class="bi bi-arrow-up-right me-1"></i>@g.Value.ToString("0.#")%</span>
+        }
+        else
+        {
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold"><i class="bi bi-arrow-down-right me-1"></i>@Math.Abs(g.Value).ToString("0.#")%</span>
+        }
+    }
+}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Thống Kê Doanh Thu &amp; Hiệu Suất
+        </h3>
+        <p class="text-secondary small mb-0">
+            <span class="fw-semibold text-dark">@Model.ScopeName</span> ·
+            Kỳ <strong>@Model.From.ToString("dd/MM/yyyy")</strong> – <strong>@Model.To.ToString("dd/MM/yyyy")</strong>
+            · so sánh với kỳ trước (@Model.PrevFrom.ToString("dd/MM") – @Model.PrevTo.ToString("dd/MM/yyyy"))
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="ExportStatistics" asp-all-route-data="FilterRoute()" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+            <i class="bi bi-filetype-csv me-1"></i>Xuất CSV
+        </a>
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>In báo cáo
+        </button>
+    </div>
+</div>
+
+<!-- Bộ lọc -->
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form asp-action="Statistics" method="get" class="row g-2 align-items-end" id="statsFilterForm">
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Khoảng thời gian</label>
+            <select name="range" id="rangeSelect" class="form-select">
+                @foreach (var r in ranges)
+                {
+                    <option value="@r.Key" selected="@(Model.RangeKey == r.Key)">@r.Label</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2 custom-range">
+            <label class="form-label small fw-semibold mb-1">Từ ngày</label>
+            <input type="date" name="from" class="form-control" value="@Model.From.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-6 col-md-2 custom-range">
+            <label class="form-label small fw-semibold mb-1">Đến ngày</label>
+            <input type="date" name="to" class="form-control" value="@Model.To.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Dịch vụ</label>
+            <select name="serviceId" class="form-select">
+                <option value="">Tất cả dịch vụ</option>
+                @foreach (var s in Model.Services)
+                {
+                    <option value="@s.Value" selected="@s.Selected">@s.Text</option>
+                }
+            </select>
+        </div>
+        @if (Model.IsAdmin)
+        {
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Nhà cung cấp</label>
+                <select name="providerId" class="form-select">
+                    <option value="">Toàn hệ thống</option>
+                    @foreach (var p in Model.Providers)
+                    {
+                        <option value="@p.Value" selected="@p.Selected">@p.Text</option>
+                    }
+                </select>
+            </div>
+        }
+        <div class="col-6 col-md-2">
+            <button type="submit" class="btn btn-primary fw-bold w-100"><i class="bi bi-funnel-fill me-1"></i>Xem</button>
+        </div>
+    </form>
+</div>
+
+<!-- KPI chính -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card p-3 h-100 flex-column align-items-start gap-2">
+            <div class="d-flex align-items-center gap-3 w-100">
+                <div class="stat-icon success" style="width: 44px; height: 44px; font-size: 1.2rem;"><i class="bi bi-cash-coin"></i></div>
+                <div>
+                    <div class="stat-number fs-4">@Money(Model.RealizedRevenue)</div>
+                    <div class="stat-label small">Doanh thu ghi nhận</div>
+                </div>
+            </div>
+            <div class="small text-secondary">@{ GrowthBadge(Model.RevenueGrowthPct); } <span class="ms-1">kỳ trước: @Money(Model.PrevRealizedRevenue)</span></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card p-3 h-100 flex-column align-items-start gap-2">
+            <div class="d-flex align-items-center gap-3 w-100">
+                <div class="stat-icon primary" style="width: 44px; height: 44px; font-size: 1.2rem;"><i class="bi bi-credit-card-2-front-fill"></i></div>
+                <div>
+                    <div class="stat-number fs-4">@Money(Model.CollectedNet)</div>
+                    <div class="stat-label small">Đã thu online (ròng)</div>
+                </div>
+            </div>
+            <div class="small text-secondary">Thu @Money(Model.CollectedGross) · hoàn @Money(Model.RefundedAmount)</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card p-3 h-100 flex-column align-items-start gap-2">
+            <div class="d-flex align-items-center gap-3 w-100">
+                <div class="stat-icon warning" style="width: 44px; height: 44px; font-size: 1.2rem;"><i class="bi bi-hourglass-split"></i></div>
+                <div>
+                    <div class="stat-number fs-4">@Money(Model.ExpectedRevenue)</div>
+                    <div class="stat-label small">Doanh thu dự kiến</div>
+                </div>
+            </div>
+            <div class="small text-secondary">Lịch chờ xác nhận / đã xác nhận / đang thực hiện</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card p-3 h-100 flex-column align-items-start gap-2">
+            <div class="d-flex align-items-center gap-3 w-100">
+                <div class="stat-icon" style="width: 44px; height: 44px; font-size: 1.2rem; background: #fee2e2; color: #dc2626;"><i class="bi bi-x-octagon-fill"></i></div>
+                <div>
+                    <div class="stat-number fs-4">@Money(Model.LostRevenue)</div>
+                    <div class="stat-label small">Thất thoát do hủy lịch</div>
+                </div>
+            </div>
+            <div class="small text-secondary">@Model.CancelledCount lịch bị hủy (@Model.CancelRate.ToString("0.#")%)</div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI hiệu suất -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Tổng lịch hẹn</div>
+            <div class="fs-3 fw-bold text-dark">@Model.TotalAppointments</div>
+            <div class="small">@{ GrowthBadge(Model.AppointmentGrowthPct); }</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Tỷ lệ hoàn thành</div>
+            <div class="fs-3 fw-bold text-success">@Model.CompletionRate.ToString("0.#")%</div>
+            <div class="progress" style="height: 6px;"><div class="progress-bar bg-success" style="width: @Model.CompletionRate.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+            <div class="small text-secondary mt-1">@Model.CompletedCount / @Model.TotalAppointments lịch</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Giá trị trung bình / lịch</div>
+            <div class="fs-3 fw-bold text-dark">@Money(Model.AvgRevenuePerCompleted)</div>
+            <div class="small text-secondary">Tính trên lịch hoàn thành</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Đánh giá trung bình</div>
+            <div class="fs-3 fw-bold text-warning-emphasis">
+                @if (Model.AvgRating.HasValue)
+                {
+                    <i class="bi bi-star-fill text-warning me-1"></i>@Model.AvgRating.Value.ToString("0.0")
+                }
+                else
+                {
+                    <span class="text-secondary fs-5">Chưa có</span>
+                }
+            </div>
+            <div class="small text-secondary">@Model.ReviewCount đánh giá trong kỳ</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Khách hàng</div>
+            <div class="fs-3 fw-bold text-dark">@Model.UniqueCustomers</div>
+            <div class="small text-secondary">@Model.NewCustomers mới · @Model.ReturningCustomers quay lại</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Ngày đông khách nhất</div>
+            <div class="fs-3 fw-bold text-dark">@(Model.BusiestDay ?? "—")</div>
+            <div class="small text-secondary">Theo số lịch không bị hủy</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Giờ cao điểm</div>
+            <div class="fs-3 fw-bold text-dark">@(Model.PeakHour ?? "—")</div>
+            <div class="small text-secondary">Khung giờ bắt đầu nhiều lịch nhất</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+            <div class="text-secondary small fw-semibold">Trạng thái lịch</div>
+            <div class="small mt-1">
+                <span class="badge bg-success-subtle text-success border border-success-subtle me-1">@Model.CompletedCount hoàn thành</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">@(Model.ConfirmedCount + Model.InProgressCount) đang xử lý</span>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle me-1">@Model.PendingCount chờ</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Biểu đồ -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow text-primary me-1"></i>Doanh thu theo @(Model.Granularity == "day" ? "ngày" : "tháng")</h6>
+            <div style="position: relative; height: 320px;"><canvas id="revenueChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-primary me-1"></i>Cơ cấu trạng thái lịch hẹn</h6>
+            <div style="position: relative; height: 320px;"><canvas id="statusChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week text-primary me-1"></i>Lịch hẹn theo thứ trong tuần</h6>
+            <div style="position: relative; height: 240px;"><canvas id="weekdayChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold mb-3"><i class="bi bi-clock text-primary me-1"></i>Lịch hẹn theo khung giờ</h6>
+            <div style="position: relative; height: 240px;"><canvas id="hourChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold mb-3"><i class="bi bi-wallet2 text-primary me-1"></i>Thu online theo phương thức</h6>
+            @if (Model.PaymentByMethod.Count == 0)
+            {
+                <div class="text-secondary small py-5 text-center">Chưa có giao dịch thanh toán online trong kỳ.</div>
+            }
+            else
+            {
+                <div style="position: relative; height: 240px;"><canvas id="methodChart"></canvas></div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Bảng chi tiết -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white h-100">
+            <div class="card-header bg-white py-3 px-4"><h6 class="fw-bold mb-0"><i class="bi bi-trophy-fill text-warning me-1"></i>Dịch vụ hiệu quả nhất (theo doanh thu)</h6></div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Dịch vụ</th>
+                            <th class="text-end">Lịch</th>
+                            <th class="text-end">Hoàn thành</th>
+                            <th class="text-end">Hủy</th>
+                            <th class="text-end">Doanh thu</th>
+                            <th style="width: 130px;">Tỷ trọng</th>
+                            <th class="text-end">Đánh giá</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.TopServices.Any())
+                        {
+                            <tr><td colspan="7" class="text-center text-secondary py-4">Không có lịch hẹn nào trong kỳ này.</td></tr>
+                        }
+                        @foreach (var sv in Model.TopServices)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@sv.Name</td>
+                                <td class="text-end">@sv.Total</td>
+                                <td class="text-end text-success">@sv.Completed</td>
+                                <td class="text-end text-danger">@sv.Cancelled</td>
+                                <td class="text-end fw-bold">@Money(sv.Revenue)</td>
+                                <td>
+                                    <div class="progress" style="height: 6px;"><div class="progress-bar" style="width: @sv.SharePercent.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+                                    <small class="text-secondary">@sv.SharePercent.ToString("0.#")%</small>
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    @if (sv.AvgRating.HasValue)
+                                    {
+                                        <i class="bi bi-star-fill text-warning"></i> @sv.AvgRating.Value.ToString("0.0") <small class="text-secondary">(@sv.ReviewCount)</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white h-100">
+            <div class="card-header bg-white py-3 px-4"><h6 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-1"></i>Top khách hàng</h6></div>
+            <ul class="list-group list-group-flush">
+                @if (!Model.TopCustomers.Any())
+                {
+                    <li class="list-group-item text-center text-secondary py-4">Chưa có lịch hoàn thành trong kỳ.</li>
+                }
+                @{ int rank = 0; }
+                @foreach (var c in Model.TopCustomers)
+                {
+                    rank++;
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill bg-primary-subtle text-primary">@rank</span>
+                            <div>
+                                <div class="fw-semibold">@c.Name</div>
+                                <small class="text-secondary">@c.Count lịch hoàn thành</small>
+                            </div>
+                        </div>
+                        <div class="fw-bold text-nowrap">@Money(c.Spent)</div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-light border small text-secondary">
+    <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle me-1"></i>Cách tính số liệu</div>
+    <ul class="mb-0 ps-3">
+        <li><strong>Doanh thu ghi nhận</strong>: tổng giá dịch vụ của các lịch hẹn <em>đã hoàn thành</em> có ngày hẹn trong kỳ.</li>
+        <li><strong>Đã thu online (ròng)</strong>: tiền khách thanh toán / đặt cọc online phát sinh trong kỳ, trừ các khoản đã hoàn do hủy lịch. Tiền mặt thu tại quầy không nằm trong mục này.</li>
+        <li><strong>Doanh thu dự kiến</strong>: lịch còn hiệu lực (chờ xác nhận, đã xác nhận, đang thực hiện); <strong>Thất thoát</strong>: lịch đã bị hủy.</li>
+        <li>Khách <em>quay lại</em> là khách đã từng có lịch (không bị hủy) với nhà cung cấp trước đầu kỳ này.</li>
+    </ul>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // Bộ lọc: chỉ hiện ô chọn ngày khi chọn "Tùy chọn..."
+            var rangeSelect = document.getElementById('rangeSelect');
+            var customBoxes = document.querySelectorAll('.custom-range');
+            function toggleCustom() {
+                var isCustom = rangeSelect.value === 'custom';
+                customBoxes.forEach(function (el) { el.style.display = isCustom ? '' : 'none'; });
+            }
+            rangeSelect.addEventListener('change', function () {
+                toggleCustom();
+                if (rangeSelect.value !== 'custom') document.getElementById('statsFilterForm').submit();
+            });
+            toggleCustom();
+
+            if (typeof Chart === 'undefined') { return; }
+
+            var data = @Html.Raw(chartJson);
+            var vnd = function (v) { return Number(v).toLocaleString('vi-VN') + ' ₫'; };
+            Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+            Chart.defaults.maintainAspectRatio = false;
+
+            // Doanh thu + số lịch hoàn thành
+            new Chart(document.getElementById('revenueChart'), {
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        { type: 'bar', label: 'Doanh thu (₫)', data: data.revenue, backgroundColor: 'rgba(37, 99, 235, 0.75)', borderRadius: 6, yAxisID: 'y' },
+                        { type: 'line', label: 'Lịch hoàn thành', data: data.completed, borderColor: '#059669', backgroundColor: '#059669', tension: 0.3, pointRadius: 3, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.yAxisID === 'y' ? ' Doanh thu: ' + vnd(ctx.parsed.y) : ' Hoàn thành: ' + ctx.parsed.y + ' lịch'; } } } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: function (v) { return Number(v).toLocaleString('vi-VN'); } } },
+                        y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+                    }
+                }
+            });
+
+            // Trạng thái
+            new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: { labels: data.statusLabels, datasets: [{ data: data.statusValues, backgroundColor: ['#059669', '#2563eb', '#0ea5e9', '#f59e0b', '#94a3b8'], borderWidth: 2 }] },
+                options: { plugins: { legend: { position: 'bottom' } }, cutout: '62%' }
+            });
+
+            // Theo thứ
+            new Chart(document.getElementById('weekdayChart'), {
+                type: 'bar',
+                data: { labels: data.weekdayLabels, datasets: [{ label: 'Số lịch', data: data.weekdayValues, backgroundColor: 'rgba(14, 165, 233, 0.8)', borderRadius: 6 }] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            });
+
+            // Theo giờ
+            new Chart(document.getElementById('hourChart'), {
+                type: 'bar',
+                data: { labels: data.hourLabels, datasets: [{ label: 'Số lịch', data: data.hourValues, backgroundColor: 'rgba(245, 158, 11, 0.85)', borderRadius: 6 }] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            });
+
+            // Phương thức thanh toán
+            var methodCanvas = document.getElementById('methodChart');
+            if (methodCanvas) {
+                new Chart(methodCanvas, {
+                    type: 'doughnut',
+                    data: { labels: data.methodLabels, datasets: [{ data: data.methodValues, backgroundColor: ['#2563eb', '#059669', '#f59e0b', '#8b5cf6'], borderWidth: 2 }] },
+                    options: {
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.label + ': ' + vnd(ctx.parsed); } } }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
+        })();
+    </script>
+}

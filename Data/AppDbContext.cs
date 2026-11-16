@@ -18,6 +18,7 @@ namespace Appointment.Data
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = null!;
         public DbSet<Review> Reviews { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -115,6 +116,11 @@ namespace Appointment.Data
 
             modelBuilder.Entity<Payment>()
                 .HasIndex(p => p.AppointmentId);
+
+            // US-43: Nhật ký kiểm toán & bảo mật
+            modelBuilder.Entity<AuditLog>().HasIndex(l => l.CreatedAt);
+            modelBuilder.Entity<AuditLog>().HasIndex(l => l.UserId);
+            modelBuilder.Entity<AuditLog>().HasIndex(l => new { l.Action, l.UserEmail, l.CreatedAt });
         }
     }
 }

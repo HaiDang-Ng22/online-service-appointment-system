@@ -200,6 +200,25 @@ Ngày: 20/09/2026
 
 ---
 
+# 🆕 Chức năng bổ sung đợt 2 (US-32, US-38, US-43)
+
+| Chức năng | Mô tả | Vị trí chính |
+|---|---|---|
+| US-32 QR Check-in & phiếu hẹn PDF | Mã QR **có chữ ký HMAC** (`APX:{id}:{chữ ký}`) tạo ngay trên máy chủ (không gọi dịch vụ ngoài); tải phiếu hẹn PDF A5 (có QR, thanh toán, tiếng Việt đầy đủ); Staff quét ở `/Staff/ScanQR` – mã giả mạo bị từ chối và ghi log | `AppointmentsController.QrCode/DownloadSlip`, `Infrastructure/CheckInCodeService.cs`, `QrCodeService.cs`, `AppointmentSlipPdfService.cs`, thư mục `Fonts/` |
+| US-38 Thống kê doanh thu Provider | `/Provider/Statistics`: lọc theo kỳ (hôm nay → năm nay, tùy chọn) & dịch vụ; doanh thu ghi nhận / đã thu online / dự kiến / thất thoát, so sánh kỳ trước, tỷ lệ hoàn thành & hủy, khách mới – quay lại, top dịch vụ, top khách, biểu đồ theo ngày/tháng, thứ, giờ, phương thức thanh toán; xuất CSV. Admin xem được từng Provider hoặc toàn hệ thống | `ProviderController.Statistics/ExportStatistics`, `Views/Provider/Statistics.cshtml` |
+| US-43 Nhật ký kiểm toán & bảo mật | `/Admin/AuditLogs`: ghi đăng nhập/đăng xuất, đổi mật khẩu, đặt/hủy/đổi trạng thái lịch, check-in, thanh toán/hoàn tiền, đánh giá, dịch vụ, phân quyền, truy cập bị từ chối…; lọc, phân trang, xuất CSV; **chỉ ghi thêm** + nối chuỗi SHA-256 và nút *Kiểm tra toàn vẹn*; khóa tạm thời khi đăng nhập sai nhiều lần; HTTP security headers; cookie HttpOnly/SameSite | `Infrastructure/AuditService.cs`, `Models/AuditLog.cs`, `AdminController.AuditLogs` |
+
+Cấu hình mới trong `appsettings.json`:
+
+```json
+"Security": { "MaxFailedLogins": 5, "LockoutMinutes": 15, "MaxFailedLoginsPerIp": 30 },
+"CheckIn":  { "SecretKey": "đổi-thành-chuỗi-bí-mật-của-bạn" }
+```
+
+> Bảng `AuditLogs` được tạo tự động khi chạy ứng dụng (cả CSDL mới lẫn CSDL cũ). Thư viện mới: `QRCoder`, `QuestPDF` (Community License – miễn phí cho dự án học tập / doanh thu < 1 triệu USD/năm).
+
+---
+
 # 🤖 Bộ Chức Năng AI & Quản Lý API Key (Sprint 5)
 
 | Mã US | Tên Chức Năng | Mô Tả & Điểm Chạm UI |

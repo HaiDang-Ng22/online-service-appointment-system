@@ -1,5 +1,8 @@
 using Appointment.Data;
+using System.Globalization;
+using System.Text;
 using Appointment.Helpers;
+using Appointment.Infrastructure;
 using Appointment.Models;
 using Appointment.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -12,10 +15,12 @@ namespace Appointment.Controllers
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IAuditService _audit;
 
-        public AdminController(AppDbContext context)
+        public AdminController(AppDbContext context, IAuditService audit)
         {
             _context = context;
+            _audit = audit;
         }
 
         // GET: /Admin
@@ -111,6 +116,10 @@ namespace Appointment.Controllers
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.UserCreated,
+                $"Admin tạo tài khoản {newUser.Email} với vai trò {newUser.Role}.", "User", newUser.Id,
+                severity: newUser.Role == "Admin" ? AuditLog.SeverityCritical : AuditLog.SeverityWarning);
+
             TempData["SuccessMessage"] = $"Tạo tài khoản {newUser.FullName} ({newUser.Role}) thành công!";
             return RedirectToAction(nameof(Users));
         }
@@ -126,6 +135,10 @@ namespace Appointment.Controllers
             user.IsActive = !user.IsActive;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(user.IsActive ? AuditActions.UserUnlocked : AuditActions.UserLocked,
+                $"Admin {(user.IsActive ? "mở khóa" : "khóa")} tài khoản {user.Email} ({user.Role}).", "User", user.Id,
+                severity: AuditLog.SeverityWarning);
 
             TempData["SuccessMessage"] = $"Đã {(user.IsActive ? "kích hoạt" : "khóa")} tài khoản {user.Email}.";
             return RedirectToAction(nameof(Users));
@@ -154,6 +167,8 @@ namespace Appointment.Controllers
             model.Id = Guid.NewGuid().ToString("N");
             _context.Categories.Add(model);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.CategoryCreated, $"Thêm danh mục '{model.Name}'.", "Category", model.Id);
 
             TempData["SuccessMessage"] = "Đã thêm danh mục mới!";
             return RedirectToAction(nameof(Categories));
@@ -190,6 +205,8 @@ namespace Appointment.Controllers
             _context.Categories.Update(category);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.CategoryUpdated, $"Sửa danh mục '{category.Name}'.", "Category", category.Id);
+
             TempData["SuccessMessage"] = "Cập nhật danh mục thành công!";
             return RedirectToAction(nameof(Categories));
         }
@@ -202,11 +219,174 @@ namespace Appointment.Controllers
             var category = await _context.Categories.FindAsync(id);
             if (category == null) return NotFound();
 
+            string deletedName = category.Name;
             _context.Categories.Remove(category);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.CategoryDeleted, $"Xóa danh mục '{deletedName}'.", "Category", id,
+                severity: AuditLog.SeverityWarning);
+
             TempData["SuccessMessage"] = "Đã xóa danh mục thành công.";
             return RedirectToAction(nameof(Categories));
+        }
+
+        // =====================================================================
+        // US-43: Nhật ký kiểm toán & bảo mật (chỉ Admin, chỉ đọc – không có chức năng sửa / xóa)
+        // =====================================================================
+
+        private const int AuditPageSize = 25;
+
+        // GET: /Admin/AuditLogs
+        [HttpGet]
+        public async Task<IActionResult> AuditLogs(AuditLogFilter filter)
+        {
+            filter ??= new AuditLogFilter();
+            if (filter.Page < 1) filter.Page = 1;
+
+            var query = ApplyAuditFilter(_context.AuditLogs.AsNoTracking(), filter);
+
+            int total = await query.CountAsync();
+            int totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)AuditPageSize));
+            if (filter.Page > totalPages) filter.Page = totalPages;
+
+            var items = await query
+                .OrderByDescending(l => l.Id)
+                .Skip((filter.Page - 1) * AuditPageSize)
+                .Take(AuditPageSize)
+                .ToListAsync();
+
+            var since = DateTime.UtcNow.AddHours(-24);
+            var model = new AuditLogListViewModel
+            {
+                Filter = filter,
+                Items = items,
+                Total = total,
+                Page = filter.Page,
+                PageSize = AuditPageSize,
+                TotalAllTime = await _context.AuditLogs.CountAsync(),
+                EventsLast24h = await _context.AuditLogs.CountAsync(l => l.CreatedAt >= since),
+                FailedLoginsLast24h = await _context.AuditLogs.CountAsync(l => l.Action == AuditActions.LoginFailed && l.CreatedAt >= since),
+                LockoutsLast24h = await _context.AuditLogs.CountAsync(l => l.Action == AuditActions.LoginLocked && l.CreatedAt >= since),
+                AccessDeniedLast24h = await _context.AuditLogs.CountAsync(l => l.Action == AuditActions.AccessDenied && l.CreatedAt >= since),
+                CriticalLast24h = await _context.AuditLogs.CountAsync(l => l.Severity == AuditLog.SeverityCritical && l.CreatedAt >= since)
+            };
+
+            return View(model);
+        }
+
+        // GET: /Admin/ExportAuditLogs  (CSV – mở được bằng Excel)
+        [HttpGet]
+        public async Task<IActionResult> ExportAuditLogs(AuditLogFilter filter)
+        {
+            filter ??= new AuditLogFilter();
+
+            var rows = await ApplyAuditFilter(_context.AuditLogs.AsNoTracking(), filter)
+                .OrderByDescending(l => l.Id)
+                .Take(50000)
+                .ToListAsync();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Id,Thời gian (UTC+7),Người dùng,Email,Vai trò,Hành động,Nhóm,Đối tượng,Mã đối tượng,Mô tả,Mức độ,Kết quả,IP,Yêu cầu,Hash");
+            foreach (var l in rows)
+            {
+                var localTime = DateTime.SpecifyKind(l.CreatedAt, DateTimeKind.Utc).AddHours(7);
+                sb.AppendLine(string.Join(",",
+                    l.Id.ToString(CultureInfo.InvariantCulture),
+                    Csv(localTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+                    Csv(l.UserName),
+                    Csv(l.UserEmail),
+                    Csv(l.UserRole),
+                    Csv(AuditActions.LabelOf(l.Action)),
+                    Csv(l.Category),
+                    Csv(l.EntityType),
+                    Csv(l.EntityId),
+                    Csv(l.Description),
+                    Csv(l.Severity),
+                    Csv(l.Success ? "Thành công" : "Thất bại"),
+                    Csv(l.IpAddress),
+                    Csv(l.RequestPath),
+                    Csv(l.Hash)));
+            }
+
+            await _audit.LogAsync(AuditActions.AuditExported, $"Xuất {rows.Count:N0} dòng nhật ký kiểm toán ra CSV.", "AuditLog", null,
+                severity: AuditLog.SeverityWarning);
+
+            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(sb.ToString());
+            return File(bytes, "text/csv; charset=utf-8", $"audit-log-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+        }
+
+        // POST: /Admin/VerifyAuditChain
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyAuditChain()
+        {
+            var result = await _audit.VerifyChainAsync();
+
+            await _audit.LogAsync(AuditActions.AuditVerified,
+                $"Kiểm tra toàn vẹn nhật ký: {(result.IsValid ? "HỢP LỆ" : "PHÁT HIỆN BẤT THƯỜNG")} - {result.Message}",
+                "AuditLog", result.FirstBrokenId?.ToString(CultureInfo.InvariantCulture),
+                success: result.IsValid,
+                severity: result.IsValid ? AuditLog.SeverityInfo : AuditLog.SeverityCritical);
+
+            if (result.IsValid)
+                TempData["SuccessMessage"] = result.Message;
+            else
+                TempData["ErrorMessage"] = result.Message;
+
+            return RedirectToAction(nameof(AuditLogs));
+        }
+
+        private static IQueryable<AuditLog> ApplyAuditFilter(IQueryable<AuditLog> query, AuditLogFilter f)
+        {
+            if (!string.IsNullOrWhiteSpace(f.Category))
+                query = query.Where(l => l.Category == f.Category);
+
+            if (!string.IsNullOrWhiteSpace(f.EventCode))
+                query = query.Where(l => l.Action == f.EventCode);
+
+            if (!string.IsNullOrWhiteSpace(f.Severity))
+                query = query.Where(l => l.Severity == f.Severity);
+
+            if (!string.IsNullOrWhiteSpace(f.Role))
+                query = query.Where(l => l.UserRole == f.Role);
+
+            if (f.Result == "success")
+                query = query.Where(l => l.Success);
+            else if (f.Result == "failed")
+                query = query.Where(l => !l.Success);
+
+            if (f.From.HasValue)
+            {
+                var fromUtc = DateTime.SpecifyKind(f.From.Value.Date, DateTimeKind.Local).ToUniversalTime();
+                query = query.Where(l => l.CreatedAt >= fromUtc);
+            }
+
+            if (f.To.HasValue)
+            {
+                var toUtc = DateTime.SpecifyKind(f.To.Value.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
+                query = query.Where(l => l.CreatedAt < toUtc);
+            }
+
+            if (!string.IsNullOrWhiteSpace(f.Q))
+            {
+                var term = f.Q.Trim().ToLower();
+                query = query.Where(l => l.Description.ToLower().Contains(term)
+                                      || (l.UserName != null && l.UserName.ToLower().Contains(term))
+                                      || (l.UserEmail != null && l.UserEmail.ToLower().Contains(term))
+                                      || (l.EntityId != null && l.EntityId.ToLower().Contains(term))
+                                      || (l.IpAddress != null && l.IpAddress.Contains(term)));
+            }
+
+            return query;
+        }
+
+        /// <summary>Escape một ô CSV; chặn CSV-injection khi mở bằng Excel (ô bắt đầu bằng = + - @).</summary>
+        private static string Csv(string? value)
+        {
+            if (string.IsNullOrEmpty(value)) return "\"\"";
+            var v = value;
+            if (v[0] is '=' or '+' or '-' or '@') v = "'" + v;
+            return "\"" + v.Replace("\"", "\"\"") + "\"";
         }
     }
 }

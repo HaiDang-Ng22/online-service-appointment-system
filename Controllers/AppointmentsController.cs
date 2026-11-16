@@ -16,12 +16,21 @@ namespace Appointment.Controllers
         private readonly AppDbContext _context;
         private readonly PaymentService _paymentService;
         private readonly BookingRulesOptions _rules;
+        private readonly IAuditService _audit;
+        private readonly CheckInCodeService _checkInCodes;
+        private readonly QrCodeService _qr;
+        private readonly AppointmentSlipPdfService _slipPdf;
 
-        public AppointmentsController(AppDbContext context, PaymentService paymentService, IOptions<BookingRulesOptions> rules)
+        public AppointmentsController(AppDbContext context, PaymentService paymentService, IOptions<BookingRulesOptions> rules,
+            IAuditService audit, CheckInCodeService checkInCodes, QrCodeService qr, AppointmentSlipPdfService slipPdf)
         {
             _context = context;
             _paymentService = paymentService;
             _rules = rules.Value;
+            _audit = audit;
+            _checkInCodes = checkInCodes;
+            _qr = qr;
+            _slipPdf = slipPdf;
         }
 
         // GET: /Appointments
@@ -148,6 +157,10 @@ namespace Appointment.Controllers
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.AppointmentCreated,
+                $"Đặt lịch '{service.Name}' ngày {appointment.AppointmentDate:dd/MM/yyyy} lúc {startTime:hh\\:mm}.",
+                "Appointment", appointment.Id);
+
             // US-28: chuyển sang bước thanh toán / đặt cọc (khách có thể chọn "thanh toán sau")
             if (service.Price > 0)
             {
@@ -222,6 +235,84 @@ namespace Appointment.Controllers
             return View(appointment);
         }
 
+        // =====================================================================
+        // US-32: Mã QR check-in & xuất phiếu hẹn PDF
+        // =====================================================================
+
+        // GET: /Appointments/QrCode/abc  -> ảnh PNG mã QR check-in có chữ ký
+        [HttpGet]
+        public async Task<IActionResult> QrCode(string id)
+        {
+            var (appointment, error) = await LoadForSlipAsync(id);
+            if (appointment == null) return error!;
+
+            if (appointment.Status == AppointmentRules.Cancelled)
+            {
+                return NotFound(); // lịch đã hủy không còn mã check-in
+            }
+
+            var png = _qr.GeneratePng(_checkInCodes.BuildPayload(appointment.Id), 10);
+
+            // Mã QR chứa thông tin của lịch hẹn nên không cho trình duyệt / proxy lưu cache
+            Response.Headers["Cache-Control"] = "private, no-store";
+            return File(png, "image/png");
+        }
+
+        // GET: /Appointments/DownloadSlip/abc  -> tải phiếu hẹn PDF
+        [HttpGet]
+        public async Task<IActionResult> DownloadSlip(string id)
+        {
+            var (appointment, error) = await LoadForSlipAsync(id);
+            if (appointment == null) return error!;
+
+            var summary = await _paymentService.GetSummaryAsync(appointment);
+            byte[]? qr = appointment.Status == AppointmentRules.Cancelled
+                ? null
+                : _qr.GeneratePng(_checkInCodes.BuildPayload(appointment.Id), 8);
+
+            string shortCode = CheckInCodeService.ShortCode(appointment.Id);
+            byte[] pdf;
+            try
+            {
+                pdf = _slipPdf.Generate(appointment, summary, qr, shortCode);
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Không thể tạo phiếu hẹn PDF: {ex.Message}";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            await _audit.LogAsync(AuditActions.AppointmentSlipDownloaded,
+                $"Tải phiếu hẹn PDF {shortCode}.", "Appointment", appointment.Id);
+
+            Response.Headers["Cache-Control"] = "private, no-store";
+            return File(pdf, "application/pdf", $"PhieuHen-{shortCode}.pdf");
+        }
+
+        /// <summary>Nạp lịch hẹn kèm phân quyền: Customer chỉ xem của mình, Provider chỉ xem của mình, Staff/Admin xem tất cả.</summary>
+        private async Task<(AppointmentModel? Appointment, IActionResult? Error)> LoadForSlipAsync(string? id)
+        {
+            if (string.IsNullOrEmpty(id)) return (null, NotFound());
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return (null, Unauthorized());
+
+            var appointment = await _context.Appointments
+                .Include(a => a.Service)
+                .Include(a => a.Provider)
+                .Include(a => a.Customer)
+                .Include(a => a.Staff)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (appointment == null) return (null, NotFound());
+
+            string role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+            if (role == "Customer" && appointment.CustomerId != userId) return (null, Forbid());
+            if (role == "Provider" && appointment.ProviderId != userId) return (null, Forbid());
+
+            return (appointment, null);
+        }
+
         // POST: /Appointments/Cancel/abc
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -268,6 +359,15 @@ namespace Appointment.Controllers
 
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentCancelled,
+                $"{(role == "Customer" ? "Khách hàng" : role)} hủy lịch hẹn #{appointment.Id[..8].ToUpper()}." + (refunded > 0 ? $" Hoàn {refunded:N0} VNĐ." : string.Empty),
+                "Appointment", appointment.Id, severity: AuditLog.SeverityWarning);
+            if (refunded > 0)
+            {
+                await _audit.LogAsync(AuditActions.PaymentRefunded,
+                    $"Hoàn {refunded:N0} VNĐ do hủy lịch hẹn #{appointment.Id[..8].ToUpper()}.", "Appointment", appointment.Id);
+            }
 
             TempData["SuccessMessage"] = refunded > 0
                 ? $"Đã hủy lịch hẹn thành công. Số tiền {refunded:N0} VNĐ đã thanh toán sẽ được hoàn lại."

@@ -14,10 +14,12 @@ namespace Appointment.Controllers
     public class ReviewsController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IAuditService _audit;
 
-        public ReviewsController(AppDbContext context)
+        public ReviewsController(AppDbContext context, IAuditService audit)
         {
             _context = context;
+            _audit = audit;
         }
 
         // GET: /Reviews/Create?appointmentId=abc
@@ -91,6 +93,10 @@ namespace Appointment.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.ReviewSaved,
+                $"Đánh giá {review.Rating}/5 sao cho dịch vụ '{appointment.Service?.Name}'.", "Review", review.Id);
+
             return RedirectToAction("Details", "Services", new { id = appointment.ServiceId });
         }
 
@@ -105,6 +111,9 @@ namespace Appointment.Controllers
 
             _context.Reviews.Remove(review);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.ReviewDeleted, "Khách hàng xóa đánh giá của mình.", "Review", review.Id,
+                severity: AuditLog.SeverityWarning);
 
             TempData["SuccessMessage"] = "Đã xóa đánh giá của bạn.";
             return RedirectToAction("Index", "Appointments");

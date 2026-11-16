@@ -1,5 +1,6 @@
 using Appointment.Data;
 using Appointment.Infrastructure;
+using Appointment.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +38,30 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
         options.SlidingExpiration = true;
+
+        // US-43: tăng cường bảo mật cookie đăng nhập
+        options.Cookie.Name = "AppointX.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
+        // US-43: ghi nhật ký mọi lần truy cập bị từ chối (sai vai trò)
+        options.Events.OnRedirectToAccessDenied = async context =>
+        {
+            var audit = context.HttpContext.RequestServices.GetRequiredService<IAuditService>();
+            await audit.LogAsync(AuditActions.AccessDenied,
+                $"Bị từ chối truy cập {context.Request.Method} {context.Request.Path} (không đủ quyền).",
+                success: false, severity: AuditLog.SeverityWarning);
+
+            if (context.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            }
+            else
+            {
+                context.Response.Redirect(context.RedirectUri);
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -45,6 +70,17 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<BookingRulesOptions>(builder.Configuration.GetSection("BookingRules"));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
+builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
+builder.Services.Configure<CheckInOptions>(builder.Configuration.GetSection("CheckIn"));
+
+// US-43: nhật ký kiểm toán & bảo mật (ghi tự động người dùng / IP / trình duyệt từ HTTP request)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IAuditService, AuditService>();
+
+// US-32: mã QR check-in có chữ ký, tạo ảnh QR phía máy chủ và xuất phiếu hẹn PDF
+builder.Services.AddSingleton<CheckInCodeService>();
+builder.Services.AddSingleton<QrCodeService>();
+builder.Services.AddSingleton<AppointmentSlipPdfService>();
 
 builder.Services.AddHttpClient("GeminiApi");
 builder.Services.AddScoped<IAiService, GeminiAiService>();
@@ -89,6 +125,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// US-43: các HTTP header bảo mật cơ bản (chống clickjacking, MIME sniffing, lộ referrer)
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "SAMEORIGIN";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()"; // camera dùng cho quét QR check-in
+    await next();
+});
+
 app.UseStaticFiles();
 
 app.UseRouting();

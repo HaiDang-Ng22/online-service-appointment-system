@@ -35,4 +35,27 @@ namespace Appointment.Infrastructure
         /// <summary>Tỷ lệ đặt cọc trên giá dịch vụ (%).</summary>
         public int DepositPercent { get; set; } = 30;
     }
+
+    /// <summary>Cấu hình bảo mật & nhật ký kiểm toán (appsettings.json -> "Security"). US-43.</summary>
+    public class SecurityOptions
+    {
+        /// <summary>Số lần đăng nhập sai liên tiếp tối đa trước khi khóa tạm thời.</summary>
+        public int MaxFailedLogins { get; set; } = 5;
+
+        /// <summary>Thời gian khóa tạm thời (phút) tính từ lần đăng nhập sai gần nhất.</summary>
+        public int LockoutMinutes { get; set; } = 15;
+
+        /// <summary>Số lần đăng nhập sai tối đa từ một địa chỉ IP trong thời gian khóa (chống dò mật khẩu hàng loạt).</summary>
+        public int MaxFailedLoginsPerIp { get; set; } = 30;
+    }
+
+    /// <summary>Cấu hình mã QR check-in (appsettings.json -> "CheckIn"). US-32.</summary>
+    public class CheckInOptions
+    {
+        /// <summary>
+        /// Khóa bí mật dùng để ký mã QR (HMAC-SHA256) nhằm chống làm giả mã check-in.
+        /// Hãy đổi giá trị này trong môi trường thật (hoặc dùng User Secrets).
+        /// </summary>
+        public string SecretKey { get; set; } = "CHANGE-ME-appointx-checkin-secret";
+    }
 }

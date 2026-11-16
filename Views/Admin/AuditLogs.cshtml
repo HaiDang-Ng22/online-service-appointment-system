@@ -1,0 +1,311 @@
+@using Appointment.Infrastructure
+@model Appointment.Models.ViewModels.AuditLogListViewModel
+@{
+    ViewData["Title"] = "Nhật ký kiểm toán & bảo mật";
+    var f = Model.Filter;
+
+    // Giữ nguyên bộ lọc khi chuyển trang / xuất CSV
+    Dictionary<string, string> RouteFor(int page)
+    {
+        var d = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(f.Q)) d["Q"] = f.Q!;
+        if (!string.IsNullOrWhiteSpace(f.Category)) d["Category"] = f.Category!;
+        if (!string.IsNullOrWhiteSpace(f.EventCode)) d["EventCode"] = f.EventCode!;
+        if (!string.IsNullOrWhiteSpace(f.Severity)) d["Severity"] = f.Severity!;
+        if (!string.IsNullOrWhiteSpace(f.Result)) d["Result"] = f.Result!;
+        if (!string.IsNullOrWhiteSpace(f.Role)) d["Role"] = f.Role!;
+        if (f.From.HasValue) d["From"] = f.From.Value.ToString("yyyy-MM-dd");
+        if (f.To.HasValue) d["To"] = f.To.Value.ToString("yyyy-MM-dd");
+        if (page > 1) d["Page"] = page.ToString();
+        return d;
+    }
+
+    string SeverityBadge(string s) => s switch
+    {
+        "Critical" => "bg-danger text-white",
+        "Warning" => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+        _ => "bg-light text-secondary border"
+    };
+
+    string SeverityText(string s) => s switch
+    {
+        "Critical" => "Nghiêm trọng",
+        "Warning" => "Cảnh báo",
+        _ => "Thông tin"
+    };
+
+    int firstItem = Model.Total == 0 ? 0 : (Model.Page - 1) * Model.PageSize + 1;
+    int lastItem = Math.Min(Model.Total, Model.Page * Model.PageSize);
+    int startPage = Math.Max(1, Model.Page - 2);
+    int endPage = Math.Min(Model.TotalPages, Model.Page + 2);
+}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-shield-lock-fill text-primary me-2"></i>Nhật Ký Kiểm Toán &amp; Bảo Mật
+        </h3>
+        <p class="text-secondary small mb-0">
+            Ghi lại mọi thao tác quan trọng: đăng nhập, thay đổi dữ liệu, thanh toán, phân quyền, truy cập bị từ chối.
+            Nhật ký <strong>chỉ ghi thêm</strong> – không thể sửa hoặc xóa từ giao diện – và được nối chuỗi mã băm SHA-256 để phát hiện can thiệp.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="ExportAuditLogs" asp-all-route-data="RouteFor(1)" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+            <i class="bi bi-filetype-csv me-1"></i>Xuất CSV
+        </a>
+        <form asp-action="VerifyAuditChain" method="post" class="d-inline">
+            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                <i class="bi bi-patch-check-fill me-1"></i>Kiểm tra toàn vẹn
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Thống kê 24 giờ gần nhất -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="stat-card p-3">
+            <div class="stat-icon primary" style="width: 44px; height: 44px; font-size: 1.2rem;"><i class="bi bi-activity"></i></div>
+            <div>
+                <div class="stat-number fs-4">@Model.EventsLast24h.ToString("N0")</div>
+                <div class="stat-label small">Sự kiện 24 giờ qua</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-card p-3">
+            <div class="stat-icon warning" style="width: 44px; height: 44px; font-size: 1.2rem;"><i class="bi bi-key-fill"></i></div>
+            <div>
+                <div class="stat-number fs-4">@Model.FailedLoginsLast24h.ToString("N0")</div>
+                <div class="stat-label small">Đăng nhập sai</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-card p-3">
+            <div class="stat-icon" style="width: 44px; height: 44px; font-size: 1.2rem; background: #fee2e2; color: #dc2626;"><i class="bi bi-lock-fill"></i></div>
+            <div>
+                <div class="stat-number fs-4">@Model.LockoutsLast24h.ToString("N0")</div>
+                <div class="stat-label small">Lần bị khóa tạm</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-card p-3">
+            <div class="stat-icon" style="width: 44px; height: 44px; font-size: 1.2rem; background: #f1f5f9; color: #64748b;"><i class="bi bi-slash-circle-fill"></i></div>
+            <div>
+                <div class="stat-number fs-4">@Model.AccessDeniedLast24h.ToString("N0")</div>
+                <div class="stat-label small">Truy cập bị từ chối</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg">
+        <div class="stat-card p-3">
+            <div class="stat-icon" style="width: 44px; height: 44px; font-size: 1.2rem; background: #fee2e2; color: #dc2626;"><i class="bi bi-exclamation-octagon-fill"></i></div>
+            <div>
+                <div class="stat-number fs-4">@Model.CriticalLast24h.ToString("N0")</div>
+                <div class="stat-label small">Mức nghiêm trọng</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bộ lọc -->
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form asp-action="AuditLogs" method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold mb-1">Tìm kiếm</label>
+            <input type="text" name="Q" class="form-control" placeholder="Người dùng, email, mô tả, mã đối tượng, IP..." value="@f.Q" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Nhóm</label>
+            <select name="Category" class="form-select">
+                <option value="">Tất cả</option>
+                @foreach (var c in AuditActions.CategoryLabels)
+                {
+                    <option value="@c.Key" selected="@(f.Category == c.Key)">@c.Value</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Hành động</label>
+            <select name="EventCode" class="form-select">
+                <option value="">Tất cả</option>
+                @foreach (var a in AuditActions.Labels.OrderBy(x => x.Value))
+                {
+                    <option value="@a.Key" selected="@(f.EventCode == a.Key)">@a.Value</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Mức độ</label>
+            <select name="Severity" class="form-select">
+                <option value="">Tất cả</option>
+                <option value="Info" selected="@(f.Severity == "Info")">Thông tin</option>
+                <option value="Warning" selected="@(f.Severity == "Warning")">Cảnh báo</option>
+                <option value="Critical" selected="@(f.Severity == "Critical")">Nghiêm trọng</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Kết quả</label>
+            <select name="Result" class="form-select">
+                <option value="">Tất cả</option>
+                <option value="success" selected="@(f.Result == "success")">Thành công</option>
+                <option value="failed" selected="@(f.Result == "failed")">Thất bại / bị từ chối</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Vai trò</label>
+            <select name="Role" class="form-select">
+                <option value="">Tất cả</option>
+                @foreach (var r in new[] { "Admin", "Provider", "Staff", "Customer", "Anonymous", "System" })
+                {
+                    <option value="@r" selected="@(f.Role == r)">@r</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Từ ngày</label>
+            <input type="date" name="From" class="form-control" value="@(f.From?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold mb-1">Đến ngày</label>
+            <input type="date" name="To" class="form-control" value="@(f.To?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-12 col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary fw-bold flex-grow-1"><i class="bi bi-funnel-fill me-1"></i>Lọc</button>
+            <a asp-action="AuditLogs" class="btn btn-outline-secondary">Xóa lọc</a>
+        </div>
+    </form>
+</div>
+
+<!-- Bảng nhật ký -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center">
+        <div class="fw-bold text-dark">
+            <i class="bi bi-list-ul text-primary me-1"></i>Kết quả
+            <span class="badge bg-secondary-subtle text-secondary ms-1">@Model.Total.ToString("N0")</span>
+        </div>
+        <small class="text-secondary">Tổng cộng @Model.TotalAllTime.ToString("N0") dòng trong hệ thống</small>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Thời gian</th>
+                    <th>Người thực hiện</th>
+                    <th>Hành động</th>
+                    <th>Mô tả</th>
+                    <th>Mức độ</th>
+                    <th>IP</th>
+                    <th style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Items.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-secondary py-5">
+                            <i class="bi bi-inbox fs-2 d-block mb-2"></i>Không có dòng nhật ký nào khớp với bộ lọc.
+                        </td>
+                    </tr>
+                }
+                @foreach (var log in Model.Items)
+                {
+                    var local = DateTime.SpecifyKind(log.CreatedAt, DateTimeKind.Utc).ToLocalTime();
+                    <tr class="@(log.Severity == "Critical" ? "table-danger" : "")">
+                        <td class="text-secondary">@log.Id</td>
+                        <td class="text-nowrap">
+                            <div class="fw-semibold">@local.ToString("dd/MM/yyyy")</div>
+                            <small class="text-secondary">@local.ToString("HH:mm:ss")</small>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">@(string.IsNullOrEmpty(log.UserName) ? "—" : log.UserName)</div>
+                            <small class="text-secondary">@(string.IsNullOrEmpty(log.UserEmail) ? "" : log.UserEmail + " · ")@log.UserRole</small>
+                        </td>
+                        <td class="text-nowrap">
+                            <span class="badge @(log.Success ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle")">
+                                <i class="bi @(log.Success ? "bi-check-circle-fill" : "bi-x-circle-fill") me-1"></i>@AuditActions.LabelOf(log.Action)
+                            </span>
+                        </td>
+                        <td style="max-width: 360px;">@log.Description</td>
+                        <td><span class="badge @SeverityBadge(log.Severity)">@SeverityText(log.Severity)</span></td>
+                        <td class="text-secondary text-nowrap">@(log.IpAddress ?? "—")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary rounded-circle" type="button" data-bs-toggle="collapse" data-bs-target="#audit-@log.Id" aria-expanded="false" title="Xem chi tiết">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="8" class="p-0 border-0">
+                          <div class="collapse" id="audit-@log.Id">
+                            <div class="row g-3 small p-3 m-0 bg-light border-top">
+                                <div class="col-md-4">
+                                    <div class="text-secondary">Nhóm / Đối tượng</div>
+                                    <div class="fw-semibold">@AuditActions.CategoryLabels.GetValueOrDefault(log.Category, log.Category) · @(log.EntityType ?? "—") @(string.IsNullOrEmpty(log.EntityId) ? "" : "#" + log.EntityId)</div>
+                                    <div class="text-secondary mt-2">Mã hành động</div>
+                                    <code>@log.Action</code>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-secondary">Yêu cầu</div>
+                                    <div class="fw-semibold">@(log.RequestPath ?? "—")</div>
+                                    <div class="text-secondary mt-2">Trình duyệt</div>
+                                    <div class="text-break">@(log.UserAgent ?? "—")</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-secondary">Mã băm (SHA-256)</div>
+                                    <code class="text-break">@log.Hash</code>
+                                    <div class="text-secondary mt-2">Mã băm dòng liền trước</div>
+                                    <code class="text-break">@log.PrevHash</code>
+                                </div>
+                            </div>
+                          </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <div class="card-footer bg-white py-3 px-4 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+            <small class="text-secondary">Hiển thị @firstItem.ToString("N0") – @lastItem.ToString("N0") / @Model.Total.ToString("N0")</small>
+            <nav aria-label="Phân trang nhật ký">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="AuditLogs" asp-all-route-data="RouteFor(Model.Page - 1)">«</a>
+                    </li>
+                    @if (startPage > 1)
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="AuditLogs" asp-all-route-data="RouteFor(1)">1</a></li>
+                        if (startPage > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+                    @for (int p = startPage; p <= endPage; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link" asp-action="AuditLogs" asp-all-route-data="RouteFor(p)">@p</a>
+                        </li>
+                    }
+                    @if (endPage < Model.TotalPages)
+                    {
+                        if (endPage < Model.TotalPages - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item"><a class="page-link" asp-action="AuditLogs" asp-all-route-data="RouteFor(Model.TotalPages)">@Model.TotalPages</a></li>
+                    }
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="AuditLogs" asp-all-route-data="RouteFor(Model.Page + 1)">»</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+</div>

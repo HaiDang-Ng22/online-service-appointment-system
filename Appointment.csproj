@@ -14,6 +14,14 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <!-- US-32: tạo ảnh QR check-in phía máy chủ & xuất phiếu hẹn PDF -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Font DejaVu Sans (hỗ trợ đầy đủ tiếng Việt) dùng để vẽ PDF, sao chép theo ứng dụng khi build/publish -->
+    <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
