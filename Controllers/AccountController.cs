@@ -282,12 +282,8 @@ namespace Appointment.Controllers
                 model.CreatedAt = user.CreatedAt;
                 return View(model);
             }
-            bool passwordChanged = false;
-            if (!string.IsNullOrWhiteSpace(model.NewPassword))
-
             // Handle avatar upload if provided
             if (model.AvatarFile != null && model.AvatarFile.Length > 0)
-
             {
                 var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
                 var ext = Path.GetExtension(model.AvatarFile.FileName).ToLowerInvariant();
@@ -303,16 +299,6 @@ namespace Appointment.Controllers
 
                 if (model.AvatarFile.Length > 5 * 1024 * 1024)
                 {
-
-                    await _audit.LogAsync(AuditActions.PasswordChanged,
-                        "Đổi mật khẩu thất bại: sai mật khẩu hiện tại.", "User", user.Id, success: false);
-
-                    ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không chính xác.");
-                    return View(model);
-                }
-
-                user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
-                passwordChanged = true;
                     ModelState.AddModelError("AvatarFile", "Dung lượng ảnh tối đa là 5MB.");
                     model.Email = user.Email;
                     model.Role = user.Role;
@@ -346,11 +332,6 @@ namespace Appointment.Controllers
             await _context.SaveChangesAsync();
 
             await _audit.LogAsync(AuditActions.ProfileUpdated, "Cập nhật thông tin cá nhân.", "User", user.Id);
-            if (passwordChanged)
-            {
-                await _audit.LogAsync(AuditActions.PasswordChanged, "Đổi mật khẩu thành công.", "User", user.Id,
-                    severity: AuditLog.SeverityWarning);
-            }
 
             TempData["SuccessMessage"] = "Cập nhật thông tin cá nhân thành công!";
             return RedirectToAction(nameof(Profile));

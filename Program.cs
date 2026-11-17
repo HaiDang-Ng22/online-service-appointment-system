@@ -16,16 +16,42 @@ var postgresConnectionString = builder.Configuration.GetConnectionString("Defaul
 var sqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection") 
     ?? "Data Source=Appointment.db";
 
-// Register DbContext (Prefers PostgreSQL, defaults to SQLite if YOUR_PASSWORD placeholder is unchanged)
+// Chọn cơ sở dữ liệu: dùng PostgreSQL nếu cấu hình hợp lệ và kết nối được, ngược lại tự động dùng SQLite
+// (tránh việc ứng dụng khởi động nhưng mọi request đều lỗi vì không kết nối được PostgreSQL).
+static bool CanUsePostgres(string connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString) ||
+        connectionString.Contains("YOUR_", StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+
+    try
+    {
+        var csb = new Npgsql.NpgsqlConnectionStringBuilder(connectionString) { Timeout = 5 };
+        using var conn = new Npgsql.NpgsqlConnection(csb.ConnectionString);
+        conn.Open();
+        return true;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Không kết nối được PostgreSQL ({ex.Message}). Dùng SQLite thay thế.");
+        return false;
+    }
+}
+
+var usePostgres = CanUsePostgres(postgresConnectionString);
+
+// Register DbContext (PostgreSQL nếu kết nối được, nếu không thì SQLite)
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (postgresConnectionString.Contains("D@ng0799192226", StringComparison.OrdinalIgnoreCase))
+    if (usePostgres)
     {
-        options.UseSqlite(sqliteConnectionString);
+        options.UseNpgsql(postgresConnectionString);
     }
     else
     {
-        options.UseNpgsql(postgresConnectionString);
+        options.UseSqlite(sqliteConnectionString);
     }
 });
 
