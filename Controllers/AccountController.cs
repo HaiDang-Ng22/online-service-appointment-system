@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Appointment.Controllers
 {
@@ -18,12 +19,17 @@ namespace Appointment.Controllers
         private readonly AppDbContext _context;
         private readonly IEmailSender _emailSender;
         private readonly IWebHostEnvironment _env;
+        private readonly IAuditService _audit;
+        private readonly SecurityOptions _security;
 
-        public AccountController(AppDbContext context, IEmailSender emailSender, IWebHostEnvironment env)
+        public AccountController(AppDbContext context, IEmailSender emailSender, IWebHostEnvironment env,
+            IAuditService audit, IOptions<SecurityOptions> security)
         {
             _context = context;
             _emailSender = emailSender;
             _env = env;
+            _audit = audit;
+            _security = security.Value;
         }
 
         [HttpGet]
@@ -92,6 +98,10 @@ namespace Appointment.Controllers
 
                 await _context.SaveChangesAsync();
 
+                await _audit.LogAsync(AuditActions.Register,
+                    $"Đăng ký tài khoản mới ({assignedRole}) - {newUser.Email}.",
+                    "User", newUser.Id, actor: AuditActor.FromUser(newUser));
+
                 TempData["SuccessMessage"] = $"Đăng ký tài khoản {(assignedRole == "Provider" ? "Đối tác / Bác sĩ" : "Khách hàng")} thành công! Vui lòng đăng nhập.";
                 return RedirectToAction(nameof(Login));
             }
@@ -119,15 +129,62 @@ namespace Appointment.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.ToLower());
+            string attemptedEmail = model.Email.Trim().ToLowerInvariant();
+            var lockWindow = TimeSpan.FromMinutes(Math.Max(1, _security.LockoutMinutes));
+
+            // US-43: khóa tạm thời khi đăng nhập sai liên tiếp (theo email) hoặc quá nhiều lần sai từ cùng một IP
+            var failures = await _audit.GetRecentLoginFailuresAsync(attemptedEmail, lockWindow);
+            string? clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            int ipFailures = await _audit.CountRecentLoginFailuresByIpAsync(clientIp, lockWindow);
+
+            bool lockedByEmail = _security.MaxFailedLogins > 0 && failures.Count >= _security.MaxFailedLogins;
+            bool lockedByIp = _security.MaxFailedLoginsPerIp > 0 && ipFailures >= _security.MaxFailedLoginsPerIp;
+
+            if (lockedByEmail || lockedByIp)
+            {
+                int minutesLeft = lockWindow.Minutes + lockWindow.Hours * 60;
+                if (failures.LastFailureUtc.HasValue)
+                {
+                    var remaining = lockWindow - (DateTime.UtcNow - failures.LastFailureUtc.Value);
+                    minutesLeft = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+                }
+
+                await _audit.LogAsync(AuditActions.LoginLocked,
+                    lockedByEmail
+                        ? $"Chặn đăng nhập vào {attemptedEmail}: đã sai mật khẩu {failures.Count} lần liên tiếp."
+                        : $"Chặn đăng nhập từ IP {clientIp}: quá nhiều lần đăng nhập sai ({ipFailures} lần).",
+                    "User", null, success: false, severity: AuditLog.SeverityCritical,
+                    actor: AuditActor.Anonymous(attemptedEmail));
+
+                ModelState.AddModelError(string.Empty,
+                    $"Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau khoảng {minutesLeft} phút hoặc dùng chức năng \"Quên mật khẩu\".");
+                return View(model);
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == attemptedEmail);
             if (user == null || !PasswordHasher.VerifyPassword(model.Password, user.PasswordHash))
             {
-                ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không chính xác.");
+                await _audit.LogAsync(AuditActions.LoginFailed,
+                    $"Đăng nhập sai email hoặc mật khẩu ({attemptedEmail}).",
+                    "User", user?.Id, success: false,
+                    severity: failures.Count + 1 >= _security.MaxFailedLogins ? AuditLog.SeverityCritical : AuditLog.SeverityWarning,
+                    actor: AuditActor.Anonymous(attemptedEmail));
+
+                int remainingTries = _security.MaxFailedLogins - (failures.Count + 1);
+                string hint = _security.MaxFailedLogins > 0 && remainingTries > 0 && remainingTries <= 2
+                    ? $" Bạn còn {remainingTries} lần thử trước khi bị khóa tạm thời."
+                    : string.Empty;
+
+                ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không chính xác." + hint);
                 return View(model);
             }
 
             if (!user.IsActive)
             {
+                await _audit.LogAsync(AuditActions.LoginInactive,
+                    $"Tài khoản bị khóa cố đăng nhập ({user.Email}).",
+                    "User", user.Id, success: false, actor: AuditActor.FromUser(user));
+
                 ModelState.AddModelError(string.Empty, "Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động.");
                 return View(model);
             }
@@ -149,6 +206,9 @@ namespace Appointment.Controllers
                 ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
             });
 
+            await _audit.LogAsync(AuditActions.LoginSuccess,
+                $"Đăng nhập thành công ({user.Role}).", "User", user.Id, actor: AuditActor.FromUser(user));
+
             TempData["SuccessMessage"] = $"Xin chào {user.FullName}!";
 
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -168,6 +228,8 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            await _audit.LogAsync(AuditActions.Logout, "Đăng xuất.", "User", User.FindFirstValue(ClaimTypes.NameIdentifier));
+
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             TempData["SuccessMessage"] = "Đã đăng xuất thành công.";
             return RedirectToAction("Index", "Home");
@@ -190,7 +252,9 @@ namespace Appointment.Controllers
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 Address = user.Address,
-                Role = user.Role
+                Role = user.Role,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt
             };
 
             return View(model);
@@ -210,32 +274,116 @@ namespace Appointment.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound();
 
-            user.FullName = model.FullName;
-            user.PhoneNumber = model.PhoneNumber;
-            user.Address = model.Address;
-
-            if (!string.IsNullOrWhiteSpace(model.NewPassword))
+            if (!ModelState.IsValid)
             {
-                if (string.IsNullOrWhiteSpace(model.CurrentPassword))
-                {
-                    ModelState.AddModelError("CurrentPassword", "Vui lòng nhập mật khẩu hiện tại để thay đổi mật khẩu.");
-                    return View(model);
-                }
-
-                if (!PasswordHasher.VerifyPassword(model.CurrentPassword, user.PasswordHash))
-                {
-                    ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không chính xác.");
-                    return View(model);
-                }
-
-                user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
+                model.Email = user.Email;
+                model.Role = user.Role;
+                model.AvatarUrl = user.AvatarUrl;
+                model.CreatedAt = user.CreatedAt;
+                return View(model);
             }
+            // Handle avatar upload if provided
+            if (model.AvatarFile != null && model.AvatarFile.Length > 0)
+            {
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                var ext = Path.GetExtension(model.AvatarFile.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(ext))
+                {
+                    ModelState.AddModelError("AvatarFile", "Định dạng ảnh không hợp lệ. Vui lòng chọn file .jpg, .jpeg, .png, .webp hoặc .gif.");
+                    model.Email = user.Email;
+                    model.Role = user.Role;
+                    model.AvatarUrl = user.AvatarUrl;
+                    model.CreatedAt = user.CreatedAt;
+                    return View(model);
+                }
+
+                if (model.AvatarFile.Length > 5 * 1024 * 1024)
+                {
+                    ModelState.AddModelError("AvatarFile", "Dung lượng ảnh tối đa là 5MB.");
+                    model.Email = user.Email;
+                    model.Role = user.Role;
+                    model.AvatarUrl = user.AvatarUrl;
+                    model.CreatedAt = user.CreatedAt;
+                    return View(model);
+                }
+
+                var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "avatars");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var safeFileName = $"{Guid.NewGuid():N}{ext}";
+                var filePath = Path.Combine(uploadsFolder, safeFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await model.AvatarFile.CopyToAsync(stream);
+                }
+
+                user.AvatarUrl = $"/uploads/avatars/{safeFileName}";
+            }
+
+            user.FullName = model.FullName.Trim();
+            user.PhoneNumber = model.PhoneNumber?.Trim();
+            user.Address = model.Address?.Trim();
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.ProfileUpdated, "Cập nhật thông tin cá nhân.", "User", user.Id);
+
             TempData["SuccessMessage"] = "Cập nhật thông tin cá nhân thành công!";
             return RedirectToAction(nameof(Profile));
+        }
+
+        [HttpGet]
+        [Authorize]
+        public IActionResult ChangePassword()
+        {
+            return View(new ChangePasswordViewModel());
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            if (!PasswordHasher.VerifyPassword(model.CurrentPassword, user.PasswordHash))
+            {
+                ModelState.AddModelError("CurrentPassword", "Mật khẩu hiện tại không chính xác.");
+                return View(model);
+            }
+
+            if (model.NewPassword == model.CurrentPassword)
+            {
+                ModelState.AddModelError("NewPassword", "Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+                return View(model);
+            }
+
+            user.PasswordHash = PasswordHasher.HashPassword(model.NewPassword);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Đổi mật khẩu thành công!";
+            return RedirectToAction(nameof(ChangePassword));
         }
 
         [HttpGet]
@@ -315,6 +463,10 @@ namespace Appointment.Controllers
 
                     bool sent = await _emailSender.SendAsync(user.Email, "[AppointX] Đặt lại mật khẩu", body);
 
+                    await _audit.LogAsync(AuditActions.PasswordResetRequested,
+                        $"Yêu cầu đặt lại mật khẩu cho {user.Email} (email {(sent ? "đã gửi" : "chưa gửi được")}).",
+                        "User", user.Id, actor: AuditActor.FromUser(user));
+
                     // Chỉ ở môi trường Development và khi chưa cấu hình SMTP: hiển thị link để dev thử nghiệm.
                     if (!sent && _env.IsDevelopment())
                     {
@@ -356,6 +508,11 @@ namespace Appointment.Controllers
             var (user, record) = await FindValidResetTokenAsync(model.Email, model.Token);
             if (user == null || record == null)
             {
+                await _audit.LogAsync(AuditActions.PasswordResetFailed,
+                    $"Đặt lại mật khẩu thất bại: liên kết không hợp lệ hoặc đã hết hạn ({model.Email}).",
+                    "User", null, success: false, severity: AuditLog.SeverityWarning,
+                    actor: AuditActor.Anonymous(model.Email));
+
                 model.IsTokenValid = false;
                 return View(model);
             }
@@ -370,6 +527,10 @@ namespace Appointment.Controllers
             foreach (var t in others) t.UsedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.PasswordResetCompleted,
+                $"Đặt lại mật khẩu thành công cho {user.Email}.", "User", user.Id,
+                severity: AuditLog.SeverityWarning, actor: AuditActor.FromUser(user));
 
             TempData["SuccessMessage"] = "Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.";
             return RedirectToAction(nameof(Login));

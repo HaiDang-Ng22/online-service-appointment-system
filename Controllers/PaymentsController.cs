@@ -18,12 +18,14 @@ namespace Appointment.Controllers
         private readonly AppDbContext _context;
         private readonly PaymentService _paymentService;
         private readonly IPaymentGateway _gateway;
+        private readonly IAuditService _audit;
 
-        public PaymentsController(AppDbContext context, PaymentService paymentService, IPaymentGateway gateway)
+        public PaymentsController(AppDbContext context, PaymentService paymentService, IPaymentGateway gateway, IAuditService audit)
         {
             _context = context;
             _paymentService = paymentService;
             _gateway = gateway;
+            _audit = audit;
         }
 
         // GET: /Payments/Checkout/abc
@@ -102,6 +104,12 @@ namespace Appointment.Controllers
 
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(result.Success ? AuditActions.PaymentSucceeded : AuditActions.PaymentFailed,
+                result.Success
+                    ? $"{(type == Payment.TypeDeposit ? "Đặt cọc" : "Thanh toán")} {amount:N0} VNĐ ({method}) - mã GD {payment.TransactionCode}."
+                    : $"Thanh toán {amount:N0} VNĐ ({method}) thất bại: {result.Error ?? "không xác định"}.",
+                "Payment", payment.Id, success: result.Success);
 
             if (!result.Success)
             {

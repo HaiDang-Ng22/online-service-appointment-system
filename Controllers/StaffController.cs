@@ -17,12 +17,17 @@ namespace Appointment.Controllers
         private readonly AppDbContext _context;
         private readonly PaymentService _paymentService;
         private readonly IEmailSender _emailSender;
+        private readonly IAuditService _audit;
+        private readonly CheckInCodeService _checkInCodes;
 
-        public StaffController(AppDbContext context, PaymentService paymentService, IEmailSender emailSender)
+        public StaffController(AppDbContext context, PaymentService paymentService, IEmailSender emailSender,
+            IAuditService audit, CheckInCodeService checkInCodes)
         {
             _context = context;
             _paymentService = paymentService;
             _emailSender = emailSender;
+            _audit = audit;
+            _checkInCodes = checkInCodes;
         }
 
         // GET: /Staff
@@ -77,6 +82,10 @@ namespace Appointment.Controllers
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.AppointmentAssigned,
+                $"Nhân viên tiếp nhận lịch hẹn #{appointment.Id[..8].ToUpper()} (trạng thái: {AppointmentRules.StatusLabel(appointment.Status)}).",
+                "Appointment", appointment.Id);
+
             TempData["SuccessMessage"] = "Đã tiếp nhận xử lý cuộc hẹn này!";
             return RedirectToAction(nameof(Index));
         }
@@ -95,15 +104,27 @@ namespace Appointment.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            string previousStatus = appointment.Status;
+            decimal refundedAmount = 0;
             if (status == AppointmentRules.Cancelled && appointment.Status != AppointmentRules.Cancelled)
             {
                 appointment.CancelReason = "Nhân viên hủy lịch hẹn";
-                await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
+                refundedAmount = await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
             }
 
             appointment.Status = status;
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentStatusChanged,
+                $"Nhân viên đổi trạng thái lịch hẹn #{appointment.Id[..8].ToUpper()}: {AppointmentRules.StatusLabel(previousStatus)} → {AppointmentRules.StatusLabel(status)}.",
+                "Appointment", appointment.Id,
+                severity: status == AppointmentRules.Cancelled ? AuditLog.SeverityWarning : null);
+            if (refundedAmount > 0)
+            {
+                await _audit.LogAsync(AuditActions.PaymentRefunded,
+                    $"Hoàn {refundedAmount:N0} VNĐ do nhân viên hủy lịch #{appointment.Id[..8].ToUpper()}.", "Appointment", appointment.Id);
+            }
 
             TempData["SuccessMessage"] = $"Đã chuyển trạng thái cuộc hẹn thành '{AppointmentRules.StatusLabel(status)}'.";
             return RedirectToAction(nameof(Index));
@@ -126,6 +147,8 @@ namespace Appointment.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            string previousStatus = appointment.Status;
+            decimal refundedAmount = 0;
             appointment.Diagnosis = diagnosis?.Trim();
             appointment.Prescription = prescription?.Trim();
             if (!string.IsNullOrEmpty(status))
@@ -133,13 +156,28 @@ namespace Appointment.Controllers
                 if (status == AppointmentRules.Cancelled && appointment.Status != AppointmentRules.Cancelled)
                 {
                     appointment.CancelReason = "Nhân viên hủy lịch hẹn";
-                    await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
+                    refundedAmount = await _paymentService.RefundAllAsync(appointment.Id, "Hoàn tiền do nhân viên hủy lịch");
                 }
                 appointment.Status = status;
             }
 
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentRecordUpdated,
+                $"Nhân viên cập nhật chẩn đoán / kết luận lịch hẹn #{appointment.Id[..8].ToUpper()}.", "Appointment", appointment.Id);
+            if (appointment.Status != previousStatus)
+            {
+                await _audit.LogAsync(AuditActions.AppointmentStatusChanged,
+                    $"Nhân viên đổi trạng thái lịch hẹn #{appointment.Id[..8].ToUpper()}: {AppointmentRules.StatusLabel(previousStatus)} → {AppointmentRules.StatusLabel(appointment.Status)}.",
+                    "Appointment", appointment.Id,
+                    severity: appointment.Status == AppointmentRules.Cancelled ? AuditLog.SeverityWarning : null);
+            }
+            if (refundedAmount > 0)
+            {
+                await _audit.LogAsync(AuditActions.PaymentRefunded,
+                    $"Hoàn {refundedAmount:N0} VNĐ do nhân viên hủy lịch #{appointment.Id[..8].ToUpper()}.", "Appointment", appointment.Id);
+            }
 
             TempData["SuccessMessage"] = $"Đã cập nhật chẩn đoán/kết luận dịch vụ cho khách hàng {appointment.Customer?.FullName}!";
             return RedirectToAction(nameof(Index));
@@ -160,6 +198,9 @@ namespace Appointment.Controllers
 
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentRecordUpdated,
+                $"Cập nhật ghi chú nội bộ lịch hẹn #{appointment.Id[..8].ToUpper()}.", "Appointment", appointment.Id);
 
             TempData["SuccessMessage"] = $"Đã cập nhật ghi chú nội bộ cho lịch hẹn #{appointment.Id.Substring(0, 8).ToUpper()} ({appointment.Customer?.FullName})!";
             return RedirectToAction(nameof(Index));
@@ -406,6 +447,10 @@ namespace Appointment.Controllers
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
+            await _audit.LogAsync(AuditActions.AppointmentWalkIn,
+                $"Đặt lịch tại quầy cho {customer.FullName}: '{service.Name}' ngày {appointment.AppointmentDate:dd/MM/yyyy} lúc {startTime:hh\\:mm}.",
+                "Appointment", appointment.Id);
+
             TempData["SuccessMessage"] = $"Đặt lịch tại quầy thành công cho khách hàng {customer.FullName}! Đang mở phiếu hẹn...";
             return RedirectToAction("PrintInvoice", "Appointments", new { id = appointment.Id });
         }
@@ -432,39 +477,50 @@ namespace Appointment.Controllers
                 return Json(new { success = false, message = "Mã check-in không được để trống." });
             }
 
-            // Xử lý chuỗi mã quét được: có thể là URL chứa id/code, tiền tố #APX-, hoặc ID thô
-            string cleanId = rawCode;
-            if (cleanId.Contains("id="))
+            // US-32: kiểm tra mã QR có chữ ký (chống làm giả) hoặc mã nhập tay APX-XXXXXXXX (tối thiểu 8 ký tự)
+            var parsed = _checkInCodes.Parse(rawCode);
+            if (parsed.Kind == CheckInCodeKind.Invalid)
             {
-                var match = System.Text.RegularExpressions.Regex.Match(cleanId, @"[?&]id=([a-zA-Z0-9]+)");
-                if (match.Success) cleanId = match.Groups[1].Value;
-            }
-            else if (cleanId.Contains("code="))
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(cleanId, @"[?&]code=([a-zA-Z0-9]+)");
-                if (match.Success) cleanId = match.Groups[1].Value;
-            }
-            else if (cleanId.StartsWith("#APX-", StringComparison.OrdinalIgnoreCase))
-            {
-                cleanId = cleanId.Substring(5);
-            }
-            else if (cleanId.StartsWith("APX-", StringComparison.OrdinalIgnoreCase))
-            {
-                cleanId = cleanId.Substring(4);
+                await _audit.LogAsync(AuditActions.AppointmentCheckInFailed,
+                    $"Check-in thất bại: {parsed.Error} (mã quét: '{(rawCode.Length > 60 ? rawCode.Substring(0, 60) + "…" : rawCode)}').",
+                    "Appointment", null, success: false, severity: AuditLog.SeverityWarning);
+
+                return Json(new { success = false, message = parsed.Error });
             }
 
-            cleanId = cleanId.Trim().ToLowerInvariant();
+            string cleanId = parsed.Id;
 
-            // Tìm lịch hẹn theo Id chính xác hoặc tiền tố
-            var appointment = await _context.Appointments
+            // Mã có chữ ký -> khớp chính xác Id; mã nhập tay -> khớp theo tiền tố nhưng chỉ chấp nhận khi duy nhất
+            var candidateQuery = _context.Appointments
                 .Include(a => a.Customer)
                 .Include(a => a.Service)
                 .Include(a => a.Provider)
                 .Include(a => a.Staff)
-                .FirstOrDefaultAsync(a => a.Id.ToLower() == cleanId || a.Id.ToLower().StartsWith(cleanId));
+                .AsQueryable();
+
+            candidateQuery = parsed.Kind == CheckInCodeKind.Signed
+                ? candidateQuery.Where(a => a.Id.ToLower() == cleanId)
+                : candidateQuery.Where(a => a.Id.ToLower().StartsWith(cleanId));
+
+            var candidates = await candidateQuery.Take(2).ToListAsync();
+
+            if (candidates.Count > 1)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Mã nhập tay khớp với nhiều lịch hẹn. Vui lòng quét mã QR hoặc nhập đầy đủ mã lịch hẹn."
+                });
+            }
+
+            var appointment = candidates.FirstOrDefault();
 
             if (appointment == null)
             {
+                await _audit.LogAsync(AuditActions.AppointmentCheckInFailed,
+                    $"Check-in thất bại: không tìm thấy lịch hẹn cho mã '{rawCode}'.", "Appointment", null,
+                    success: false, severity: AuditLog.SeverityWarning);
+
                 return Json(new
                 {
                     success = false,
@@ -531,6 +587,12 @@ namespace Appointment.Controllers
             appointment.Status = AppointmentRules.InProgress;
             _context.Appointments.Update(appointment);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentCheckIn,
+                wasAlreadyInProgress
+                    ? $"Quét lại mã check-in lịch hẹn #{appointment.Id[..8].ToUpper()} (đã ở trạng thái đang thực hiện)."
+                    : $"Check-in lịch hẹn #{appointment.Id[..8].ToUpper()} của {appointment.Customer?.FullName} ({(parsed.Kind == CheckInCodeKind.Signed ? "quét QR" : "nhập mã tay")}).",
+                "Appointment", appointment.Id);
 
             string msg = wasAlreadyInProgress
                 ? "Khách hàng đã điểm danh trước đó và đang thực hiện dịch vụ."
@@ -855,6 +917,10 @@ namespace Appointment.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.AppointmentRescheduled,
+                $"Điều phối khẩn cấp: dời {successCount} lịch hẹn sang {targetProvider.FullName} ngày {model.TargetDate:dd/MM/yyyy} (bỏ qua {conflictCount} lịch trùng). Lý do: {model.Reason}",
+                "Provider", model.TargetProviderId, severity: AuditLog.SeverityWarning);
 
             string resultMsg = $"Điều phối thành công {successCount} lịch hẹn sang Bác sĩ {targetProvider.FullName} ({model.TargetDate:dd/MM/yyyy})!";
             if (emailCount > 0) resultMsg += $" Đã gửi email thông báo xin lỗi tới {emailCount} khách hàng.";

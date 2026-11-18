@@ -73,6 +73,7 @@ namespace Appointment.Infrastructure
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var payments = scope.ServiceProvider.GetRequiredService<PaymentService>();
             var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+            var audit = scope.ServiceProvider.GetRequiredService<IAuditService>();
 
             var pending = await db.Appointments
                 .Include(a => a.Customer)
@@ -118,6 +119,17 @@ namespace Appointment.Infrastructure
 
             foreach (var (a, reason, refund) in cancelled)
             {
+                // US-43: ghi nhật ký hành động của hệ thống
+                await audit.LogAsync(AuditActions.AppointmentAutoCancelled,
+                    $"Hệ thống tự động hủy lịch #{a.Id[..8].ToUpper()}: {reason}.", "Appointment", a.Id,
+                    severity: AuditLog.SeverityWarning, actor: AuditActor.SystemActor);
+                if (refund > 0)
+                {
+                    await audit.LogAsync(AuditActions.PaymentRefunded,
+                        $"Hoàn {refund:N0} VNĐ do hệ thống tự động hủy lịch #{a.Id[..8].ToUpper()}.", "Appointment", a.Id,
+                        actor: AuditActor.SystemActor);
+                }
+
                 if (a.Customer == null || string.IsNullOrWhiteSpace(a.Customer.Email)) continue;
 
                 var refundLine = refund > 0

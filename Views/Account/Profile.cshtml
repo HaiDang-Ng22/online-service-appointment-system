@@ -1,73 +1,205 @@
 @model Appointment.Models.ViewModels.ProfileViewModel
 @{
-    ViewData["Title"] = "Thông tin cá nhân";
+    ViewData["Title"] = "Hồ sơ cá nhân";
 }
 
-<div class="row justify-content-center my-4">
-    <div class="col-md-7">
-        <div class="card shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white border-bottom py-3">
-                <h4 class="fw-bold mb-0 text-primary">Thông Tin Cá Nhân</h4>
+<div class="container-fluid py-2">
+    <!-- Breadcrumb / Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h4 class="fw-bold mb-1 text-dark">
+                <i class="bi bi-person-badge text-primary me-2"></i>Hồ Sơ Cá Nhân
+            </h4>
+            <p class="text-secondary small mb-0">Quản lý và cập nhật thông tin tài khoản của bạn</p>
+        </div>
+        <div>
+            <a asp-action="ChangePassword" class="btn btn-outline-primary rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-shield-lock-fill"></i>
+                <span>Đổi Mật Khẩu</span>
+            </a>
+        </div>
+    </div>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 text-danger"></i>
+                <div class="flex-grow-1">
+                    <strong>Đã xảy ra lỗi:</strong>
+                    <div asp-validation-summary="All" class="text-danger small mt-1 mb-0"></div>
+                </div>
             </div>
-            <div class="card-body p-4">
-                <form asp-action="Profile" method="post">
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- Cột tóm tắt thông tin tài khoản (Summary Card) -->
+        <div class="col-lg-4 col-md-5">
+            <div class="card border-0 shadow-sm rounded-4 text-center p-4 h-100 bg-white">
+                <div class="position-relative d-inline-block mx-auto mb-3">
+                    <div id="profileAvatarPreview" class="rounded-circle overflow-hidden border border-3 border-primary shadow-sm d-flex align-items-center justify-content-center bg-light" style="width: 130px; height: 130px;">
+                        @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+                        {
+                            <img src="@Model.AvatarUrl" alt="@Model.FullName" class="w-100 h-100 object-fit-cover" id="currentAvatarImg" />
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column align-items-center justify-content-center text-primary h-100 w-100" id="fallbackAvatarIcon">
+                                <i class="bi bi-person-fill" style="font-size: 4rem;"></i>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <h5 class="fw-bold mb-1 text-dark">@Model.FullName</h5>
+                <p class="text-muted small mb-3">@Model.Email</p>
+
+                <div class="mb-3">
+                    @if (Model.Role == "Admin")
+                    {
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fw-semibold">
+                            <i class="bi bi-shield-check me-1"></i> Quản trị viên (Admin)
+                        </span>
+                    }
+                    else if (Model.Role == "Provider")
+                    {
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 rounded-pill fw-semibold">
+                            <i class="bi bi-briefcase me-1"></i> Đối tác dịch vụ (Provider)
+                        </span>
+                    }
+                    else if (Model.Role == "Staff")
+                    {
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill fw-semibold">
+                            <i class="bi bi-person-badge me-1"></i> Nhân viên tiếp nhận (Staff)
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
+                            <i class="bi bi-person-check me-1"></i> Khách hàng (Customer)
+                        </span>
+                    }
+                </div>
+
+                <hr class="text-muted opacity-25 my-3" />
+
+                <!-- Thông tin tóm tắt -->
+                <div class="text-start small">
+                    <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                        <span class="text-secondary"><i class="bi bi-telephone me-2 text-primary"></i>Điện thoại:</span>
+                        <span class="fw-semibold text-dark">@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "Chưa cập nhật" : Model.PhoneNumber)</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                        <span class="text-secondary"><i class="bi bi-geo-alt me-2 text-danger"></i>Địa chỉ:</span>
+                        <span class="fw-semibold text-dark text-truncate text-end ms-2" style="max-width: 170px;" title="@Model.Address">
+                            @(string.IsNullOrWhiteSpace(Model.Address) ? "Chưa cập nhật" : Model.Address)
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between py-2">
+                        <span class="text-secondary"><i class="bi bi-calendar3 me-2 text-info"></i>Ngày tham gia:</span>
+                        <span class="fw-semibold text-dark">@Model.CreatedAt.ToString("dd/MM/yyyy")</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-2">
+                    <a asp-action="ChangePassword" class="btn btn-light border w-100 rounded-3 py-2 fw-semibold text-secondary d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-key-fill text-warning"></i>
+                        <span>Đổi Mật Khẩu Tài Khoản</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột form chỉnh sửa thông tin -->
+        <div class="col-lg-8 col-md-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white">
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-sliders me-2 text-primary"></i>Cập Nhật Thông Tin
+                    </h5>
+                    <span class="badge bg-light text-secondary border px-3 py-1 rounded-pill small">
+                        ID: @Model.Id.Substring(0, Math.Min(8, Model.Id.Length))...
+                    </span>
+                </div>
+
+                <form asp-action="Profile" method="post" enctype="multipart/form-data">
                     <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="AvatarUrl" />
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Vai trò hệ thống</label>
-                        <div>
-                            <span class="badge bg-primary fs-6 px-3 py-2">@Model.Role</span>
-                        </div>
+                    <!-- Tải ảnh đại diện -->
+                    <div class="mb-4 p-3 bg-light rounded-3 border">
+                        <label asp-for="AvatarFile" class="form-label fw-bold text-dark small mb-1">
+                            <i class="bi bi-camera me-1 text-primary"></i>Tải ảnh đại diện mới
+                        </label>
+                        <p class="text-secondary small mb-2">Hỗ trợ các định dạng .JPG, .PNG, .WEBP (tối đa 5MB).</p>
+                        <input asp-for="AvatarFile" type="file" class="form-control rounded-3" id="avatarFileInput" accept="image/*" />
+                        <span asp-validation-for="AvatarFile" class="text-danger small"></span>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label fw-semibold">Email (Không thể thay đổi)</label>
-                        <input asp-for="Email" class="form-control bg-light" readonly />
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="FullName" class="form-label fw-semibold">Họ và tên</label>
-                        <input asp-for="FullName" class="form-control" />
-                        <span asp-validation-for="FullName" class="text-danger small"></span>
-                    </div>
-
-                    <div class="row mb-3">
+                    <div class="row g-3">
+                        <!-- Họ và tên -->
                         <div class="col-md-6">
-                            <label asp-for="PhoneNumber" class="form-label fw-semibold">Số điện thoại</label>
-                            <input asp-for="PhoneNumber" class="form-control" />
+                            <label asp-for="FullName" class="form-label fw-bold text-dark small">
+                                Họ và tên <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-secondary rounded-start-3">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                <input asp-for="FullName" class="form-control rounded-end-3" placeholder="Nhập họ và tên đầy đủ" />
+                            </div>
+                            <span asp-validation-for="FullName" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Email (Read-only) -->
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-bold text-dark small">
+                                Địa chỉ Email <span class="badge bg-secondary-subtle text-secondary small">Cố định</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-secondary rounded-start-3">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input asp-for="Email" class="form-control bg-light rounded-end-3" readonly />
+                            </div>
+                            <span class="text-muted small">Email đăng nhập không thể thay đổi</span>
+                        </div>
+
+                        <!-- Số điện thoại -->
+                        <div class="col-md-6">
+                            <label asp-for="PhoneNumber" class="form-label fw-bold text-dark small">Số điện thoại</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-secondary rounded-start-3">
+                                    <i class="bi bi-telephone"></i>
+                                </span>
+                                <input asp-for="PhoneNumber" class="form-control rounded-end-3" placeholder="Ví dụ: 0912345678" />
+                            </div>
                             <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
                         </div>
+
+                        <!-- Địa chỉ -->
                         <div class="col-md-6">
-                            <label asp-for="Address" class="form-label fw-semibold">Địa chỉ</label>
-                            <input asp-for="Address" class="form-control" />
+                            <label asp-for="Address" class="form-label fw-bold text-dark small">Địa chỉ</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-secondary rounded-start-3">
+                                    <i class="bi bi-geo-alt"></i>
+                                </span>
+                                <input asp-for="Address" class="form-control rounded-end-3" placeholder="Ví dụ: Quận 1, TP. Hồ Chí Minh" />
+                            </div>
                             <span asp-validation-for="Address" class="text-danger small"></span>
                         </div>
                     </div>
 
-                    <hr class="my-4" />
-                    <h5 class="fw-bold text-secondary mb-3">Đổi Mật Khẩu</h5>
-
-                    <div class="mb-3">
-                        <label asp-for="CurrentPassword" class="form-label fw-semibold"></label>
-                        <input asp-for="CurrentPassword" class="form-control" placeholder="Chỉ nhập khi muốn thay đổi mật khẩu" />
-                        <span asp-validation-for="CurrentPassword" class="text-danger small"></span>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label asp-for="NewPassword" class="form-label fw-semibold"></label>
-                            <input asp-for="NewPassword" class="form-control" />
-                            <span asp-validation-for="NewPassword" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="ConfirmNewPassword" class="form-label fw-semibold"></label>
-                            <input asp-for="ConfirmNewPassword" class="form-control" />
-                            <span asp-validation-for="ConfirmNewPassword" class="text-danger small"></span>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary px-4 fw-bold">Lưu Thay Đổi</button>
+                    <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold">
+                            Hủy bỏ
+                        </a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-check-lg"></i>
+                            <span>Lưu Thay Đổi</span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -77,4 +209,17 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('avatarFileInput')?.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const previewBox = document.getElementById('profileAvatarPreview');
+                    previewBox.innerHTML = `<img src="${event.target.result}" alt="Preview" class="w-100 h-100 object-fit-cover" />`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
 }

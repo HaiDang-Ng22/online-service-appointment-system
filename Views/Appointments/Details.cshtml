@@ -39,6 +39,9 @@
                         <span class="badge bg-secondary px-3 py-2 rounded-pill">Đã hủy</span>
                     }
 
+                    <a asp-action="DownloadSlip" asp-route-id="@Model.Id" class="btn btn-light btn-sm rounded-pill px-3 fw-bold text-primary">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Tải PDF
+                    </a>
                     <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold">
                         <i class="bi bi-printer-fill me-1"></i>In Phiếu Hẹn
                     </a>
@@ -52,7 +55,7 @@
                     <div class="card border-0 bg-primary-subtle rounded-4 p-3 mb-4 border border-primary-subtle">
                         <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
                             <div class="bg-white p-2 rounded-3 shadow-sm border text-center">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=@Model.Id" 
+                                <img src="@Url.Action("QrCode", "Appointments", new { id = Model.Id })" 
                                      alt="Mã QR Check-in" 
                                      style="width: 85px; height: 85px;" />
                             </div>
@@ -63,6 +66,12 @@
                                 <p class="text-dark small mb-1">
                                     Xuất trình mã này cho nhân viên tiếp tân tại cơ sở để điểm danh vào phòng phục vụ nhanh chóng chỉ với 1 giây.
                                 </p>
+                                <div class="mb-2">
+                                    <span class="badge bg-white text-primary border border-primary-subtle px-2 py-1 rounded-pill">Mã: APX-@Model.Id.Substring(0, 8).ToUpper()</span>
+                                    <a asp-action="DownloadSlip" asp-route-id="@Model.Id" class="btn btn-sm btn-primary rounded-pill px-3 ms-1 fw-semibold">
+                                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Tải phiếu hẹn PDF
+                                    </a>
+                                </div>
                                 <span class="badge @(Model.Status == "In-Progress" ? "bg-success" : (Model.Status == "Completed" ? "bg-secondary" : "bg-primary")) px-3 py-1 rounded-pill">
                                     @(Model.Status == "In-Progress" ? "✓ Đã Check-in / Đang thực hiện" : (Model.Status == "Completed" ? "Đã hoàn thành" : "Sẵn sàng Check-in"))
                                 </span>
