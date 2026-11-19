@@ -1,97 +1,302 @@
 @model List<Appointment.Models.User>
 @{
-    ViewData["Title"] = "Quản lý tài khoản người dùng";
+    ViewData["Title"] = "Quản lý tài khoản";
+    string activeTab = ViewBag.ActiveTab as string ?? "customers";
+    var customers = Model.Where(u => u.Role == "Customer").ToList();
+    var partnersAndStaff = Model.Where(u => u.Role == "Provider" || u.Role == "Staff").ToList();
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0 text-primary">Quản Lý Tài Khoản Người Dùng</h3>
-    <a asp-action="CreateUser" class="btn btn-warning text-dark fw-bold">Tạo Tài Khoản Mới</a>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-primary">Quản Lý Tài Khoản Người Dùng</h3>
+        <p class="text-muted small mb-0">Phân tách độc lập danh sách Khách hàng và Đối tác / Nhân viên vận hành</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-action="CreateUser" class="btn btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-sm d-flex align-items-center gap-1.5">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>Tạo Tài Khoản Mới</span>
+        </a>
+    </div>
 </div>
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm border-0 mb-4" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Search bar -->
 <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
-    <form asp-action="Users" method="get" class="row g-2">
-        <div class="col-md-5">
-            <input type="text" name="search" class="form-control" placeholder="Tìm theo tên, email, sđt..." value="@ViewBag.SearchTerm" />
-        </div>
-        <div class="col-md-4">
-            <select name="role" class="form-select" onchange="this.form.submit()">
-                <option value="">-- Tất cả vai trò --</option>
-                <option value="Provider" selected="@(ViewBag.SelectedRole == "Provider" ? "selected" : null)">Provider (Nhà cung cấp)</option>
-                <option value="Staff" selected="@(ViewBag.SelectedRole == "Staff" ? "selected" : null)">Staff (Nhân viên)</option>
-                <option value="Customer" selected="@(ViewBag.SelectedRole == "Customer" ? "selected" : null)">Customer (Khách hàng)</option>
-            </select>
+    <form asp-action="Users" method="get" class="row g-2 align-items-center">
+        <input type="hidden" name="tab" id="hiddenTabInput" value="@activeTab" />
+        <div class="col-md-9">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted rounded-start-3">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" name="search" class="form-control border-start-0 rounded-end-3 py-2" placeholder="Tìm theo họ tên, email, số điện thoại..." value="@ViewBag.SearchTerm" />
+            </div>
         </div>
         <div class="col-md-3">
-            <button type="submit" class="btn btn-primary w-100 fw-bold">Tìm kiếm</button>
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-filter"></i>
+                <span>Tìm kiếm</span>
+            </button>
         </div>
     </form>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Họ và tên</th>
-                    <th>Email</th>
-                    <th>Số điện thoại</th>
-                    <th>Vai trò (Role)</th>
-                    <th>Ngày tạo</th>
-                    <th>Trạng thái</th>
-                    <th class="text-end">Khóa / Kích hoạt</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var user in Model)
-                {
-                    <tr>
-                        <td class="fw-bold">@user.FullName</td>
-                        <td>@user.Email</td>
-                        <td>@(string.IsNullOrEmpty(user.PhoneNumber) ? "-" : user.PhoneNumber)</td>
-                        <td>
-                            @if (user.Role == "Provider")
+<!-- Tabs Navigation -->
+<ul class="nav nav-pills nav-fill gap-2 p-1 bg-white rounded-4 shadow-sm mb-4 border" id="userTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center gap-2 @(activeTab == "customers" ? "active" : "")" 
+                id="customers-tab" data-bs-toggle="pill" data-bs-target="#customers-pane" type="button" role="tab"
+                onclick="updateTabUrl('customers')">
+            <i class="bi bi-people-fill"></i>
+            <span>Khách Hàng (Người dùng)</span>
+            <span class="badge @(activeTab == "customers" ? "bg-white text-primary" : "bg-primary-subtle text-primary") rounded-pill ms-1">
+                @customers.Count
+            </span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center gap-2 @(activeTab == "partners" ? "active" : "")" 
+                id="partners-tab" data-bs-toggle="pill" data-bs-target="#partners-pane" type="button" role="tab"
+                onclick="updateTabUrl('partners')">
+            <i class="bi bi-hospital-fill"></i>
+            <span>Nhà Cung Cấp & Nhân Viên</span>
+            <span class="badge @(activeTab == "partners" ? "bg-white text-warning-emphasis" : "bg-warning-subtle text-warning-emphasis") rounded-pill ms-1">
+                @partnersAndStaff.Count
+            </span>
+        </button>
+    </li>
+</ul>
+
+<!-- Tabs Content -->
+<div class="tab-content" id="userTabsContent">
+    <!-- TAB 1: KHÁCH HÀNG -->
+    <div class="tab-pane fade @(activeTab == "customers" ? "show active" : "")" id="customers-pane" role="tabpanel">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-person-circle text-primary me-2"></i>Danh Sách Khách Hàng (@customers.Count)
+                </h6>
+                <span class="text-muted small">Người dùng đặt lịch hẹn khám và dịch vụ trên hệ thống</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Họ và tên</th>
+                            <th>Email liên hệ</th>
+                            <th>Số điện thoại</th>
+                            <th>Địa chỉ</th>
+                            <th>Ngày đăng ký</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!customers.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                    Không tìm thấy tài khoản khách hàng nào phù hợp.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var user in customers)
                             {
-                                <span class="badge bg-warning text-dark">Provider</span>
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                @(string.IsNullOrEmpty(user.FullName) ? "U" : user.FullName.Substring(0, 1).ToUpper())
+                                            </div>
+                                            <div>
+                                                <span class="fw-bold text-dark d-block">@user.FullName</span>
+                                                <small class="text-muted">ID: @user.Id.Substring(0, Math.Min(8, user.Id.Length))...</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="text-secondary">@user.Email</span></td>
+                                    <td>@(string.IsNullOrEmpty(user.PhoneNumber) ? "-" : user.PhoneNumber)</td>
+                                    <td>@(string.IsNullOrEmpty(user.Address) ? "-" : user.Address)</td>
+                                    <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-center">
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">Hoạt động</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">Bị khóa</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" class="d-inline">
+                                            @if (user.IsActive)
+                                            {
+                                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?');">
+                                                    <i class="bi bi-lock me-1"></i>Khóa
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="submit" class="btn btn-outline-success btn-sm rounded-pill px-3">
+                                                    <i class="bi bi-unlock me-1"></i>Kích hoạt
+                                                </button>
+                                            }
+                                        </form>
+                                    </td>
+                                </tr>
                             }
-                            else if (user.Role == "Staff")
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: NHÀ CUNG CẤP & NHÂN VIÊN -->
+    <div class="tab-pane fade @(activeTab == "partners" ? "show active" : "")" id="partners-pane" role="tabpanel">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-hospital text-warning me-2"></i>Danh Sách Nhà Cung Cấp & Nhân Viên (@partnersAndStaff.Count)
+                </h6>
+                <span class="text-muted small">Cơ sở khám chữa bệnh, spa/salon, trung tâm và nhân viên tiếp nhận</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Tên cơ sở / Họ tên</th>
+                            <th>Email</th>
+                            <th>Vai trò</th>
+                            <th>Số điện thoại</th>
+                            <th>Địa chỉ cơ sở</th>
+                            <th class="text-center">Số dịch vụ</th>
+                            <th class="text-center">Lịch hẹn</th>
+                            <th>Ngày tạo</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!partnersAndStaff.Any())
+                        {
+                            <tr>
+                                <td colspan="10" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                    Không tìm thấy tài khoản nhà cung cấp hoặc nhân viên nào.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var user in partnersAndStaff)
                             {
-                                <span class="badge bg-info text-white">Staff</span>
+                                int svcCount = user.ProvidedServices?.Count ?? 0;
+                                int aptCount = user.ProviderAppointments?.Count ?? 0;
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="rounded-circle @(user.Role == "Provider" ? "bg-warning-subtle text-warning-emphasis" : "bg-info-subtle text-info-emphasis") fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                <i class="bi @(user.Role == "Provider" ? "bi-hospital" : "bi-person-badge")"></i>
+                                            </div>
+                                            <div>
+                                                <span class="fw-bold text-dark d-block">@user.FullName</span>
+                                                <small class="text-muted">ID: @user.Id.Substring(0, Math.Min(8, user.Id.Length))...</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="text-secondary">@user.Email</span></td>
+                                    <td>
+                                        @if (user.Role == "Provider")
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">
+                                                <i class="bi bi-hospital me-1"></i>Nhà Cung Cấp
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1 rounded-pill">
+                                                <i class="bi bi-person-badge me-1"></i>Nhân Viên
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrEmpty(user.PhoneNumber) ? "-" : user.PhoneNumber)</td>
+                                    <td>@(string.IsNullOrEmpty(user.Address) ? "-" : user.Address)</td>
+                                    <td class="text-center">
+                                        @if (user.Role == "Provider")
+                                        {
+                                            <span class="badge bg-light text-dark border px-2 py-1">@svcCount dịch vụ</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (user.Role == "Provider")
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">@aptCount cuộc hẹn</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-center">
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">Hoạt động</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">Bị khóa</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" class="d-inline">
+                                            @if (user.IsActive)
+                                            {
+                                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?');">
+                                                    <i class="bi bi-lock me-1"></i>Khóa
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="submit" class="btn btn-outline-success btn-sm rounded-pill px-3">
+                                                    <i class="bi bi-unlock me-1"></i>Kích hoạt
+                                                </button>
+                                            }
+                                        </form>
+                                    </td>
+                                </tr>
                             }
-                            else
-                            {
-                                <span class="badge bg-primary">Customer</span>
-                            }
-                        </td>
-                        <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
-                        <td>
-                            @if (user.IsActive)
-                            {
-                                <span class="badge bg-success">Hoạt động</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary">Bị khóa</span>
-                            }
-                        </td>
-                        <td class="text-end">
-                            <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" class="d-inline">
-                                @if (user.IsActive)
-                                {
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này?');">
-                                        Khóa
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button type="submit" class="btn btn-outline-success btn-sm">
-                                        Kích hoạt
-                                    </button>
-                                }
-                            </form>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    function updateTabUrl(tabName) {
+        document.getElementById('hiddenTabInput').value = tabName;
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url);
+    }
+</script>
+}
