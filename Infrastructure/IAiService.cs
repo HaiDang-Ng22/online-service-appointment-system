@@ -29,5 +29,10 @@ namespace Appointment.Infrastructure
         /// AI Phân tích thống kê và dự báo xu hướng kinh doanh (Dashboard Insights).
         /// </summary>
         Task<string> AnalyzeStatsAsync(string statsData);
+
+        /// <summary>
+        /// AI Gợi ý các danh mục dịch vụ mới tiềm năng chưa có trong hệ thống.
+        /// </summary>
+        Task<string> SuggestCategoriesAsync(string existingCategories);
     }
 }

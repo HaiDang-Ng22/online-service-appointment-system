@@ -256,6 +256,55 @@ RÀNG BUỘC: Bám sát các chỉ số có trong số liệu thống kê đư�
             return GenerateLocalStatsAnalysis(statsData);
         }
 
+        public async Task<string> SuggestCategoriesAsync(string existingCategories)
+        {
+            var systemPrompt = @"BẠN LÀ CHUYÊN GIA TƯ VẤN PHÁT TRIỂN NỀN TẢNG ĐẶT LỊCH HẸN TRỰC TUYẾN APPOINTX.
+Nhiệm vụ: Dựa trên danh sách các danh mục dịch vụ đã có trong hệ thống, hãy đề xuất 3 đến 5 danh mục dịch vụ mới tiềm năng, có nhu cầu đặt lịch cao tại thị trường Việt Nam nhưng CHƯA CÓ trong hệ thống.
+YÊU CẦU ĐỊNH DẠNG TRẢ VỀ:
+Trả về DUY NHẤT một mảng JSON thuần túy (không bọc trong thẻ markdown ```json, không kèm giải thích ngoài JSON), mỗi phần tử là một object gồm:
+- ""name"": Tên danh mục dịch vụ mới (ngắn gọn, chuẩn nghiệp vụ)
+- ""description"": Mô tả chi tiết dịch vụ này cung cấp những gì
+- ""reason"": Lý do vì sao hệ thống nên bổ sung danh mục này
+- ""icon"": Mã icon Bootstrap Icons (ví dụ: bi-heart-pulse-fill, bi-camera-reels-fill, bi-chat-heart-fill, bi-wrench-adjustable, bi-palette-fill)";
+
+            if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+            {
+                try
+                {
+                    var result = await CallGeminiAsync(systemPrompt, $"[DANH MỤC HIỆN CÓ TRONG HỆ THỐNG]:\n{existingCategories}\n\nHãy gợi ý các danh mục mới chưa có.");
+                    if (!string.IsNullOrWhiteSpace(result) && !result.StartsWith("⚠️"))
+                    {
+                        var cleaned = result.Trim();
+                        if (cleaned.StartsWith("```json")) cleaned = cleaned.Substring(7);
+                        if (cleaned.StartsWith("```")) cleaned = cleaned.Substring(3);
+                        if (cleaned.EndsWith("```")) cleaned = cleaned.Substring(0, cleaned.Length - 3);
+                        return cleaned.Trim();
+                    }
+                }
+                catch { }
+            }
+
+            return GenerateLocalCategorySuggestions(existingCategories);
+        }
+
+        private string GenerateLocalCategorySuggestions(string existingCategories)
+        {
+            var pool = new[]
+            {
+                new { name = "Thú Y & Chăm Sóc Thú Cưng", description = "Khám chữa bệnh, tiêm phòng định kỳ, spa làm đẹp và lưu chuồng cho thú cưng.", reason = "Nhu cầu nuôi thú cưng tại đô thị tăng trưởng mạnh, khách hàng thường xuyên đặt lịch khám và làm đẹp định kỳ.", icon = "bi-heart-pulse-fill" },
+                new { name = "Nhiếp Ảnh & Quay Phim Sự Kiện", description = "Chụp ảnh chân dung nghệ thuật, studio gia đình, quay phóng sự cưới và sự kiện doanh nghiệp.", reason = "Dịch vụ nhiếp ảnh luôn yêu cầu đặt lịch hẹn trước theo khung giờ cố định và chuẩn bị bối cảnh.", icon = "bi-camera-reels-fill" },
+                new { name = "Tâm Lý Học & Tham Vấn Trị Liệu", description = "Tư vấn tâm lý học đường, hỗ trợ cân bằng stress công việc, trị liệu tâm lý 1:1 cùng chuyên gia.", reason = "Xu hướng chăm sóc sức khỏe tinh thần phát triển nhanh, tính riêng tư và đặt lịch chính xác là yếu tố cốt lõi.", icon = "bi-chat-heart-fill" },
+                new { name = "Bảo Trì & Sửa Chữa Thiết Bị Tại Nhà", description = "Sửa chữa hệ thống điện nước, bảo dưỡng điều hòa máy lạnh và thiết bị gia dụng tận nơi.", reason = "Dịch vụ thiết yếu với tần suất đặt lịch hẹn tại nhà thường xuyên của cư dân các tòa nhà và khu đô thị.", icon = "bi-wrench-adjustable" },
+                new { name = "Huấn Luyện Kỹ Năng & Nghệ Thuật", description = "Các lớp học đàn, hội họa, thanh nhạc và kỹ năng thuyết trình ngắn hạn theo lịch hẹn cá nhân.", reason = "Mô hình học 1 kèm 1 hoặc nhóm nhỏ rất chuộng hình thức đặt hẹn linh hoạt qua ứng dụng.", icon = "bi-palette-fill" }
+            };
+
+            var existingLower = existingCategories.ToLower();
+            var filtered = pool.Where(p => !existingLower.Contains(p.name.ToLower().Split('&')[0].Trim())).Take(4).ToList();
+            if (!filtered.Any()) filtered = pool.Take(3).ToList();
+
+            return System.Text.Json.JsonSerializer.Serialize(filtered);
+        }
+
         private async Task<string> CallGeminiAsync(string systemPrompt, string userPrompt)
         {
             var url = $"{GEMINI_BASE}/{_options.Model}:generateContent?key={_options.ApiKey}";

@@ -3,50 +3,118 @@
     ViewData["Title"] = "Quản lý danh mục dịch vụ";
 }
 
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-primary">
+            <i class="bi bi-tags-fill me-2 text-primary"></i>Quản Lý Danh Mục Dịch Vụ
+        </h3>
+        <p class="text-muted small mb-0">Thiết lập các ngành hàng dịch vụ và sử dụng Trợ lý AI để gợi ý danh mục mới</p>
+    </div>
+    <div>
+        <button id="btnAiSuggestCategories" class="btn btn-primary rounded-pill px-3 py-2 fw-bold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-magic fs-5"></i>
+            <span>AI Gợi Ý Danh Mục Chưa Có</span>
+        </button>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm border-0 mb-4" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- AI SUGGESTIONS PANEL (DYNAMIC) -->
+<div id="aiSuggestPanel" class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4 d-none border-start border-4 border-primary">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <div class="bg-primary text-white p-2 rounded-3">
+                <i class="bi bi-lightbulb-fill fs-5"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">AI Gợi Ý Danh Mục Mới Tiềm Năng</h5>
+                <small class="text-secondary">Các lĩnh vực có nhu cầu đặt lịch cao tại Việt Nam mà hệ thống chưa có</small>
+            </div>
+        </div>
+        <button id="btnCloseAiSuggest" class="btn btn-sm btn-light rounded-circle text-muted" title="Đóng">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <!-- Loading spinner -->
+    <div id="aiSuggestLoading" class="text-center py-4 d-none">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <div class="text-secondary small">Trợ lý AI đang phân tích dữ liệu thị trường và các danh mục hiện có...</div>
+    </div>
+
+    <!-- Results container -->
+    <div id="aiSuggestResults" class="row g-3">
+    </div>
+</div>
+
 <div class="row g-4">
+    <!-- CỘT TRÁI: FORM THÊM THỦ CÔNG -->
     <div class="col-md-5">
-        <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h5 class="fw-bold mb-3 text-primary">Thêm Danh Mục Mới</h5>
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+            <h5 class="fw-bold mb-3 text-dark">
+                <i class="bi bi-plus-circle me-1 text-primary"></i>Thêm Danh Mục Thủ Công
+            </h5>
             <form asp-action="CreateCategory" method="post">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Tên danh mục</label>
-                    <input type="text" name="Name" class="form-control" placeholder="Ví dụ: Bác sĩ / Phòng khám" required />
+                    <label class="form-label fw-semibold">Tên danh mục <span class="text-danger">*</span></label>
+                    <input type="text" name="Name" id="inputCatName" class="form-control" placeholder="Ví dụ: Thú Y & Thú Cưng" required />
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Mô tả danh mục</label>
-                    <textarea name="Description" class="form-control" rows="3" placeholder="Mô tả ngắn gọn về loại hình dịch vụ này..."></textarea>
+                    <textarea name="Description" id="inputCatDesc" class="form-control" rows="3" placeholder="Mô tả ngắn gọn về loại hình dịch vụ này..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 fw-bold">Tạo Danh Mục</button>
+                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 rounded-3 shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i>Tạo Danh Mục
+                </button>
             </form>
         </div>
     </div>
 
+    <!-- CỘT PHẢI: BẢNG DANH MỤC HIỆN TẠI -->
     <div class="col-md-7">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="card-header bg-white py-3">
-                <h5 class="fw-bold mb-0">Danh Sách Danh Mục Hiện Tại</h5>
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-list-check me-1 text-primary"></i>Danh Sách Danh Mục (@Model.Count)
+                </h5>
+                <span class="text-muted small">Đang áp dụng trên hệ thống</span>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0" id="categoriesTable">
                     <thead class="table-light">
                         <tr>
-                            <th>Tên danh mục</th>
+                            <th class="ps-4">Tên danh mục</th>
                             <th>Mô tả</th>
-                            <th>Số dịch vụ</th>
-                            <th class="text-end">Thao tác</th>
+                            <th class="text-center">Số dịch vụ</th>
+                            <th class="text-end pe-4">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var cat in Model)
                         {
                             <tr>
-                                <td class="fw-bold">@cat.Name</td>
-                                <td><small class="text-muted">@cat.Description</small></td>
-                                <td><span class="badge bg-secondary">@(cat.Services?.Count ?? 0) dịch vụ</span></td>
-                                <td class="text-end">
-                                    <a asp-action="EditCategory" asp-route-id="@cat.Id" class="btn btn-outline-primary btn-sm me-1">Sửa</a>
-                                    <form asp-action="DeleteCategory" asp-route-id="@cat.Id" method="post" class="d-inline" onsubmit="return confirm('Xóa danh mục này sẽ xóa các dịch vụ liên quan. Tiếp tục?');">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">Xóa</button>
+                                <td class="ps-4 fw-bold text-dark">
+                                    <i class="bi bi-tag-fill text-primary me-2"></i>@cat.Name
+                                </td>
+                                <td><small class="text-secondary">@(string.IsNullOrWhiteSpace(cat.Description) ? "—" : cat.Description)</small></td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border px-2 py-1">@(cat.Services?.Count ?? 0) dịch vụ</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a asp-action="EditCategory" asp-route-id="@cat.Id" class="btn btn-outline-primary btn-sm rounded-pill px-2.5 me-1">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <form asp-action="DeleteCategory" asp-route-id="@cat.Id" method="post" class="d-inline" onsubmit="return confirm('Xóa danh mục này sẽ xóa các dịch vụ liên quan. Bạn có chắc muốn tiếp tục?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2.5">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
@@ -57,3 +125,115 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const btnSuggest = document.getElementById("btnAiSuggestCategories");
+        const panel = document.getElementById("aiSuggestPanel");
+        const loading = document.getElementById("aiSuggestLoading");
+        const results = document.getElementById("aiSuggestResults");
+        const btnClose = document.getElementById("btnCloseAiSuggest");
+
+        if (btnClose) {
+            btnClose.addEventListener("click", () => panel.classList.add("d-none"));
+        }
+
+        if (btnSuggest) {
+            btnSuggest.addEventListener("click", function () {
+                panel.classList.remove("d-none");
+                loading.classList.remove("d-none");
+                results.innerHTML = "";
+                btnSuggest.disabled = true;
+
+                fetch('/Ai/SuggestCategories')
+                    .then(res => res.json())
+                    .then(data => {
+                        loading.classList.add("d-none");
+                        btnSuggest.disabled = false;
+
+                        if (Array.isArray(data) && data.length > 0) {
+                            results.innerHTML = data.map((item, idx) => `
+                                <div class="col-md-6 col-lg-4" id="suggestCard_${idx}">
+                                    <div class="card h-100 border rounded-4 p-3 bg-light d-flex flex-column justify-content-between shadow-sm">
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <div class="rounded-circle bg-primary-subtle text-primary p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                    <i class="bi ${item.icon || 'bi-tag-fill'}"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">${item.name}</h6>
+                                            </div>
+                                            <p class="small text-secondary mb-2" style="font-size: 0.8rem;">${item.description}</p>
+                                            <div class="p-2 bg-white rounded-3 small border mb-3">
+                                                <span class="text-primary fw-semibold"><i class="bi bi-lightbulb me-1"></i>Lý do đề xuất:</span>
+                                                <span class="text-muted d-block mt-0.5" style="font-size: 0.75rem;">${item.reason}</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary w-100 rounded-pill fw-bold" onclick="addSuggestedCategory('${encodeURIComponent(item.name)}', '${encodeURIComponent(item.description)}', ${idx})">
+                                            <i class="bi bi-plus-circle me-1"></i>Thêm Vào Hệ Thống
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('');
+                        } else {
+                            results.innerHTML = `<div class="col-12 text-center text-muted py-3">Không có đề xuất mới nào vào thời điểm này.</div>`;
+                        }
+                    })
+                    .catch(err => {
+                        loading.classList.add("d-none");
+                        btnSuggest.disabled = false;
+                        results.innerHTML = `<div class="col-12 text-danger text-center py-3">Lỗi kết nối khi gọi AI. Vui lòng thử lại sau.</div>`;
+                    });
+            });
+        }
+    });
+
+    function addSuggestedCategory(encodedName, encodedDesc, cardIdx) {
+        const name = decodeURIComponent(encodedName);
+        const description = decodeURIComponent(encodedDesc);
+
+        const card = document.getElementById(`suggestCard_${cardIdx}`);
+        const btn = card.querySelector('button');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Đang thêm...`;
+
+        fetch('/Admin/QuickCreateCategory', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ Name: name, Description: description })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                btn.className = "btn btn-sm btn-success w-100 rounded-pill fw-bold disabled";
+                btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Đã Thêm Thành Công`;
+
+                // Thêm vào bảng danh mục bên phải
+                const tbody = document.querySelector("#categoriesTable tbody");
+                const tr = document.createElement("tr");
+                tr.className = "table-success";
+                tr.innerHTML = `
+                    <td class="ps-4 fw-bold text-dark"><i class="bi bi-tag-fill text-primary me-2"></i>${name}</td>
+                    <td><small class="text-secondary">${description}</small></td>
+                    <td class="text-center"><span class="badge bg-light text-dark border px-2 py-1">0 dịch vụ</span></td>
+                    <td class="text-end pe-4">
+                        <a href="/Admin/EditCategory/${res.category.id}" class="btn btn-outline-primary btn-sm rounded-pill px-2.5 me-1"><i class="bi bi-pencil-square"></i></a>
+                    </td>
+                `;
+                tbody.prepend(tr);
+            } else {
+                btn.disabled = false;
+                btn.className = "btn btn-sm btn-danger w-100 rounded-pill fw-bold";
+                btn.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>${res.message || 'Lỗi thêm'}`;
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.className = "btn btn-sm btn-danger w-100 rounded-pill fw-bold";
+            btn.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>Lỗi kết nối`;
+        });
+    }
+</script>
+}

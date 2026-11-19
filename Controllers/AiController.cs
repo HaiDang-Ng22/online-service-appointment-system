@@ -472,6 +472,32 @@ Doanh thu hoàn tất: {totalRevenue:N0} VNĐ";
             return Json(new { success = true, analysis });
         }
 
+        /// <summary>
+        /// GET /Ai/SuggestCategories — AI Gợi ý các danh mục dịch vụ mới tiềm năng chưa có trong hệ thống (dành cho Admin).
+        /// </summary>
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SuggestCategories()
+        {
+            try
+            {
+                var existingCategories = await _context.Categories
+                    .OrderBy(c => c.Name)
+                    .Select(c => c.Name + ": " + (c.Description ?? ""))
+                    .ToListAsync();
+
+                var contextString = string.Join("\n", existingCategories);
+                var jsonResult = await _ai.SuggestCategoriesAsync(contextString);
+
+                return Content(jsonResult, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi AI gợi ý danh mục mới.");
+                return Json(new { success = false, message = "Không thể tạo gợi ý danh mục lúc này." });
+            }
+        }
+
         // ─────────────────────────────────────────────
         // Hàm phụ trợ tạo Grounding Context
         // ─────────────────────────────────────────────
