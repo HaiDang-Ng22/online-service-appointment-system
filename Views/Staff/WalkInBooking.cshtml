@@ -104,15 +104,36 @@
                     <span asp-validation-for="ServiceId" class="text-danger small"></span>
                 </div>
 
-                <div class="mb-3">
-                    <label asp-for="ProviderId" class="form-label fw-bold small text-dark">
-                        Bác sĩ / Chuyên gia tiếp nhận <span class="text-muted fw-normal">(Mặc định theo dịch vụ)</span>
-                    </label>
-                    <select asp-for="ProviderId" id="selectProvider" asp-items="Model.ProvidersList" class="form-select rounded-3">
-                        <option value="">-- Mặc định theo bác sĩ của dịch vụ --</option>
-                    </select>
-                    <span asp-validation-for="ProviderId" class="text-danger small"></span>
-                </div>
+                @if (!string.IsNullOrEmpty(ViewBag.StaffFacilityName as string))
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark">
+                            Cơ sở tiếp nhận dịch vụ
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-primary border-end-0">
+                                <i class="bi bi-hospital"></i>
+                            </span>
+                            <input type="text" class="form-control bg-light border-start-0 rounded-end-3 fw-bold text-dark" value="@ViewBag.StaffFacilityName" readonly />
+                        </div>
+                        <input type="hidden" asp-for="ProviderId" />
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-shield-check text-success me-1"></i>Nhân viên thao tác đặt lịch tại quầy riêng cho cơ sở của mình.
+                        </small>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label asp-for="ProviderId" class="form-label fw-bold small text-dark">
+                            Bác sĩ / Chuyên gia tiếp nhận <span class="text-muted fw-normal">(Mặc định theo dịch vụ)</span>
+                        </label>
+                        <select asp-for="ProviderId" id="selectProvider" asp-items="Model.ProvidersList" class="form-select rounded-3">
+                            <option value="">-- Mặc định theo bác sĩ của dịch vụ --</option>
+                        </select>
+                        <span asp-validation-for="ProviderId" class="text-danger small"></span>
+                    </div>
+                }
 
                 <div class="row g-3 mb-3">
                     <div class="col-sm-6">

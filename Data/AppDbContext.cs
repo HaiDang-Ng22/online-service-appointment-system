@@ -29,6 +29,13 @@ namespace Appointment.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+            // Staff -> Provider Relationship
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Provider)
+                .WithMany(u => u.StaffMembers)
+                .HasForeignKey(u => u.ProviderId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Service Relationships
             modelBuilder.Entity<Service>()
                 .HasOne(s => s.Provider)

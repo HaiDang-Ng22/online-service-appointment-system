@@ -30,15 +30,46 @@ namespace Appointment.Controllers
             _checkInCodes = checkInCodes;
         }
 
+        /// <summary>
+        /// Lấy ngữ cảnh cơ sở (Provider) mà nhân viên này trực thuộc.
+        /// Nếu là Admin, providerId = null (quản trị toàn hệ thống).
+        /// </summary>
+        private async Task<(string? ProviderId, User? Staff, User? Provider)> GetCurrentStaffFacilityAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return (null, null, null);
+
+            var user = await _context.Users
+                .Include(u => u.Provider)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null) return (null, null, null);
+
+            if (user.Role == "Staff")
+            {
+                return (user.ProviderId, user, user.Provider);
+            }
+
+            return (null, user, null);
+        }
+
         // GET: /Staff
         public async Task<IActionResult> Index(string? status, DateTime? date)
         {
+            var (staffProviderId, staffUser, providerUser) = await GetCurrentStaffFacilityAsync();
+
             var query = _context.Appointments
                 .Include(a => a.Service)
                 .Include(a => a.Customer)
                 .Include(a => a.Provider)
                 .Include(a => a.Staff)
                 .AsQueryable();
+
+            // Nếu là Staff có trực thuộc cơ sở, chỉ hiển thị lịch hẹn của cơ sở đó
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                query = query.Where(a => a.ProviderId == staffProviderId);
+            }
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -59,6 +90,9 @@ namespace Appointment.Controllers
 
             ViewBag.StatusFilter = status;
             ViewBag.DateFilter = date?.ToString("yyyy-MM-dd");
+            ViewBag.StaffFacilityName = providerUser?.FullName;
+            ViewBag.StaffFacilityAddress = providerUser?.Address;
+            ViewBag.StaffProviderId = staffProviderId;
 
             return View(sortedList);
         }
@@ -67,13 +101,20 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AssignStaff(string appointmentId)
         {
-            var staffId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(staffId)) return Unauthorized();
+            var (staffProviderId, staffUser, _) = await GetCurrentStaffFacilityAsync();
+            if (staffUser == null) return Unauthorized();
 
             var appointment = await _context.Appointments.FindAsync(appointmentId);
             if (appointment == null) return NotFound();
 
-            appointment.StaffId = staffId;
+            // Kiểm tra phân quyền cơ sở
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền tiếp nhận lịch hẹn của cơ sở khác!";
+                return RedirectToAction(nameof(Index));
+            }
+
+            appointment.StaffId = staffUser.Id;
             if (appointment.Status == "Pending")
             {
                 appointment.Status = "Confirmed";
@@ -94,8 +135,16 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(string appointmentId, string status)
         {
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
             var appointment = await _context.Appointments.FindAsync(appointmentId);
             if (appointment == null) return NotFound();
+
+            // Kiểm tra phân quyền cơ sở
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền cập nhật trạng thái lịch hẹn của cơ sở khác!";
+                return RedirectToAction(nameof(Index));
+            }
 
             // US-24: chỉ cho phép chuyển trạng thái hợp lệ
             if (!AppointmentRules.TryValidateTransition(appointment, status, out string transitionError))
@@ -134,11 +183,18 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status)
         {
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
             var appointment = await _context.Appointments
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.Id == appointmentId);
 
             if (appointment == null) return NotFound();
+
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền cập nhật hồ sơ dịch vụ của cơ sở khác!";
+                return RedirectToAction(nameof(Index));
+            }
 
             // US-24: chỉ cho phép chuyển trạng thái hợp lệ
             if (!AppointmentRules.TryValidateTransition(appointment, status, out string transitionError))
@@ -188,11 +244,18 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateInternalNote(string appointmentId, string? internalNote)
         {
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
             var appointment = await _context.Appointments
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.Id == appointmentId);
 
             if (appointment == null) return NotFound();
+
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền ghi chú cho lịch hẹn của cơ sở khác!";
+                return RedirectToAction(nameof(Index));
+            }
 
             appointment.InternalNote = string.IsNullOrWhiteSpace(internalNote) ? null : internalNote.Trim();
 
@@ -210,13 +273,19 @@ namespace Appointment.Controllers
         [HttpGet]
         public async Task<IActionResult> WalkInBooking()
         {
+            var (staffProviderId, _, providerUser) = await GetCurrentStaffFacilityAsync();
+
             var model = new WalkInBookingViewModel
             {
                 AppointmentDate = DateTime.Today,
-                SelectedTimeSlot = string.Empty
+                SelectedTimeSlot = string.Empty,
+                ProviderId = staffProviderId
             };
 
-            await PopulateWalkInDropdowns(model);
+            await PopulateWalkInDropdowns(model, staffProviderId);
+            ViewBag.StaffFacilityName = providerUser?.FullName;
+            ViewBag.StaffProviderId = staffProviderId;
+
             return View(model);
         }
 
@@ -341,9 +410,18 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> WalkInBooking(WalkInBookingViewModel model)
         {
+            var (staffProviderId, _, providerUser) = await GetCurrentStaffFacilityAsync();
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                model.ProviderId = staffProviderId; // Bắt buộc đặt lịch tại cơ sở của nhân viên
+            }
+
+            ViewBag.StaffFacilityName = providerUser?.FullName;
+            ViewBag.StaffProviderId = staffProviderId;
+
             if (!ModelState.IsValid)
             {
-                await PopulateWalkInDropdowns(model);
+                await PopulateWalkInDropdowns(model, staffProviderId);
                 return View(model);
             }
 
@@ -354,7 +432,15 @@ namespace Appointment.Controllers
             if (service == null || !service.IsActive)
             {
                 ModelState.AddModelError("ServiceId", "Dịch vụ đã chọn không tồn tại hoặc đã ngừng hoạt động.");
-                await PopulateWalkInDropdowns(model);
+                await PopulateWalkInDropdowns(model, staffProviderId);
+                return View(model);
+            }
+
+            // Kiểm tra phân quyền: nhân viên chỉ được đặt dịch vụ thuộc cơ sở mình
+            if (!string.IsNullOrEmpty(staffProviderId) && service.ProviderId != staffProviderId)
+            {
+                ModelState.AddModelError("ServiceId", "Bạn chỉ có thể đặt các dịch vụ thuộc cơ sở của mình.");
+                await PopulateWalkInDropdowns(model, staffProviderId);
                 return View(model);
             }
 
@@ -363,7 +449,7 @@ namespace Appointment.Controllers
             if (!TimeSpan.TryParse(model.SelectedTimeSlot, out TimeSpan startTime))
             {
                 ModelState.AddModelError("SelectedTimeSlot", "Khung giờ bắt đầu không hợp lệ.");
-                await PopulateWalkInDropdowns(model);
+                await PopulateWalkInDropdowns(model, staffProviderId);
                 return View(model);
             }
 
@@ -375,7 +461,7 @@ namespace Appointment.Controllers
             if (isOff)
             {
                 ModelState.AddModelError("", "Bác sĩ / Nhà cung cấp được chọn đang trong ngày nghỉ vào ngày này. Vui lòng chọn bác sĩ hoặc ngày khác.");
-                await PopulateWalkInDropdowns(model);
+                await PopulateWalkInDropdowns(model, staffProviderId);
                 return View(model);
             }
 
@@ -388,7 +474,7 @@ namespace Appointment.Controllers
             if (isOverlap)
             {
                 ModelState.AddModelError("", "Bác sĩ đã có lịch hẹn khác trong khung giờ này. Vui lòng chọn khung giờ khác hoặc đổi bác sĩ.");
-                await PopulateWalkInDropdowns(model);
+                await PopulateWalkInDropdowns(model, staffProviderId);
                 return View(model);
             }
 
@@ -528,6 +614,21 @@ namespace Appointment.Controllers
                 });
             }
 
+            // Kiểm tra phân quyền: nhân viên chỉ được check-in cho khách hàng tại cơ sở của mình
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                await _audit.LogAsync(AuditActions.AppointmentCheckInFailed,
+                    $"Check-in thất bại: Lịch hẹn #{appointment.Id[..8].ToUpper()} thuộc cơ sở '{appointment.Provider?.FullName}', không thuộc quyền quản lý của nhân viên.",
+                    "Appointment", appointment.Id, success: false, severity: AuditLog.SeverityWarning);
+
+                return Json(new
+                {
+                    success = false,
+                    message = $"Lịch hẹn này thuộc về cơ sở '{appointment.Provider?.FullName}'. Bạn chỉ có thể điểm danh khách hàng tại cơ sở của mình."
+                });
+            }
+
             // Kiểm tra trạng thái hiện tại
             if (appointment.Status == AppointmentRules.Cancelled)
             {
@@ -624,19 +725,24 @@ namespace Appointment.Controllers
             });
         }
 
-        private async Task PopulateWalkInDropdowns(WalkInBookingViewModel model)
+        private async Task PopulateWalkInDropdowns(WalkInBookingViewModel model, string? staffProviderId = null)
         {
-            var services = await _context.Services
+            var servicesQuery = _context.Services
                 .Include(s => s.Category)
                 .Include(s => s.Provider)
-                .Where(s => s.IsActive)
-                .OrderBy(s => s.Name)
-                .ToListAsync();
+                .Where(s => s.IsActive);
+
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                servicesQuery = servicesQuery.Where(s => s.ProviderId == staffProviderId);
+            }
+
+            var services = await servicesQuery.OrderBy(s => s.Name).ToListAsync();
 
             model.ServicesList = services.Select(s => new SelectListItem
             {
                 Value = s.Id,
-                Text = $"{s.Name} ({s.Price:N0} đ - {s.DurationMinutes} phút/ca) - {s.Provider?.FullName}"
+                Text = $"{s.Name} ({s.Price:N0} đ - {s.DurationMinutes} phút/ca)" + (string.IsNullOrEmpty(staffProviderId) ? $" - {s.Provider?.FullName}" : "")
             }).ToList();
 
             if (string.IsNullOrEmpty(model.ServiceId) && model.ServicesList.Any())
@@ -644,15 +750,21 @@ namespace Appointment.Controllers
                 model.ServiceId = model.ServicesList.First().Value;
             }
 
-            var providers = await _context.Users
-                .Where(u => u.Role == "Provider" && u.IsActive)
-                .OrderBy(u => u.FullName)
-                .ToListAsync();
+            var providersQuery = _context.Users
+                .Where(u => u.Role == "Provider" && u.IsActive);
+
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                providersQuery = providersQuery.Where(u => u.Id == staffProviderId);
+            }
+
+            var providers = await providersQuery.OrderBy(u => u.FullName).ToListAsync();
 
             model.ProvidersList = providers.Select(p => new SelectListItem
             {
                 Value = p.Id,
-                Text = $"{p.FullName} - {p.PhoneNumber ?? p.Email}"
+                Text = $"{p.FullName} - {p.PhoneNumber ?? p.Email}",
+                Selected = !string.IsNullOrEmpty(staffProviderId) && p.Id == staffProviderId
             }).ToList();
         }
 
@@ -660,6 +772,12 @@ namespace Appointment.Controllers
         [HttpGet]
         public async Task<IActionResult> EmergencyReschedule(string? sourceProviderId, DateTime? incidentDate, string? shiftFilter, string? targetProviderId, DateTime? targetDate)
         {
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                sourceProviderId = staffProviderId; // Nhân viên chỉ có thể dời lịch của cơ sở mình
+            }
+
             var model = new EmergencyRescheduleViewModel
             {
                 SourceProviderId = sourceProviderId,
@@ -669,8 +787,10 @@ namespace Appointment.Controllers
                 TargetDate = targetDate ?? incidentDate ?? DateTime.Today
             };
 
-            var providers = await _context.Users
-                .Where(u => u.Role == "Provider" && u.IsActive)
+            var providersQuery = _context.Users
+                .Where(u => u.Role == "Provider" && u.IsActive);
+
+            var providers = await providersQuery
                 .OrderBy(u => u.FullName)
                 .ToListAsync();
 
@@ -947,6 +1067,8 @@ namespace Appointment.Controllers
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
 
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
+
             var appointment = await _context.Appointments
                 .Include(a => a.Customer)
                 .Include(a => a.Service)
@@ -956,6 +1078,12 @@ namespace Appointment.Controllers
             if (appointment == null)
             {
                 TempData["ErrorMessage"] = "Không tìm thấy lịch hẹn.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)
+            {
+                TempData["ErrorMessage"] = "Bạn không có quyền gửi nhắc nhở cho lịch hẹn của cơ sở khác!";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -987,15 +1115,23 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> TriggerAllReminders()
         {
+            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
+
             var now = DateTime.Now;
             var windowEnd = now.AddHours(24);
 
-            var candidates = await _context.Appointments
+            var query = _context.Appointments
                 .Include(a => a.Customer)
                 .Include(a => a.Service)
                 .Include(a => a.Provider)
-                .Where(a => a.Status == AppointmentRules.Confirmed && a.ReminderSentAt == null)
-                .ToListAsync();
+                .Where(a => a.Status == AppointmentRules.Confirmed && a.ReminderSentAt == null);
+
+            if (!string.IsNullOrEmpty(staffProviderId))
+            {
+                query = query.Where(a => a.ProviderId == staffProviderId);
+            }
+
+            var candidates = await query.ToListAsync();
 
             var toRemind = candidates
                 .Where(a => {

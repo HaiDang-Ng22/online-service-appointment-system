@@ -38,7 +38,14 @@ namespace Appointment.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// Nếu là Staff, ProviderId lưu ID của Nhà cung cấp (cơ sở) mà nhân viên này trực thuộc.
+        /// </summary>
+        public string? ProviderId { get; set; }
+        public User? Provider { get; set; }
+
         // Navigation properties
+        public ICollection<User>? StaffMembers { get; set; }
         public ICollection<Service>? ProvidedServices { get; set; }
         public ICollection<AppointmentModel>? CustomerAppointments { get; set; }
         public ICollection<AppointmentModel>? ProviderAppointments { get; set; }

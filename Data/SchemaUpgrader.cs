@@ -145,6 +145,18 @@ namespace Appointment.Data
             {
                 // Cột đã tồn tại -> bỏ qua
             }
+
+            // US-STAFF-PROVIDER: Cột ProviderId trong bảng Users (nhân viên trực thuộc nhà cung cấp nào)
+            try
+            {
+                context.Database.ExecuteSqlRaw(isPostgres
+                    ? @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""ProviderId"" text NULL"
+                    : @"ALTER TABLE ""Users"" ADD COLUMN ""ProviderId"" TEXT NULL");
+            }
+            catch
+            {
+                // Cột đã tồn tại -> bỏ qua
+            }
         }
     }
 }

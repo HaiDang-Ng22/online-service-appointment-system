@@ -918,8 +918,9 @@ namespace Appointment.Controllers
         [HttpGet]
         public async Task<IActionResult> StaffList()
         {
+            var providerId = GetCurrentUserId();
             var staffList = await _context.Users
-                .Where(u => u.Role == "Staff")
+                .Where(u => u.Role == "Staff" && u.ProviderId == providerId)
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
 
@@ -959,6 +960,7 @@ namespace Appointment.Controllers
                 PhoneNumber = model.PhoneNumber?.Trim(),
                 Address = string.IsNullOrWhiteSpace(model.Address) ? provider?.Address : model.Address.Trim(),
                 Role = "Staff",
+                ProviderId = providerId,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
