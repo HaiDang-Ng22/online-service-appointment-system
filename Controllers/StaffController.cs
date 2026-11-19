@@ -54,8 +54,11 @@ namespace Appointment.Controllers
         }
 
         // GET: /Staff
-        public async Task<IActionResult> Index(string? status, DateTime? date)
+        public async Task<IActionResult> Index(string? status, DateTime? date, int page = 1)
         {
+            const int pageSize = 10;
+            if (page < 1) page = 1;
+
             var (staffProviderId, staffUser, providerUser) = await GetCurrentStaffFacilityAsync();
 
             var query = _context.Appointments
@@ -83,9 +86,33 @@ namespace Appointment.Controllers
                 list = list.Where(a => a.AppointmentDate.Date == date.Value.Date).ToList();
             }
 
+            // Sắp xếp: Ưu tiên dịch vụ/lịch hẹn chưa xác nhận (Pending) lên trên cùng
+            // Thứ tự: Pending (Chờ xác nhận) -> Confirmed (Đã xác nhận) -> In-Progress (Đang thực hiện) -> Completed (Đã hoàn thành) -> Cancelled (Đã hủy)
+            static int GetStatusRank(string s) => s switch
+            {
+                "Pending" => 1,
+                "Confirmed" => 2,
+                "In-Progress" => 3,
+                "Completed" => 4,
+                "Cancelled" => 5,
+                _ => 9
+            };
+
             var sortedList = list
-                .OrderByDescending(a => a.AppointmentDate)
+                .OrderBy(a => GetStatusRank(a.Status))
+                .ThenByDescending(a => a.AppointmentDate)
                 .ThenBy(a => a.StartTime)
+                .ToList();
+
+            // Phân trang 10 dòng / trang
+            int totalItems = sortedList.Count;
+            int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            if (totalPages == 0) totalPages = 1;
+            if (page > totalPages) page = totalPages;
+
+            var pagedList = sortedList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToList();
 
             ViewBag.StatusFilter = status;
@@ -94,7 +121,12 @@ namespace Appointment.Controllers
             ViewBag.StaffFacilityAddress = providerUser?.Address;
             ViewBag.StaffProviderId = staffProviderId;
 
-            return View(sortedList);
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalItems = totalItems;
+            ViewBag.PageSize = pageSize;
+
+            return View(pagedList);
         }
 
         [HttpPost]

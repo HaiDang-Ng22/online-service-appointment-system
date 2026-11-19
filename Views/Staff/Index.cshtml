@@ -88,8 +88,14 @@
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
     <div class="card-header bg-slate-50 py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
         <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-list-stars me-1 text-primary"></i>Danh Sách Lịch Hẹn Đang Phụ Trách (@Model.Count)
+            <i class="bi bi-list-stars me-1 text-primary"></i>Danh Sách Lịch Hẹn Đang Phụ Trách (@(ViewBag.TotalItems ?? Model.Count))
         </h5>
+        @if (ViewBag.TotalPages > 1)
+        {
+            <span class="badge bg-light text-secondary border px-3 py-1.5 rounded-pill">
+                Trang @ViewBag.CurrentPage / @ViewBag.TotalPages
+            </span>
+        }
     </div>
 
     @if (!Model.Any())
@@ -102,6 +108,8 @@
     }
     else
     {
+        string? currentStaffProviderId = ViewBag.StaffProviderId as string;
+
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -117,8 +125,17 @@
                 <tbody>
                     @foreach (var item in Model)
                     {
-                        <tr>
+                        bool isPending = (item.Status == "Pending");
+                        bool canManage = string.IsNullOrEmpty(currentStaffProviderId) || item.ProviderId == currentStaffProviderId;
+
+                        <tr class="@(isPending ? "table-warning bg-opacity-25" : "")">
                             <td class="ps-4">
+                                @if (isPending)
+                                {
+                                    <span class="badge bg-danger text-white rounded-pill px-2 py-0.5 mb-1" style="font-size: 0.7rem;">
+                                        <i class="bi bi-exclamation-circle me-0.5"></i>Ưu tiên xử lý
+                                    </span>
+                                }
                                 <div class="fw-bold text-dark">@item.Customer?.FullName</div>
                                 <div class="text-secondary small">
                                     <i class="bi bi-telephone text-muted me-1"></i>@(item.Customer?.PhoneNumber ?? "Chưa có SĐT")
@@ -163,7 +180,9 @@
                             <td>
                                 @if (item.Status == "Pending")
                                 {
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">Chờ xác nhận</span>
+                                    <span class="badge bg-warning text-dark border border-warning-subtle px-2.5 py-1.5 fw-bold shadow-xs">
+                                        <i class="bi bi-hourglass-split me-1"></i>Chờ xác nhận
+                                    </span>
                                 }
                                 else if (item.Status == "Confirmed")
                                 {
@@ -186,57 +205,71 @@
                             </td>
                             <td class="text-end pe-4">
                                 <div class="d-inline-flex gap-1 align-items-center">
-                                    @if (string.IsNullOrEmpty(item.StaffId))
+                                    @if (canManage)
                                     {
-                                        <form asp-action="AssignStaff" method="post" class="d-inline">
-                                            <input type="hidden" name="appointmentId" value="@item.Id" />
-                                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
-                                                <i class="bi bi-hand-index-thumb me-1"></i>Tiếp nhận
-                                            </button>
-                                        </form>
+                                        @if (string.IsNullOrEmpty(item.StaffId) && item.Status != "Completed" && item.Status != "Cancelled")
+                                        {
+                                            <form asp-action="AssignStaff" method="post" class="d-inline">
+                                                <input type="hidden" name="appointmentId" value="@item.Id" />
+                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-xs">
+                                                    <i class="bi bi-hand-index-thumb me-1"></i>Tiếp nhận
+                                                </button>
+                                            </form>
+                                        }
+
+                                        <!-- Nút Ghi chú nội bộ (US-42) -->
+                                        <button type="button" class="btn btn-sm @(!string.IsNullOrWhiteSpace(item.InternalNote) ? "btn-warning" : "btn-outline-warning") rounded-pill px-2"
+                                                title="Ghi chú nghiệp vụ nội bộ (US-42)"
+                                                data-bs-toggle="modal" data-bs-target="#internalNoteModal-@item.Id">
+                                            <i class="bi bi-journal-text"></i>
+                                        </button>
+
+                                        <!-- Print Voucher / Invoice Button -->
+                                        <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
+                                            <i class="bi bi-printer-fill"></i>
+                                        </a>
+
+                                        <!-- Nút Gửi nhắc lịch (US-45) -->
+                                        @if (item.Status == "Confirmed" || item.Status == "Pending")
+                                        {
+                                            <form asp-action="SendReminder" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm @(item.ReminderSentAt.HasValue ? "btn-outline-info" : "btn-info text-white") rounded-pill px-2"
+                                                        title="@(item.ReminderSentAt.HasValue ? $"Đã gửi nhắc lúc {item.ReminderSentAt.Value.ToLocalTime():dd/MM HH:mm}. Bấm để gửi lại." : "Gửi email nhắc nhở lịch hẹn cho khách (US-45)")">
+                                                    <i class="bi @(item.ReminderSentAt.HasValue ? "bi-bell-fill" : "bi-bell")"></i>
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @if (item.Status == "Confirmed")
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="appointmentId" value="@item.Id" />
+                                                <input type="hidden" name="status" value="In-Progress" />
+                                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2" title="Điểm danh bắt đầu phục vụ (In-Progress)">
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @* Chỉ cho phép Hoàn tất dịch vụ nếu lịch hẹn thuộc đúng nhà cung cấp của nhân viên *@
+                                        @if (item.Status == "Confirmed" || item.Status == "In-Progress")
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="appointmentId" value="@item.Id" />
+                                                <input type="hidden" name="status" value="Completed" />
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-xs" title="Hoàn tất dịch vụ">Hoàn tất</button>
+                                            </form>
+                                        }
                                     }
-
-                                    <!-- Nút Ghi chú nội bộ (US-42) -->
-                                    <button type="button" class="btn btn-sm @(!string.IsNullOrWhiteSpace(item.InternalNote) ? "btn-warning" : "btn-outline-warning") rounded-pill px-2"
-                                            title="Ghi chú nghiệp vụ nội bộ (US-42)"
-                                            data-bs-toggle="modal" data-bs-target="#internalNoteModal-@item.Id">
-                                        <i class="bi bi-journal-text"></i>
-                                    </button>
-
-                                    <!-- Print Voucher / Invoice Button -->
-                                    <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
-                                        <i class="bi bi-printer-fill"></i>
-                                    </a>
-
-                                    <!-- Nút Gửi nhắc lịch (US-45) -->
-                                    @if (item.Status == "Confirmed" || item.Status == "Pending")
+                                    else
                                     {
-                                        <form asp-action="SendReminder" asp-route-id="@item.Id" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-sm @(item.ReminderSentAt.HasValue ? "btn-outline-info" : "btn-info text-white") rounded-pill px-2"
-                                                    title="@(item.ReminderSentAt.HasValue ? $"Đã gửi nhắc lúc {item.ReminderSentAt.Value.ToLocalTime():dd/MM HH:mm}. Bấm để gửi lại." : "Gửi email nhắc nhở lịch hẹn cho khách (US-45)")">
-                                                <i class="bi @(item.ReminderSentAt.HasValue ? "bi-bell-fill" : "bi-bell")"></i>
-                                            </button>
-                                        </form>
-                                    }
-
-                                    @if (item.Status == "Confirmed")
-                                    {
-                                        <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                            <input type="hidden" name="appointmentId" value="@item.Id" />
-                                            <input type="hidden" name="status" value="In-Progress" />
-                                            <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2" title="Điểm danh bắt đầu phục vụ (In-Progress)">
-                                                <i class="bi bi-play-fill"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                    @if (item.Status == "Confirmed" || item.Status == "In-Progress")
-                                    {
-                                        <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                            <input type="hidden" name="appointmentId" value="@item.Id" />
-                                            <input type="hidden" name="status" value="Completed" />
-                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold">Hoàn tất</button>
-                                        </form>
+                                        <span class="badge bg-secondary-subtle text-muted border px-2 py-1 small" title="Lịch hẹn thuộc nhà cung cấp khác, nhân viên không có quyền thao tác">
+                                            <i class="bi bi-lock-fill me-1"></i>Ngoài cơ sở
+                                        </span>
+                                        <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn / Hóa Đơn">
+                                            <i class="bi bi-printer-fill"></i>
+                                        </a>
                                     }
                                 </div>
 
@@ -285,5 +318,43 @@
                 </tbody>
             </table>
         </div>
+
+        @if (ViewBag.TotalPages != null && (int)ViewBag.TotalPages > 1)
+        {
+            <div class="card-footer bg-white py-3 px-4 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 border-top">
+                <div class="text-secondary small">
+                    Hiển thị <strong>@(((int)ViewBag.CurrentPage - 1) * (int)ViewBag.PageSize + 1)</strong> - <strong>@(Math.Min((int)ViewBag.CurrentPage * (int)ViewBag.PageSize, (int)ViewBag.TotalItems))</strong> trong tổng số <strong>@ViewBag.TotalItems</strong> lịch hẹn
+                </div>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @((int)ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                            <a class="page-link rounded-start-pill px-3" asp-action="Index" 
+                               asp-route-page="@((int)ViewBag.CurrentPage - 1)" 
+                               asp-route-status="@ViewBag.StatusFilter" 
+                               asp-route-date="@ViewBag.DateFilter">
+                                <i class="bi bi-chevron-left me-1"></i>Trước
+                            </a>
+                        </li>
+                        @for (int p = 1; p <= (int)ViewBag.TotalPages; p++)
+                        {
+                            <li class="page-item @(p == (int)ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link px-3" asp-action="Index" 
+                                   asp-route-page="@p" 
+                                   asp-route-status="@ViewBag.StatusFilter" 
+                                   asp-route-date="@ViewBag.DateFilter">@p</a>
+                            </li>
+                        }
+                        <li class="page-item @((int)ViewBag.CurrentPage == (int)ViewBag.TotalPages ? "disabled" : "")">
+                            <a class="page-link rounded-end-pill px-3" asp-action="Index" 
+                               asp-route-page="@((int)ViewBag.CurrentPage + 1)" 
+                               asp-route-status="@ViewBag.StatusFilter" 
+                               asp-route-date="@ViewBag.DateFilter">
+                                Sau<i class="bi bi-chevron-right ms-1"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
     }
 </div>
