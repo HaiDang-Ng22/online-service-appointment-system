@@ -112,6 +112,10 @@
                         <i class="bi bi-speedometer2"></i>
                         <span>Bảng điều khiển</span>
                     </a>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "Statistics") ? "active" : "")" asp-controller="Admin" asp-action="Statistics" title="Thống kê doanh thu & hiệu suất">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>Thống kê doanh thu</span>
+                    </a>
 
                     <div class="sidebar-section-title">Quản trị nghiệp vụ</div>
                     <a class="sidebar-nav-link @(IsActive("Admin", "Users") ? "active" : "")" asp-controller="Admin" asp-action="Users" title="Quản lý tài khoản">
@@ -125,6 +129,10 @@
                     <a class="sidebar-nav-link @(IsActive("Admin", "Categories") || IsActive("Admin", "EditCategory") ? "active" : "")" asp-controller="Admin" asp-action="Categories" title="Quản lý danh mục">
                         <i class="bi bi-tags-fill"></i>
                         <span>Danh mục dịch vụ</span>
+                    </a>
+                    <a class="sidebar-nav-link @(IsActive("Admin", "Reviews") ? "active" : "")" asp-controller="Admin" asp-action="Reviews" title="Quản lý đánh giá toàn hệ thống">
+                        <i class="bi bi-star-fill"></i>
+                        <span>Đánh giá & Phản hồi</span>
                     </a>
 
                     <div class="sidebar-section-title">Bảo mật & Kiểm toán</div>
@@ -166,7 +174,7 @@
                         <span>Thêm dịch vụ mới</span>
                     </a>
 
-                    <div class="sidebar-section-title">Lịch trình & Đánh giá</div>
+                    <div class="sidebar-section-title">Lịch trình & Giờ làm</div>
                     <a class="sidebar-nav-link @(IsActive("Provider", "WorkingHours") ? "active" : "")" asp-controller="Provider" asp-action="WorkingHours" title="Giờ làm việc">
                         <i class="bi bi-clock-history"></i>
                         <span>Cấu hình giờ làm</span>
@@ -174,6 +182,12 @@
                     <a class="sidebar-nav-link @(IsActive("Provider", "OffDays") ? "active" : "")" asp-controller="Provider" asp-action="OffDays" title="Quản lý ngày nghỉ">
                         <i class="bi bi-calendar-x-fill"></i>
                         <span>Quản lý ngày nghỉ</span>
+                    </a>
+
+                    <div class="sidebar-section-title">Nhân sự & Phản hồi</div>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "StaffList") || IsActive("Provider", "CreateStaff") ? "active" : "")" asp-controller="Provider" asp-action="StaffList" title="Quản lý nhân viên">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Quản lý nhân viên</span>
                     </a>
                     <a class="sidebar-nav-link @(IsActive("Provider", "Reviews") ? "active" : "")" asp-controller="Provider" asp-action="Reviews" title="Đánh giá từ khách">
                         <i class="bi bi-star-fill"></i>

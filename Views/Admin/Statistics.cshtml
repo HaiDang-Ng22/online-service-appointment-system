@@ -1,0 +1,630 @@
+@model List<Appointment.Models.AppointmentModel>
+@{
+    ViewData["Title"] = "Thống Kê Doanh Thu & Hiệu Suất Hệ Thống";
+    string currentPeriod = ViewBag.Period as string ?? "month";
+    string selectedProvId = ViewBag.SelectedProviderId as string ?? "";
+    var providers = ViewBag.ProvidersList as List<Appointment.Models.User> ?? new List<Appointment.Models.User>();
+    var providerStats = ViewBag.ProviderStatsTable as dynamic;
+    decimal totalRev = ViewBag.TotalRevenue != null ? (decimal)ViewBag.TotalRevenue : 0;
+}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-primary">
+            <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Thống Kê Doanh Thu & Hiệu Suất Vận Hành
+        </h3>
+        <p class="text-muted small mb-0">Theo dõi doanh thu, lịch hẹn và tỷ lệ khai thác dịch vụ của toàn bộ hệ thống</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-action="ExportAppointmentsExcel" 
+           asp-route-fromDate="@ViewBag.FromDate" 
+           asp-route-toDate="@ViewBag.ToDate" 
+           asp-route-providerId="@selectedProvId" 
+           class="btn btn-success text-white fw-bold rounded-pill px-3 py-2 shadow-sm d-flex align-items-center gap-1.5">
+            <i class="bi bi-file-earmark-excel-fill"></i>
+            <span>Xuất Excel (.xlsx)</span>
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-secondary rounded-pill px-3 py-2 shadow-sm d-flex align-items-center gap-1.5 bg-white">
+            <i class="bi bi-printer-fill"></i>
+            <span>In / Xuất PDF</span>
+        </button>
+    </div>
+</div>
+
+<!-- 7 THẺ TỔNG QUAN HỆ THỐNG -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Khách Hàng</small>
+                    <h3 class="fw-bold mb-0 text-dark mt-1">@ViewBag.TotalCustomers</h3>
+                </div>
+                <div class="rounded-circle bg-primary-subtle text-primary p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-people-fill fs-5"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block border-top pt-2" style="font-size: 0.75rem;">Người dùng đã đăng ký</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Nhà Cung Cấp</small>
+                    <h3 class="fw-bold mb-0 text-warning-emphasis mt-1">@ViewBag.TotalProviders</h3>
+                </div>
+                <div class="rounded-circle bg-warning-subtle text-warning-emphasis p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-hospital-fill fs-5"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block border-top pt-2" style="font-size: 0.75rem;">Cơ sở & chuyên gia</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Dịch Vụ Niêm Yết</small>
+                    <h3 class="fw-bold mb-0 text-info-emphasis mt-1">@ViewBag.TotalServices</h3>
+                </div>
+                <div class="rounded-circle bg-info-subtle text-info-emphasis p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-card-checklist fs-5"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block border-top pt-2" style="font-size: 0.75rem;">Trên toàn bộ danh mục</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Tổng Cuộc Hẹn (Kỳ)</small>
+                    <h3 class="fw-bold mb-0 text-primary mt-1">@ViewBag.TotalAppointments</h3>
+                </div>
+                <div class="rounded-circle bg-primary-subtle text-primary p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-calendar-check-fill fs-5"></i>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block border-top pt-2" style="font-size: 0.75rem;">Theo bộ lọc hiện tại</small>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100 border-start border-4 border-success">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Tỷ Lệ Hoàn Thành</small>
+                    <h3 class="fw-bold mb-0 text-success mt-1">@ViewBag.CompletionRate%</h3>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill">@ViewBag.CompletedCount ca</span>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 6px;">
+                <div class="progress-bar bg-success" style="width: @ViewBag.CompletionRate%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100 border-start border-4 border-danger">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-muted fw-semibold">Tỷ Lệ Hủy Lịch</small>
+                    <h3 class="fw-bold mb-0 text-danger mt-1">@ViewBag.CancelRate%</h3>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill">@ViewBag.CancelledCount ca</span>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 6px;">
+                <div class="progress-bar bg-danger" style="width: @ViewBag.CancelRate%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4 text-white h-100" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-white-50 fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Tổng Doanh Thu</small>
+                    <h3 class="fw-bold mb-0 mt-1">@totalRev.ToString("N0") <small class="fs-6 fw-normal">VNĐ</small></h3>
+                </div>
+                <div class="rounded-circle bg-white text-primary p-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
+                    <i class="bi bi-cash-stack fs-5"></i>
+                </div>
+            </div>
+            <small class="text-white-50 mt-2 d-block border-top border-white-50 pt-2" style="font-size: 0.75rem;">Đã thanh toán qua AppointX Pay</small>
+        </div>
+    </div>
+</div>
+
+<!-- THANH BỘ LỌC THỜI GIAN & ĐỐI TÁC -->
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <form asp-action="Statistics" method="get" class="row g-2 align-items-center">
+        <!-- Nút nhanh -->
+        <div class="col-lg-6">
+            <div class="btn-group w-100" role="group">
+                <a asp-action="Statistics" asp-route-period="today" asp-route-providerId="@selectedProvId" class="btn btn-sm py-2 @(currentPeriod == "today" ? "btn-primary fw-bold" : "btn-outline-secondary")">Hôm Nay</a>
+                <a asp-action="Statistics" asp-route-period="week" asp-route-providerId="@selectedProvId" class="btn btn-sm py-2 @(currentPeriod == "week" ? "btn-primary fw-bold" : "btn-outline-secondary")">7 Ngày</a>
+                <a asp-action="Statistics" asp-route-period="month" asp-route-providerId="@selectedProvId" class="btn btn-sm py-2 @(currentPeriod == "month" ? "btn-primary fw-bold" : "btn-outline-secondary")">Tháng Này</a>
+                <a asp-action="Statistics" asp-route-period="year" asp-route-providerId="@selectedProvId" class="btn btn-sm py-2 @(currentPeriod == "year" ? "btn-primary fw-bold" : "btn-outline-secondary")">Năm Nay</a>
+            </div>
+        </div>
+
+        <!-- Lọc theo Nhà Cung Cấp -->
+        <div class="col-lg-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light text-muted small"><i class="bi bi-hospital"></i></span>
+                <select name="providerId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tất cả nhà cung cấp --</option>
+                    @foreach (var p in providers)
+                    {
+                        <option value="@p.Id" selected="@(selectedProvId == p.Id ? "selected" : null)">@p.FullName</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <!-- Khoảng ngày tùy chỉnh -->
+        <div class="col-12 mt-2 pt-2 border-top">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted">Từ ngày:</span>
+                        <input type="date" name="fromDate" value="@ViewBag.FromDate" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted">Đến ngày:</span>
+                        <input type="date" name="toDate" value="@ViewBag.ToDate" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <input type="hidden" name="period" value="custom" />
+                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                        <i class="bi bi-filter me-1"></i>Áp Dụng Lọc Tùy Chỉnh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- BIỂU ĐỒ 1 & 2: DOANH THU THEO THỜI GIAN & THEO NHÀ CUNG CẤP -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-bar-chart-fill text-primary me-2"></i>Biểu Đồ Doanh Thu (@(currentPeriod == "year" ? "Theo Tháng" : "Theo Ngày"))
+                </h6>
+                <span class="badge bg-primary-subtle text-primary">VNĐ</span>
+            </div>
+            <div style="height: 280px; position: relative;">
+                <canvas id="revenueTimelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-hospital text-warning me-2"></i>Doanh Thu Theo Nhà Cung Cấp
+                </h6>
+                <span class="badge bg-warning-subtle text-warning-emphasis">Top NCC</span>
+            </div>
+            <div style="height: 280px; position: relative;">
+                <canvas id="providerRevenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BIỂU ĐỒ 3 & 4: TRẠNG THÁI LỊCH HẸN & PHƯƠNG THỨC THANH TOÁN -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3 text-dark">
+                <i class="bi bi-pie-chart-fill text-info me-2"></i>Cơ Cấu Trạng Thái Lịch Hẹn
+            </h6>
+            <div style="height: 220px; position: relative;">
+                <canvas id="statusDistChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 class="fw-bold mb-3 text-dark">
+                <i class="bi bi-credit-card-2-front-fill text-success me-2"></i>Phương Thức Thu Online
+            </h6>
+            <div style="height: 220px; position: relative;">
+                <canvas id="methodDistChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BẢNG CHI TIẾT DOANH THU & HIỆU SUẤT TỪNG NHÀ CUNG CẤP -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+    <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-table text-primary me-2"></i>Bảng Chi Tiết Doanh Thu & Tỷ Lệ Hoàn Thành Từng Nhà Cung Cấp
+            </h6>
+            <small class="text-muted">Nhấn "Xem chi tiết" để xem danh sách lịch hẹn và cơ cấu dịch vụ của từng cơ sở</small>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Nhà Cung Cấp</th>
+                    <th>Liên hệ</th>
+                    <th class="text-center">Tổng lịch</th>
+                    <th class="text-center">Hoàn thành</th>
+                    <th class="text-center">Đã hủy</th>
+                    <th class="text-center">Tỷ lệ HT</th>
+                    <th class="text-end">Doanh thu thu về</th>
+                    <th class="text-end pe-4">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (providerStats != null)
+                {
+                    foreach (var p in providerStats)
+                    {
+                        decimal revVal = (decimal)p.Revenue;
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                        <i class="bi bi-hospital"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">@p.ProviderName</div>
+                                        <small class="text-muted">@p.Address</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="small text-secondary">@p.Email</div>
+                                <div class="small text-muted">@p.Phone</div>
+                            </td>
+                            <td class="text-center fw-bold">@p.TotalApts</td>
+                            <td class="text-center text-success fw-bold">@p.CompletedApts</td>
+                            <td class="text-center text-danger">@p.CancelledApts</td>
+                            <td class="text-center">
+                                <span class="badge @(p.CompletionRate >= 70 ? "bg-success-subtle text-success" : p.CompletionRate >= 50 ? "bg-warning-subtle text-warning-emphasis" : "bg-danger-subtle text-danger") border px-2 py-1 rounded-pill">
+                                    @p.CompletionRate%
+                                </span>
+                            </td>
+                            <td class="text-end fw-bold text-primary">
+                                @revVal.ToString("N0") đ
+                            </td>
+                            <td class="text-end pe-4">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openProviderModal('@p.ProviderId', '@p.ProviderName')">
+                                    <i class="bi bi-eye me-1"></i>Chi tiết
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- BẢNG LỊCH HẸN TRONG KỲ LỌC -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+        <h6 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-calendar3 text-primary me-2"></i>Danh Sách Lịch Hẹn Trong Kỳ Lọc (@Model.Count)
+        </h6>
+        <span class="text-muted small">Dữ liệu được cập nhật thời gian thực</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Khách hàng</th>
+                    <th>Dịch vụ</th>
+                    <th>Cơ sở (Provider)</th>
+                    <th>Ngày & Giờ</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end pe-4">Giá tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            Không có lịch hẹn nào trong khoảng thời gian đã chọn.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">@(item.Customer?.FullName ?? "Khách vãng lai")</div>
+                                <small class="text-muted">@(item.Customer?.PhoneNumber ?? "-")</small>
+                            </td>
+                            <td>
+                                <div>@(item.Service?.Name ?? "-")</div>
+                                <small class="text-muted">@(item.Service?.Category?.Name ?? "")</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-hospital me-1"></i>@(item.Provider?.FullName ?? "-")
+                                </span>
+                            </td>
+                            <td>
+                                <div>@item.AppointmentDate.ToString("dd/MM/yyyy")</div>
+                                <small class="text-muted">@item.StartTime.ToString(@"hh\:mm")</small>
+                            </td>
+                            <td>
+                                @if (item.Status == "Completed")
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">Hoàn thành</span>
+                                }
+                                else if (item.Status == "Confirmed")
+                                {
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill">Đã xác nhận</span>
+                                }
+                                else if (item.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">Chờ duyệt</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">Đã hủy</span>
+                                }
+                            </td>
+                            <td class="text-end pe-4 fw-bold">
+                                @((item.Service?.Price ?? 0).ToString("N0")) đ
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL XEM CHI TIẾT DOANH THU NHÀ CUNG CẤP -->
+<div class="modal fade" id="providerDetailModal" tabindex="-1" aria-labelledby="providerModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white rounded-top-4 py-3">
+                <h5 class="modal-title fw-bold" id="providerModalTitle">
+                    <i class="bi bi-hospital me-2"></i>Chi Tiết Doanh Thu Nhà Cung Cấp
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="providerModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="text-muted small mt-2">Đang tải dữ liệu cơ sở...</div>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // 1. Biểu đồ Doanh thu theo thời gian
+        const revTimelineData = @Html.Raw(ViewBag.RevenueTimelineJson ?? "[]");
+        const revLabels = revTimelineData.map(x => x.Label);
+        const revTotals = revTimelineData.map(x => x.Total);
+
+        const ctxRev = document.getElementById('revenueTimelineChart').getContext('2d');
+        new Chart(ctxRev, {
+            type: 'line',
+            data: {
+                labels: revLabels,
+                datasets: [{
+                    label: 'Doanh thu (VNĐ)',
+                    data: revTotals,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#2563eb'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return value >= 1000000 ? (value / 1000000) + 'M' : value >= 1000 ? (value / 1000) + 'K' : value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2. Biểu đồ Doanh thu theo Nhà Cung Cấp
+        const provRevData = @Html.Raw(ViewBag.ProviderRevenueChartJson ?? "[]");
+        const provLabels = provRevData.map(x => x.Label.length > 20 ? x.Label.substring(0, 18) + '...' : x.Label);
+        const provTotals = provRevData.map(x => x.Total);
+
+        const ctxProv = document.getElementById('providerRevenueChart').getContext('2d');
+        new Chart(ctxProv, {
+            type: 'bar',
+            data: {
+                labels: provLabels,
+                datasets: [{
+                    label: 'Doanh thu',
+                    data: provTotals,
+                    backgroundColor: '#f59e0b',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (val) {
+                                return val >= 1000000 ? (val / 1000000) + 'M' : val;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Biểu đồ Cơ cấu trạng thái lịch hẹn
+        const statusData = @Html.Raw(ViewBag.StatusDistJson ?? "[]");
+        const ctxStatus = document.getElementById('statusDistChart').getContext('2d');
+        new Chart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.map(x => x.Label),
+                datasets: [{
+                    data: statusData.map(x => x.Count),
+                    backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        // 4. Biểu đồ Phương thức thanh toán
+        const methodData = @Html.Raw(ViewBag.MethodDistJson ?? "[]");
+        const ctxMethod = document.getElementById('methodDistChart').getContext('2d');
+        new Chart(ctxMethod, {
+            type: 'pie',
+            data: {
+                labels: methodData.map(x => x.Label),
+                datasets: [{
+                    data: methodData.map(x => x.Total),
+                    backgroundColor: ['#0284c7', '#8b5cf6', '#ec4899'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    });
+
+    // Mở modal chi tiết doanh thu NCC
+    function openProviderModal(providerId, providerName) {
+        const modal = new bootstrap.Modal(document.getElementById('providerDetailModal'));
+        document.getElementById('providerModalTitle').innerHTML = `<i class="bi bi-hospital me-2"></i>${providerName} - Chi Tiết Doanh Thu`;
+        const body = document.getElementById('providerModalBody');
+        body.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div><div class="text-muted small mt-2">Đang tải dữ liệu...</div></div>`;
+        modal.show();
+
+        fetch(`/Admin/GetProviderDetail?id=${providerId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const p = data.provider;
+                    let servicesHtml = p.Services.map(s => `
+                        <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom small">
+                            <span>${s.Name} (${s.DurationMinutes} phút)</span>
+                            <span class="fw-bold text-primary">${Number(s.Price).toLocaleString('vi-VN')} đ</span>
+                        </div>
+                    `).join('') || '<div class="text-muted small">Chưa có dịch vụ niêm yết.</div>';
+
+                    let aptsHtml = p.RecentAppointments.map(a => `
+                        <tr>
+                            <td>${a.CustomerName}</td>
+                            <td>${a.ServiceName}</td>
+                            <td>${a.Date} ${a.Time}</td>
+                            <td><span class="badge ${a.Status === 'Completed' ? 'bg-success' : a.Status === 'Confirmed' ? 'bg-primary' : 'bg-secondary'}">${a.Status}</span></td>
+                            <td class="text-end fw-bold">${Number(a.Price).toLocaleString('vi-VN')} đ</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="5" class="text-center text-muted">Chưa có lịch hẹn nào.</td></tr>';
+
+                    body.innerHTML = `
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3">
+                                    <div class="small text-muted">Email liên hệ: <strong>${p.Email}</strong></div>
+                                    <div class="small text-muted mt-1">Số điện thoại: <strong>${p.PhoneNumber || '-'}</strong></div>
+                                    <div class="small text-muted mt-1">Địa chỉ: <strong>${p.Address || '-'}</strong></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-3 text-white" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+                                    <small class="text-white-50 text-uppercase">Tổng Doanh Thu Cơ Sở</small>
+                                    <h4 class="fw-bold mb-0 mt-1">${Number(p.TotalRevenue).toLocaleString('vi-VN')} VNĐ</h4>
+                                    <small class="text-white-50">Tổng ${p.ServicesCount} dịch vụ đang hoạt động</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-card-checklist me-1 text-primary"></i>Danh Sách Dịch Vụ Của Cơ Sở</h6>
+                        <div class="mb-4 p-2 bg-light rounded-3" style="max-height: 140px; overflow-y: auto;">
+                            ${servicesHtml}
+                        </div>
+
+                        <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-clock-history me-1 text-primary"></i>Lịch Hẹn & Doanh Thu Gần Nhất</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0 small">
+                                <thead class="table-light">
+                                    <tr><th>Khách hàng</th><th>Dịch vụ</th><th>Thời gian</th><th>Trạng thái</th><th class="text-end">Giá</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${aptsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `<div class="alert alert-danger mb-0">${data.message || 'Lỗi tải dữ liệu.'}</div>`;
+                }
+            })
+            .catch(() => {
+                body.innerHTML = `<div class="alert alert-danger mb-0">Không thể kết nối đến máy chủ.</div>`;
+            });
+    }
+</script>
+}
