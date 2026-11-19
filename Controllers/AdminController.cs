@@ -596,46 +596,63 @@ namespace Appointment.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProviderDetail(string id)
         {
-            var provider = await _context.Users.FindAsync(id);
-            if (provider == null) return NotFound(new { success = false, message = "Không tìm thấy cơ sở đối tác." });
-
-            var services = await _context.Services.Where(s => s.ProviderId == id).Select(s => new { s.Name, s.Price, s.DurationMinutes }).ToListAsync();
-            var appointments = await _context.Appointments
-                .Include(a => a.Customer)
-                .Include(a => a.Service)
-                .Where(a => a.ProviderId == id)
-                .OrderByDescending(a => a.AppointmentDate)
-                .Take(10)
-                .Select(a => new
-                {
-                    CustomerName = a.Customer != null ? a.Customer.FullName : "Khách vãng lai",
-                    ServiceName = a.Service != null ? a.Service.Name : "-",
-                    Date = a.AppointmentDate.ToString("dd/MM/yyyy"),
-                    Time = a.StartTime.ToString(@"hh\:mm"),
-                    a.Status,
-                    Price = a.Service != null ? a.Service.Price : 0
-                })
-                .ToListAsync();
-
-            var totalRevenue = await _context.Payments
-                .Where(p => p.Appointment != null && p.Appointment.ProviderId == id && p.Status == "Paid")
-                .SumAsync(p => p.Amount);
-
-            return Json(new
+            try
             {
-                success = true,
-                provider = new
+                var provider = await _context.Users.FindAsync(id);
+                if (provider == null) return NotFound(new { success = false, message = "Không tìm thấy cơ sở đối tác." });
+
+                var services = await _context.Services
+                    .Where(s => s.ProviderId == id)
+                    .Select(s => new { s.Name, s.Price, s.DurationMinutes })
+                    .ToListAsync();
+
+                var rawAppointments = await _context.Appointments
+                    .Include(a => a.Customer)
+                    .Include(a => a.Service)
+                    .Where(a => a.ProviderId == id)
+                    .OrderByDescending(a => a.AppointmentDate)
+                    .Take(10)
+                    .ToListAsync();
+
+                var appointments = rawAppointments
+                    .Select(a => new
+                    {
+                        CustomerName = a.Customer != null ? a.Customer.FullName : "Khách vãng lai",
+                        ServiceName = a.Service != null ? a.Service.Name : "-",
+                        Date = a.AppointmentDate.ToString("dd/MM/yyyy"),
+                        Time = a.StartTime.ToString(@"hh\:mm"),
+                        a.Status,
+                        Price = a.Service != null ? a.Service.Price : 0
+                    })
+                    .ToList();
+
+                var payments = await _context.Payments
+                    .Include(p => p.Appointment)
+                    .Where(p => p.Appointment != null && p.Appointment.ProviderId == id && p.Status == "Paid")
+                    .ToListAsync();
+
+                decimal totalRevenue = payments.Sum(p => p.Amount);
+
+                return Json(new
                 {
-                    provider.FullName,
-                    provider.Email,
-                    provider.PhoneNumber,
-                    provider.Address,
-                    TotalRevenue = totalRevenue,
-                    ServicesCount = services.Count,
-                    Services = services,
-                    RecentAppointments = appointments
-                }
-            });
+                    success = true,
+                    provider = new
+                    {
+                        provider.FullName,
+                        provider.Email,
+                        provider.PhoneNumber,
+                        provider.Address,
+                        TotalRevenue = totalRevenue,
+                        ServicesCount = services.Count,
+                        Services = services,
+                        RecentAppointments = appointments
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Lỗi truy vấn: {ex.Message}" });
+            }
         }
 
         // =====================================================================

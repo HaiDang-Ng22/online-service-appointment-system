@@ -562,7 +562,13 @@
         modal.show();
 
         fetch(`/Admin/GetProviderDetail?id=${providerId}`)
-            .then(res => res.json())
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.message || `Lỗi HTTP ${res.status}`);
+                }
+                return data;
+            })
             .then(data => {
                 if (data.success) {
                     const p = data.provider;
