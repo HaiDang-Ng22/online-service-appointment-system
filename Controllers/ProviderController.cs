@@ -914,6 +914,66 @@ namespace Appointment.Controllers
             return vm;
         }
 
+        // GET: /Provider/StaffList
+        [HttpGet]
+        public async Task<IActionResult> StaffList()
+        {
+            var staffList = await _context.Users
+                .Where(u => u.Role == "Staff")
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+
+            return View(staffList);
+        }
+
+        // GET: /Provider/CreateStaff
+        [HttpGet]
+        public IActionResult CreateStaff()
+        {
+            return View();
+        }
+
+        // POST: /Provider/CreateStaff
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateStaff(CreateStaffViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var existing = await _context.Users.AnyAsync(u => u.Email.ToLower() == model.Email.Trim().ToLower());
+            if (existing)
+            {
+                ModelState.AddModelError("Email", "Email này đã được sử dụng trong hệ thống.");
+                return View(model);
+            }
+
+            var providerId = GetCurrentUserId();
+            var provider = await _context.Users.FindAsync(providerId);
+
+            var newStaff = new User
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                FullName = model.FullName.Trim(),
+                Email = model.Email.Trim().ToLower(),
+                PasswordHash = PasswordHasher.HashPassword(model.Password),
+                PhoneNumber = model.PhoneNumber?.Trim(),
+                Address = string.IsNullOrWhiteSpace(model.Address) ? provider?.Address : model.Address.Trim(),
+                Role = "Staff",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(newStaff);
+            await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(AuditActions.UserCreated,
+                $"Nhà cung cấp {provider?.FullName ?? "Provider"} tạo tài khoản nhân viên {newStaff.Email}.",
+                "User", newStaff.Id);
+
+            TempData["SuccessMessage"] = $"Tạo tài khoản nhân viên {newStaff.FullName} thành công!";
+            return RedirectToAction(nameof(StaffList));
+        }
+
         private static string MethodLabel(string method) => method switch
         {
             "Card" => "Thẻ ngân hàng",

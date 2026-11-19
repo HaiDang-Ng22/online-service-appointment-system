@@ -57,9 +57,7 @@ namespace Appointment.Controllers
                     return View(model);
                 }
 
-                var assignedRole = (model.Role == "Provider") ? "Provider" 
-                                 : (model.Role == "Staff") ? "Staff" 
-                                 : "Customer";
+                const string assignedRole = "Customer";
 
                 var newUser = new User
                 {
@@ -75,34 +73,13 @@ namespace Appointment.Controllers
                 };
 
                 _context.Users.Add(newUser);
-
-                // If user registered as Provider, initialize default Working Hours (Mon - Sat, 8:00 - 17:00)
-                if (assignedRole == "Provider")
-                {
-                    foreach (var day in Enum.GetValues<DayOfWeek>())
-                    {
-                        if (day != DayOfWeek.Sunday)
-                        {
-                            _context.WorkingHours.Add(new WorkingHour
-                            {
-                                Id = Guid.NewGuid().ToString("N"),
-                                ProviderId = newUser.Id,
-                                DayOfWeek = day,
-                                StartTime = new TimeSpan(8, 0, 0),
-                                EndTime = new TimeSpan(17, 0, 0),
-                                IsAvailable = true
-                            });
-                        }
-                    }
-                }
-
                 await _context.SaveChangesAsync();
 
                 await _audit.LogAsync(AuditActions.Register,
-                    $"Đăng ký tài khoản mới ({assignedRole}) - {newUser.Email}.",
+                    $"Đăng ký tài khoản khách hàng mới - {newUser.Email}.",
                     "User", newUser.Id, actor: AuditActor.FromUser(newUser));
 
-                TempData["SuccessMessage"] = $"Đăng ký tài khoản {(assignedRole == "Provider" ? "Đối tác / Bác sĩ" : "Khách hàng")} thành công! Vui lòng đăng nhập.";
+                TempData["SuccessMessage"] = "Đăng ký tài khoản khách hàng thành công! Vui lòng đăng nhập.";
                 return RedirectToAction(nameof(Login));
             }
             catch (Exception ex)
