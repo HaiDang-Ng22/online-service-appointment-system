@@ -1,0 +1,408 @@
+@model List<Appointment.Models.AppointmentModel>
+@using Appointment.Infrastructure
+@{
+    ViewData["Title"] = "Bắt Đầu Làm Việc — Hôm Nay";
+    var today          = (DateTime)ViewBag.Today;
+    var totalCount     = (int)ViewBag.TotalCount;
+    var pendingCount   = (int)ViewBag.PendingCount;
+    var confirmedCount = (int)ViewBag.ConfirmedCount;
+    var inProgressCount= (int)ViewBag.InProgressCount;
+    var completedCount = (int)ViewBag.CompletedCount;
+    var now            = DateTime.Now.TimeOfDay;
+    const string returnUrl = "/Provider/StartWork";
+}
+
+@* ===== HEADER ===== *@
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">
+            <i class="bi bi-play-circle-fill text-success me-2"></i>Bắt Đầu Làm Việc
+        </h3>
+        <p class="text-secondary small mb-0">
+            Lịch hẹn hôm nay —
+            <span class="fw-bold text-dark">@today.ToString("dddd, dd/MM/yyyy")</span>
+        </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="bi bi-calendar2-check me-1"></i>Tất cả lịch hẹn
+        </a>
+        <a asp-action="CreateService" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+            <i class="bi bi-plus-lg me-1"></i>Thêm dịch vụ
+        </a>
+    </div>
+</div>
+
+@* ===== BADGE TỔNG QUAN ===== *@
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card p-3">
+            <div class="stat-icon" style="width:44px;height:44px;font-size:1.2rem;background:#f1f5f9;color:#334155">
+                <i class="bi bi-calendar-day"></i>
+            </div>
+            <div>
+                <div class="stat-number fs-4">@totalCount</div>
+                <div class="stat-label small">Tổng ca hôm nay</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card p-3">
+            <div class="stat-icon warning" style="width:44px;height:44px;font-size:1.2rem;">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+                <div class="stat-number fs-4">@(pendingCount + confirmedCount)</div>
+                <div class="stat-label small">Chờ / Đã xác nhận</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card p-3">
+            <div class="stat-icon primary" style="width:44px;height:44px;font-size:1.2rem;">
+                <i class="bi bi-activity"></i>
+            </div>
+            <div>
+                <div class="stat-number fs-4">@inProgressCount</div>
+                <div class="stat-label small">Đang thực hiện</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card p-3">
+            <div class="stat-icon success" style="width:44px;height:44px;font-size:1.2rem;">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div>
+                <div class="stat-number fs-4">@completedCount</div>
+                <div class="stat-label small">Đã hoàn thành</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ===== DANH SÁCH ===== *@
+@if (!Model.Any())
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+        <div class="text-muted mb-3">
+            <i class="bi bi-calendar-x" style="font-size:3rem;color:#cbd5e1;"></i>
+        </div>
+        <h5 class="fw-bold text-secondary mb-1">Hôm nay chưa có lịch hẹn nào</h5>
+        <p class="text-muted small mb-0">Bạn có thể thêm dịch vụ mới hoặc xem lịch sử các cuộc hẹn.</p>
+        <div class="mt-4">
+            <a asp-action="Index" class="btn btn-outline-primary rounded-pill px-4">
+                <i class="bi bi-calendar2-check me-1"></i>Xem tất cả lịch hẹn
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    @* Phân loại: active trước, quá hạn sau, hoàn thành / hủy cuối *@
+    var active    = Model.Where(a => a.Status == AppointmentRules.InProgress).ToList();
+    var upcoming  = Model.Where(a => (a.Status == AppointmentRules.Pending || a.Status == AppointmentRules.Confirmed)
+                                      && a.EndTime > now).ToList();
+    var overdue   = Model.Where(a => (a.Status == AppointmentRules.Pending || a.Status == AppointmentRules.Confirmed)
+                                      && a.EndTime <= now).ToList();
+    var done      = Model.Where(a => a.Status == AppointmentRules.Completed || a.Status == AppointmentRules.Cancelled).ToList();
+
+    var ordered = active.Concat(upcoming).Concat(overdue).Concat(done).ToList();
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+            <h5 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-list-stars me-1 text-primary"></i>Lịch hẹn hôm nay (@totalCount ca)
+            </h5>
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill fw-semibold">
+                @today.ToString("dd/MM/yyyy")
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            @{int idx = 0;}
+            @foreach (var item in ordered)
+            {
+                idx++;
+                bool isOverdue   = (item.Status == AppointmentRules.Pending || item.Status == AppointmentRules.Confirmed)
+                                   && item.EndTime <= now;
+                bool isCompleted = item.Status == AppointmentRules.Completed;
+                bool isCancelled = item.Status == AppointmentRules.Cancelled;
+
+                string borderCss = item.Status switch
+                {
+                    AppointmentRules.InProgress => "border-start border-4 border-primary",
+                    AppointmentRules.Confirmed  => isOverdue ? "border-start border-4 border-danger" : "border-start border-4 border-success",
+                    AppointmentRules.Pending    => isOverdue ? "border-start border-4 border-danger" : "border-start border-4 border-warning",
+                    AppointmentRules.Completed  => "border-start border-4 border-secondary",
+                    _                           => "border-start border-4 border-danger"
+                };
+
+                string rowOpacity = (isCompleted || isCancelled || isOverdue) ? "opacity-60" : "";
+
+                string badgeCss = isOverdue ? "bg-danger-subtle text-danger" : item.Status switch
+                {
+                    AppointmentRules.Pending    => "bg-warning-subtle text-warning",
+                    AppointmentRules.Confirmed  => "bg-success-subtle text-success",
+                    AppointmentRules.InProgress => "bg-primary-subtle text-primary",
+                    AppointmentRules.Completed  => "bg-secondary-subtle text-secondary",
+                    _                           => "bg-danger-subtle text-danger"
+                };
+
+                string badgeLabel = isOverdue
+                    ? "Quá hạn"
+                    : AppointmentRules.StatusLabel(item.Status);
+
+                <div class="p-4 @borderCss @rowOpacity @(idx < ordered.Count ? "border-bottom" : "")">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+
+                        @* LEFT: Thời gian + thông tin *@
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="text-center rounded-3 p-2 @(isOverdue ? "bg-danger-subtle" : "bg-light")"
+                                 style="min-width:72px;">
+                                <div class="fw-bold @(isOverdue ? "text-danger" : "text-primary") fs-6 lh-1">
+                                    @item.StartTime.ToString(@"hh\:mm")
+                                </div>
+                                <div class="@(isOverdue ? "text-danger" : "text-muted")" style="font-size:.72rem;">
+                                    — @item.EndTime.ToString(@"hh\:mm")
+                                </div>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark mb-1">
+                                    @(item.Customer?.FullName ?? "Khách vãng lai")
+                                    <span class="badge @badgeCss ms-2 rounded-pill fw-semibold"
+                                          style="font-size:.72rem;">
+                                        @if (isOverdue) { <i class="bi bi-clock-fill me-1"></i> }
+                                        @badgeLabel
+                                    </span>
+                                </div>
+                                <div class="text-secondary small">
+                                    <i class="bi bi-clipboard2-pulse me-1 text-primary"></i>@(item.Service?.Name ?? "—")
+                                </div>
+                                @if (!string.IsNullOrEmpty(item.Customer?.PhoneNumber))
+                                {
+                                    <div class="text-secondary small">
+                                        <i class="bi bi-telephone me-1"></i>@item.Customer.PhoneNumber
+                                    </div>
+                                }
+                                @if (isOverdue)
+                                {
+                                    <div class="text-danger small mt-1 fw-semibold">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Lịch hẹn đã quá khung giờ, không thể thực hiện.
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(item.Notes) && !isCompleted && !isCancelled)
+                                {
+                                    <div class="text-muted small mt-1 fst-italic">
+                                        <i class="bi bi-chat-left-text me-1"></i>@item.Notes
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @* RIGHT: Nút thao tác *@
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+
+                            @* Nút Chi tiết (luôn hiện) *@
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                                    onclick="openMedicalModal('@item.Id','@item.Customer?.FullName','@item.Customer?.PhoneNumber','@item.Customer?.Email','@item.Customer?.Address','@item.Service?.Name','@item.AppointmentDate.ToString("dd/MM/yyyy")','@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")','@item.Notes','@item.Diagnosis','@item.Prescription','@item.Status','@item.InternalNote')">
+                                <i class="bi bi-clipboard2-pulse me-1"></i>Chi tiết
+                            </button>
+
+                            @* Nút thao tác nhanh — CHỈ hiện khi KHÔNG quá hạn, KHÔNG hoàn thành, KHÔNG hủy *@
+                            @if (!isOverdue && !isCompleted && !isCancelled)
+                            {
+                                if (item.Status == AppointmentRules.Pending)
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="appointmentId" value="@item.Id" />
+                                        <input type="hidden" name="newStatus" value="Confirmed" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold">
+                                            <i class="bi bi-check-lg me-1"></i>Xác nhận
+                                        </button>
+                                    </form>
+                                }
+                                else if (item.Status == AppointmentRules.Confirmed)
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="appointmentId" value="@item.Id" />
+                                        <input type="hidden" name="newStatus" value="In-Progress" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                                            <i class="bi bi-play-fill me-1"></i>Bắt đầu
+                                        </button>
+                                    </form>
+                                }
+                                else if (item.Status == AppointmentRules.InProgress)
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="appointmentId" value="@item.Id" />
+                                        <input type="hidden" name="newStatus" value="Completed" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold">
+                                            <i class="bi bi-check-circle me-1"></i>Hoàn thành
+                                        </button>
+                                    </form>
+                                }
+                            }
+
+                            @* Nút In phiếu *@
+                            <a asp-controller="Appointments" asp-action="PrintInvoice" asp-route-id="@item.Id"
+                               target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="In Phiếu Hẹn">
+                                <i class="bi bi-printer"></i>
+                            </a>
+
+                            @* Nút Hủy — Hiện cho quá hạn (để hủy thủ công) và các ca chưa kết thúc *@
+                            @if (!isCompleted && !isCancelled)
+                            {
+                                <form asp-action="UpdateStatus" method="post" class="d-inline"
+                                      onsubmit="return confirm('Hủy cuộc hẹn này?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="appointmentId" value="@item.Id" />
+                                    <input type="hidden" name="newStatus" value="Cancelled" />
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2" title="Hủy">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* ===== MODAL CHI TIẾT / CHẨN ĐOÁN ===== *@
+<div class="modal fade" id="medicalModal" tabindex="-1" aria-labelledby="medicalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content rounded-4 shadow-lg border-0">
+            <div class="modal-header bg-primary text-white py-3 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-white bg-opacity-25 p-2 d-flex align-items-center justify-content-center"
+                         style="width:40px;height:40px;">
+                        <i class="bi bi-clipboard2-pulse fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="medicalModalLabel">Chi Tiết Lịch Hẹn</h5>
+                        <small class="text-white-50" id="modalCustomerNameSub"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="UpdateMedicalRecord" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="modalAppointmentId" name="appointmentId" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="modal-body px-4 py-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded-3 h-100">
+                                <div class="text-muted small fw-bold mb-2 text-uppercase" style="font-size:.7rem;letter-spacing:.5px">Khách hàng</div>
+                                <div class="fw-bold mb-1" id="modalCustomerName"></div>
+                                <div class="text-secondary small"><i class="bi bi-telephone me-1"></i><span id="modalCustomerPhone"></span></div>
+                                <div class="text-secondary small"><i class="bi bi-envelope me-1"></i><span id="modalCustomerEmail"></span></div>
+                                <div class="text-secondary small"><i class="bi bi-geo-alt me-1"></i><span id="modalCustomerAddress"></span></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded-3 h-100">
+                                <div class="text-muted small fw-bold mb-2 text-uppercase" style="font-size:.7rem;letter-spacing:.5px">Dịch vụ & Thời gian</div>
+                                <div class="fw-bold mb-1" id="modalServiceName"></div>
+                            </div>
+                        </div>
+                        <div class="col-12" id="modalNotesContainer" style="display:none;">
+                            <div class="p-3 border border-warning-subtle bg-warning-subtle rounded-3">
+                                <div class="text-muted small fw-bold mb-1 text-uppercase" style="font-size:.7rem;letter-spacing:.5px">
+                                    <i class="bi bi-chat-left-dots me-1"></i>Ghi chú khách hàng
+                                </div>
+                                <div class="text-dark small" id="modalCustomerNotes"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-clipboard2-heart me-1 text-danger"></i>Chẩn đoán / Kết luận
+                        </label>
+                        <textarea id="modalDiagnosis" name="diagnosis" class="form-control rounded-3" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-capsule me-1 text-success"></i>Đơn thuốc / Lời dặn
+                        </label>
+                        <textarea id="modalPrescription" name="prescription" class="form-control rounded-3" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="bi bi-lock-fill me-1 text-warning"></i>Ghi chú nội bộ
+                        </label>
+                        <textarea id="modalInternalNote" name="internalNote" class="form-control rounded-3" rows="2"></textarea>
+                    </div>
+                    <div class="row align-items-end">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-bold small text-secondary">Trạng thái</label>
+                            <select id="modalStatus" name="status" class="form-select rounded-3">
+                                <option value="Pending">Pending (Chờ xác nhận)</option>
+                                <option value="Confirmed">Confirmed (Đã xác nhận)</option>
+                                <option value="In-Progress">In-Progress (Đang thực hiện)</option>
+                                <option value="Completed" selected>Completed (Đã hoàn thành)</option>
+                                <option value="Cancelled">Cancelled (Đã hủy)</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 pt-sm-4 text-sm-end">
+                            <a id="modalPrintLink" href="#" target="_blank"
+                               class="btn btn-outline-secondary rounded-pill px-3 btn-sm">
+                                <i class="bi bi-printer me-1"></i>Xem & In Phiếu
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit"
+                            class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm d-flex align-items-center gap-1">
+                        <i class="bi bi-check-lg"></i><span>Lưu Kết Quả</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function openMedicalModal(id, name, phone, email, address, serviceName,
+                          date, time, notes, diagnosis, prescription, status, internalNote) {
+    document.getElementById('modalAppointmentId').value = id;
+    document.getElementById('modalCustomerNameSub').innerText = name || 'Khách hàng';
+    document.getElementById('modalCustomerName').innerText    = name || 'Khách hàng';
+    document.getElementById('modalCustomerPhone').innerText   = phone || 'Chưa cung cấp';
+    document.getElementById('modalCustomerEmail').innerText   = email || 'Chưa cung cấp';
+    document.getElementById('modalCustomerAddress').innerText = address || 'Chưa cung cấp';
+    document.getElementById('modalServiceName').innerText     = serviceName + ' (' + date + ' ' + time + ')';
+
+    const notesEl = document.getElementById('modalCustomerNotes');
+    if (notes && notes.trim() !== '') {
+        notesEl.innerText = notes;
+        document.getElementById('modalNotesContainer').style.display = 'block';
+    } else {
+        document.getElementById('modalNotesContainer').style.display = 'none';
+    }
+
+    document.getElementById('modalDiagnosis').value    = diagnosis    || '';
+    document.getElementById('modalPrescription').value = prescription || '';
+    document.getElementById('modalInternalNote').value = internalNote || '';
+    document.getElementById('modalStatus').value       = status       || 'Completed';
+    document.getElementById('modalPrintLink').href     = '/Appointments/PrintInvoice/' + id;
+
+    new bootstrap.Modal(document.getElementById('medicalModal')).show();
+}
+</script>
+}

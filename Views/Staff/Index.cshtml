@@ -246,19 +246,10 @@
                                             <form asp-action="UpdateStatus" method="post" class="d-inline">
                                                 <input type="hidden" name="appointmentId" value="@item.Id" />
                                                 <input type="hidden" name="status" value="In-Progress" />
-                                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2" title="Điểm danh bắt đầu phục vụ (In-Progress)">
-                                                    <i class="bi bi-play-fill"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs" title="Điểm danh bắt đầu phục vụ (In-Progress)">
+                                                    <i class="bi bi-play-fill fs-6"></i>
+                                                    <span style="font-size: 0.78rem;">Bắt đầu</span>
                                                 </button>
-                                            </form>
-                                        }
-
-                                        @* Chỉ cho phép Hoàn tất dịch vụ nếu lịch hẹn thuộc đúng nhà cung cấp của nhân viên *@
-                                        @if (item.Status == "Confirmed" || item.Status == "In-Progress")
-                                        {
-                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
-                                                <input type="hidden" name="appointmentId" value="@item.Id" />
-                                                <input type="hidden" name="status" value="Completed" />
-                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 fw-bold shadow-xs" title="Hoàn tất dịch vụ">Hoàn tất</button>
                                             </form>
                                         }
                                     }

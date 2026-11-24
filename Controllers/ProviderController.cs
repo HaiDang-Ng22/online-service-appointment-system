@@ -44,8 +44,21 @@ namespace Appointment.Controllers
 
             var appointments = await query.ToListAsync();
 
+            // Ưu tiên ca CHƯA KHÁM (In-Progress, Confirmed, Pending) lên trên cùng!
+            // Sau đó mới đến ca ĐÃ HOÀN THÀNH (Completed) và ĐÃ HỦY (Cancelled)
+            static int GetProviderStatusRank(string s) => s switch
+            {
+                "In-Progress" => 1, // Đang khám
+                "Confirmed" => 2,   // Đã xác nhận, chờ khám
+                "Pending" => 3,     // Chờ xác nhận
+                "Completed" => 4,   // Đã hoàn thành
+                "Cancelled" => 5,   // Đã hủy
+                _ => 9
+            };
+
             var sortedAppointments = appointments
-                .OrderByDescending(a => a.AppointmentDate)
+                .OrderBy(a => GetProviderStatusRank(a.Status))
+                .ThenByDescending(a => a.AppointmentDate)
                 .ThenBy(a => a.StartTime)
                 .ToList();
 
@@ -56,6 +69,30 @@ namespace Appointment.Controllers
             ViewBag.CancelledCount = await _context.Appointments.CountAsync(a => a.ProviderId == providerId && a.Status == "Cancelled");
 
             return View(sortedAppointments);
+        }
+
+        // GET: /Provider/StartWork — Màn hình bắt đầu làm việc (Issue #2)
+        public async Task<IActionResult> StartWork()
+        {
+            string providerId = GetCurrentUserId();
+            var today = DateTime.Today;
+
+            var todayAppointments = (await _context.Appointments
+                .Include(a => a.Service)
+                .Include(a => a.Customer)
+                .Where(a => a.ProviderId == providerId && a.AppointmentDate.Date == today)
+                .ToListAsync())
+                .OrderBy(a => a.StartTime)
+                .ToList();
+
+            ViewBag.Today = today;
+            ViewBag.TotalCount = todayAppointments.Count;
+            ViewBag.PendingCount = todayAppointments.Count(a => a.Status == AppointmentRules.Pending);
+            ViewBag.ConfirmedCount = todayAppointments.Count(a => a.Status == AppointmentRules.Confirmed);
+            ViewBag.InProgressCount = todayAppointments.Count(a => a.Status == AppointmentRules.InProgress);
+            ViewBag.CompletedCount = todayAppointments.Count(a => a.Status == AppointmentRules.Completed);
+
+            return View(todayAppointments);
         }
 
         // GET: /Provider/Services
@@ -75,6 +112,18 @@ namespace Appointment.Controllers
         public async Task<IActionResult> CreateService()
         {
             ViewBag.Categories = await _context.Categories.ToListAsync();
+
+            // Auto-fill địa điểm từ hồ sơ nhà cung cấp (Issue #1)
+            string providerId = GetCurrentUserId();
+            if (!string.IsNullOrEmpty(providerId))
+            {
+                var provider = await _context.Users
+                    .Where(u => u.Id == providerId)
+                    .Select(u => new { u.Address })
+                    .FirstOrDefaultAsync();
+                ViewBag.ProviderAddress = provider?.Address ?? string.Empty;
+            }
+
             return View();
         }
 
@@ -182,7 +231,7 @@ namespace Appointment.Controllers
         // POST: /Provider/UpdateStatus
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateStatus(string appointmentId, string newStatus)
+        public async Task<IActionResult> UpdateStatus(string appointmentId, string newStatus, string? returnUrl = null)
         {
             string providerId = GetCurrentUserId();
             var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.Id == appointmentId && a.ProviderId == providerId);
@@ -193,7 +242,7 @@ namespace Appointment.Controllers
             if (!AppointmentRules.TryValidateTransition(appointment, newStatus, out string transitionError))
             {
                 TempData["ErrorMessage"] = transitionError;
-                return RedirectToAction(nameof(Index));
+                return Redirect(SafeReturn(returnUrl, nameof(Index)));
             }
 
             string? refundNote = null;
@@ -221,13 +270,13 @@ namespace Appointment.Controllers
             }
 
             TempData["SuccessMessage"] = $"Đã cập nhật trạng thái cuộc hẹn thành '{AppointmentRules.StatusLabel(newStatus)}'.{refundNote}";
-            return RedirectToAction(nameof(Index));
+            return Redirect(SafeReturn(returnUrl, nameof(Index)));
         }
 
         // POST: /Provider/UpdateMedicalRecord
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status, string? internalNote = null)
+        public async Task<IActionResult> UpdateMedicalRecord(string appointmentId, string? diagnosis, string? prescription, string? status, string? internalNote = null, string? returnUrl = null)
         {
             try
             {
@@ -242,7 +291,7 @@ namespace Appointment.Controllers
                 if (!AppointmentRules.TryValidateTransition(appointment, status, out string transitionError))
                 {
                     TempData["ErrorMessage"] = transitionError;
-                    return RedirectToAction(nameof(Index));
+                    return Redirect(SafeReturn(returnUrl, nameof(Index)));
                 }
 
                 string oldStatus = appointment.Status;
@@ -282,12 +331,12 @@ namespace Appointment.Controllers
                 }
 
                 TempData["SuccessMessage"] = $"Đã cập nhật hồ sơ chẩn đoán/kết luận cho khách hàng {appointment.Customer?.FullName}!";
-                return RedirectToAction(nameof(Index));
+                return Redirect(SafeReturn(returnUrl, nameof(Index)));
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = $"Lỗi khi lưu chẩn đoán: {ex.Message}";
-                return RedirectToAction(nameof(Index));
+                return Redirect(SafeReturn(returnUrl, nameof(Index)));
             }
         }
 
@@ -987,6 +1036,16 @@ namespace Appointment.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Trả về URL an toàn để redirect: ưu tiên returnUrl nội bộ, fallback về action mặc định.
+        /// </summary>
+        private string SafeReturn(string? returnUrl, string fallbackAction)
+        {
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return returnUrl;
+            return Url.Action(fallbackAction) ?? "/Provider";
         }
     }
 }

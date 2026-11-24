@@ -81,7 +81,15 @@
                         <label asp-for="Location" class="form-label fw-bold text-secondary small">
                             <i class="bi bi-geo-alt-fill me-1 text-danger"></i>Địa điểm thực hiện
                         </label>
-                        <input asp-for="Location" class="form-control rounded-3 py-2" placeholder="Ví dụ: Phòng 302, 123 Nguyễn Trãi, Thanh Xuân, Hà Nội" />
+                        <input asp-for="Location" class="form-control rounded-3 py-2"
+                               placeholder="Ví dụ: Phòng 302, 123 Nguyễn Trãi, Thanh Xuân, Hà Nội"
+                               value="@(Model?.Location ?? ViewBag.ProviderAddress ?? "")" />
+                        @if (!string.IsNullOrEmpty(ViewBag.ProviderAddress as string))
+                        {
+                            <small class="text-muted mt-1 d-block">
+                                <i class="bi bi-info-circle me-1"></i>Địa chỉ được lấy tự động từ <a asp-controller="Account" asp-action="Profile" class="text-primary">hồ sơ của bạn</a>. Có thể chỉnh sửa nếu cần.
+                            </small>
+                        }
                         <span asp-validation-for="Location" class="text-danger small mt-1 d-block"></span>
                     </div>
 

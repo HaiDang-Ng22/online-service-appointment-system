@@ -86,13 +86,13 @@ namespace Appointment.Controllers
                 list = list.Where(a => a.AppointmentDate.Date == date.Value.Date).ToList();
             }
 
-            // Sắp xếp: Ưu tiên dịch vụ/lịch hẹn chưa xác nhận (Pending) lên trên cùng
-            // Thứ tự: Pending (Chờ xác nhận) -> Confirmed (Đã xác nhận) -> In-Progress (Đang thực hiện) -> Completed (Đã hoàn thành) -> Cancelled (Đã hủy)
+            // Sắp xếp: Ưu tiên các ca CHƯA KHÁM lên trên cùng!
+            // Thứ tự: In-Progress (Đang thực hiện) -> Confirmed (Đã xác nhận, chờ khám) -> Pending (Chờ xác nhận) -> Completed (Đã hoàn thành) -> Cancelled (Đã hủy)
             static int GetStatusRank(string s) => s switch
             {
-                "Pending" => 1,
+                "In-Progress" => 1,
                 "Confirmed" => 2,
-                "In-Progress" => 3,
+                "Pending" => 3,
                 "Completed" => 4,
                 "Cancelled" => 5,
                 _ => 9
@@ -167,9 +167,16 @@ namespace Appointment.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(string appointmentId, string status)
         {
-            var (staffProviderId, _, _) = await GetCurrentStaffFacilityAsync();
+            var (staffProviderId, staffUser, _) = await GetCurrentStaffFacilityAsync();
             var appointment = await _context.Appointments.FindAsync(appointmentId);
             if (appointment == null) return NotFound();
+
+            // Nhân viên KHÔNG CÓ THẨM QUYỀN hoàn tất dịch vụ. Thao tác hoàn tất và kết luận thuộc về Bác sĩ / Nhà cung cấp
+            if (status == AppointmentRules.Completed)
+            {
+                TempData["ErrorMessage"] = "Nhân viên hỗ trợ không có thẩm quyền ấn Hoàn tất ca khám. Thao tác này thuộc thẩm quyền của Bác sĩ / Nhà cung cấp chuyên môn!";
+                return RedirectToAction(nameof(Index));
+            }
 
             // Kiểm tra phân quyền cơ sở
             if (!string.IsNullOrEmpty(staffProviderId) && appointment.ProviderId != staffProviderId)

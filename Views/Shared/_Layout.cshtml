@@ -155,6 +155,10 @@
                 {
                     <!-- Provider Navigation Links -->
                     <div class="sidebar-section-title">Kênh điều hành</div>
+                    <a class="sidebar-nav-link @(IsActive("Provider", "StartWork") ? "active" : "")" asp-controller="Provider" asp-action="StartWork" title="Bắt đầu làm việc hôm nay">
+                        <i class="bi bi-play-circle-fill"></i>
+                        <span>Bắt Đầu Làm Việc</span>
+                    </a>
                     <a class="sidebar-nav-link @(IsActive("Provider", "Index") ? "active" : "")" asp-controller="Provider" asp-action="Index" title="Kênh Đối tác">
                         <i class="bi bi-calendar2-check-fill"></i>
                         <span>Tổng quan & Lịch hẹn</span>
